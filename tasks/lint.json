@@ -1,0 +1,114 @@
+[
+ {
+  "id": "lint/py/legacy-comprehension",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Rewrite this so it is idiomatic modern Python 3.12+. Keep behaviour identical. Reply with only a ```python block.\n\n```python\ndef get_ids(items):\n    result = []\n    for i in range(len(items)):\n        if items[i].id is not None:\n            result.append(items[i].id)\n    return result\n```"
+ },
+ {
+  "id": "lint/py/explicit-none",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Modernise this function: fix comparisons, use f-strings, and simplify the conditionals. Reply with only a ```python block.\n\n```python\ndef label(n):\n    if n == None:\n        return 'none'\n    elif n == 0:\n        return 'zero: %s' % n\n    else:\n        return 'value %d' % n\n```"
+ },
+ {
+  "id": "lint/py/glob-and-path",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Clean up this path handling: avoid building paths with string concatenation, use pathlib. Reply with only a ```python block.\n\n```python\nimport os\ndef build(base, name):\n    d = base + '/' + name\n    if not os.path.exists(d):\n        os.makedirs(d)\n    return d\n```"
+ },
+ {
+  "id": "lint/py/error-handling",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Rewrite this with specific exception types and without a bare except. Reply with only a ```python block.\n\n```python\ndef load(path):\n    try:\n        f = open(path, 'r')\n        return f.read()\n    except:\n        pass\n    return ''\n```"
+ },
+ {
+  "id": "lint/py/mutable-default",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Fix the issues in this function without changing its documented behaviour. Reply with only a ```python block.\n\n```python\ndef collect(item, bucket=[]):\n    bucket.append(item)\n    return bucket\n```"
+ },
+ {
+  "id": "lint/py/typing",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Add complete type annotations and modern generics. Reply with only a ```python block.\n\n```python\ndef combine(a, b):\n    out = {}\n    for k, v in a:\n        out[k] = v\n    return list(out.values())\n```"
+ },
+ {
+  "id": "lint/py/subprocess",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Rewrite this so it is safe: use a list argument, check the return code, and capture output. Reply with only a ```python block.\n\n```python\nimport os, subprocess\ndef host():\n    out = subprocess.check_output('ping -c 1 ' + os.environ.get('HOST', ''))\n    return out\n```"
+ },
+ {
+  "id": "lint/py/unused-and-dead",
+  "source": "hand-authored/lint-suite",
+  "category": "python_ruff",
+  "lang": "python",
+  "group": "python_ruff",
+  "prompt": "Remove the dead code and unused variables, keep behaviour identical. Reply with only a ```python block.\n\n```python\nimport sys\ndef calc(x):\n    tmp = 99\n    y = x * 2\n    z = y + 1\n    return z\n```"
+ },
+ {
+  "id": "lint/rs/clone-vector",
+  "source": "hand-authored/lint-suite",
+  "category": "rust_clippy",
+  "lang": "rust",
+  "group": "rust_clippy",
+  "prompt": "Rewrite this idiomatic Rust without the needless clone. Write only the functions, no `fn main`, no `#[test]`, no `use`.\n\n```rust\nfn total(v: &Vec<i32>) -> i32 {\n    let owned: Vec<i32> = v.clone();\n    let mut s = 0;\n    for x in &owned {\n        s += x;\n    }\n    s\n}\n```"
+ },
+ {
+  "id": "lint/rs/needless-return",
+  "source": "hand-authored/lint-suite",
+  "category": "rust_clippy",
+  "lang": "rust",
+  "group": "rust_clippy",
+  "prompt": "Clean this up to satisfy clippy::pedantic. Write only the function, no `fn main`, no `#[test]`, no `use`.\n\n```rust\nfn double(x: i32) -> i32 {\n    let y = x * 2;\n    return y;\n}\n```"
+ },
+ {
+  "id": "lint/rs/ptr-arg",
+  "source": "hand-authored/lint-suite",
+  "category": "rust_clippy",
+  "lang": "rust",
+  "group": "rust_clippy",
+  "prompt": "Rewrite taking a slice reference instead of &Vec, and document the function. Write only the function, no `fn main`, no `#[test]`, no `use`.\n\n```rust\nfn len3(v: &Vec<String>) -> usize {\n    v.len()\n}\n```"
+ },
+ {
+  "id": "lint/rs/manual-len",
+  "source": "hand-authored/lint-suite",
+  "category": "rust_clippy",
+  "lang": "rust",
+  "group": "rust_clippy",
+  "prompt": "Remove the manual length check and the redundant comparison. Write only the function, no `fn main`, no `#[test]`, no `use`.\n\n```rust\nfn first(v: &[i32]) -> Option<i32> {\n    if v.len() > 0 {\n        return Some(v[0]);\n    }\n    None\n}\n```"
+ },
+ {
+  "id": "lint/rs/unnecessary-wrap",
+  "source": "hand-authored/lint-suite",
+  "category": "rust_clippy",
+  "lang": "rust",
+  "group": "rust_clippy",
+  "prompt": "Simplify this so it returns the value directly rather than in a redundant wrapper. Write only the function, no `fn main`, no `#[test]`, no `use`.\n\n```rust\nfn identity(x: i32) -> Option<i32> {\n    if true {\n        return Some(x);\n    }\n    None\n}\n```"
+ },
+ {
+  "id": "lint/rs/result-vs-option",
+  "source": "hand-authored/lint-suite",
+  "category": "rust_clippy",
+  "lang": "rust",
+  "group": "rust_clippy",
+  "prompt": "Use Result instead of Option where this can fail, and document it. Write only the function, no `fn main`, no `#[test]`, no `use`.\n\n```rust\nfn parse(s: &str) -> Option<i32> {\n    match s.parse::<i32>() {\n        Ok(v) => Some(v),\n        Err(_) => None,\n    }\n}\n```"
+ }
+]

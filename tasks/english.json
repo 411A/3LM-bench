@@ -1,0 +1,677 @@
+[
+ {
+  "id": "en/en-mc-1",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which sentence is grammatically correct?",
+  "choices": [
+   "He don't like it.",
+   "She doesn't like it.",
+   "She doesn't likes it.",
+   "They doesn't like it."
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-2",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "'Fewer' is correctly used with:",
+  "choices": [
+   "items",
+   "water",
+   "advice",
+   "information"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-3",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "The past participle of 'write' is:",
+  "choices": [
+   "wrote",
+   "writing",
+   "writed",
+   "written"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-4",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which word is a synonym for 'enormous'?",
+  "choices": [
+   "tiny",
+   "average",
+   "colossal",
+   "fragile"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-5",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Identify the logical fallacy: 'Everyone I know is voting for him, so he must be right.'",
+  "choices": [
+   "Bandwagon",
+   "Circular reasoning",
+   "Straw man",
+   "False dilemma"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-6",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is the main idea of the sentence: 'Despite the delay, the team completed the migration on time.'",
+  "choices": [
+   "The migration was cancelled",
+   "The team finished on schedule despite problems",
+   "The team was late",
+   "The migration took longer than expected"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-7",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "A compiler translates which kind of text into machine code?",
+  "choices": [
+   "hardware",
+   "operating system",
+   "source code",
+   "a browser engine"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-8",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which is the correct order of magnitude for a typical laptop CPU clock speed?",
+  "choices": [
+   "1 THz",
+   "100 kHz",
+   "1 MHz",
+   "1 GHz"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-9",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In an English sentence, the subject is the:",
+  "choices": [
+   "noun or noun phrase doing the action",
+   "verb",
+   "adverb",
+   "conjunction"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-10",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "'Despite' expresses:",
+  "choices": [
+   "causation",
+   "sequence",
+   "concession",
+   "condition"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-11",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "TCP guarantees which property?",
+  "choices": [
+   "Low latency",
+   "Broadcast to all hosts",
+   "Fixed bandwidth",
+   "Reliable ordered delivery"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-12",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which HTTP status code means 'Not Found'?",
+  "choices": [
+   "404",
+   "200",
+   "301",
+   "500"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-13",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "A hash table's worst-case lookup is:",
+  "choices": [
+   "O(n log n)",
+   "O(n)",
+   "O(1)",
+   "O(log n)"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-14",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What does DNS translate?",
+  "choices": [
+   "IP to MAC",
+   "Ports to services",
+   "Domain names to IP addresses",
+   "Certificates to keys"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-15",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In a git workflow, which command records staged changes?",
+  "choices": [
+   "git pull",
+   "git add",
+   "git push",
+   "git commit"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-16",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which of these is a symmetric-key cipher?",
+  "choices": [
+   "AES",
+   "ECC",
+   "Diffie-Hellman",
+   "RSA"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-17",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is the time complexity of binary search on a sorted array of n items?",
+  "choices": [
+   "O(1)",
+   "O(log n)",
+   "O(n)",
+   "O(n log n)"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-18",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which HTTP status code means 'Unauthorized'?",
+  "choices": [
+   "400",
+   "403",
+   "401",
+   "404"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-19",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In Big-O terms, what is the average lookup cost of a hash table with a good hash and chaining?",
+  "choices": [
+   "O(n)",
+   "O(n log n)",
+   "O(log n)",
+   "O(1)"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-20",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which of these is a strongly-typed language?",
+  "choices": [
+   "Ruby",
+   "TypeScript",
+   "JavaScript",
+   "Python"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-21",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In a relational database, which clause filters grouped results?",
+  "choices": [
+   "WHERE",
+   "ORDER BY",
+   "HAVING",
+   "JOIN"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-22",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What does DNS primarily do?",
+  "choices": [
+   "Assign IP addresses",
+   "Encrypt web traffic",
+   "Route packets",
+   "Map names to IP addresses"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-23",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which of these best describes a race condition?",
+  "choices": [
+   "Two threads interleaving so the result depends on timing",
+   "A process waiting for input",
+   "A deadlock between two threads",
+   "A buffer that is too small"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-24",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is the result of 7 // 2 in Python?",
+  "choices": [
+   "3.5",
+   "3",
+   "4",
+   "An error"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-25",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which principle states that a network service should never see a partial transaction?",
+  "choices": [
+   "Memoization",
+   "Redundancy",
+   "Atomicity",
+   "Sharding"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-26",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In machine learning, overfitting means the model",
+  "choices": [
+   "cannot converge during training",
+   "has too many features to load into memory",
+   "produces probabilities that are too low",
+   "performs well on training data and poorly on unseen data"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-27",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which of the following is NOT a valid Python identifier?",
+  "choices": [
+   "2fast",
+   "_private",
+   "class_name",
+   "myVar"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-28",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What does the 'S' in HTTPS stand for?",
+  "choices": [
+   "Standard",
+   "Secure",
+   "Simple",
+   "Session"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-29",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In Big-O notation, which grows fastest?",
+  "choices": [
+   "O(n log n)",
+   "O(n^2)",
+   "O(n^2 log n)",
+   "O(n)"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-30",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which data structure gives O(1) insert and delete at the front?",
+  "choices": [
+   "A deque",
+   "A singly linked list",
+   "A binary heap",
+   "A binary search tree"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-31",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In Git, what does a merge conflict indicate?",
+  "choices": [
+   "The repository has no commits yet",
+   "Overlapping changes could not be reconciled automatically",
+   "The local branch is ahead of the remote",
+   "The working tree has uncommitted files"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-32",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which of these is a side effect of calling a function?",
+  "choices": [
+   "Returning a value",
+   "Computing a local variable",
+   "Modifying a global list in place",
+   "Evaluating an argument"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-33",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is the default port for HTTPS?",
+  "choices": [
+   "21",
+   "22",
+   "80",
+   "443"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-34",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which sorting algorithm has a guaranteed O(n log n) worst case?",
+  "choices": [
+   "Heapsort",
+   "Quicksort",
+   "Bubble sort",
+   "Insertion sort"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-35",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In a hash table, what is a collision?",
+  "choices": [
+   "A key being too long",
+   "Two keys mapping to the same slot",
+   "A hash function being too slow",
+   "A table being too small for the key type"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-36",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which HTTP method is intended to replace a resource?",
+  "choices": [
+   "GET",
+   "POST",
+   "PUT",
+   "PATCH"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-37",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What does 'tail call optimisation' avoid?",
+  "choices": [
+   "Calling functions with many arguments",
+   "Allocating heap memory",
+   "Using global variables",
+   "Recursive calls growing the stack"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-38",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "Which of these best describes a race in distributed systems?",
+  "choices": [
+   "Two nodes disagree about which commit won",
+   "A disk filling up",
+   "A node taking too long to respond",
+   "A network partition"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-39",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "In unit testing, a 'mock' is used to",
+  "choices": [
+   "profile memory usage",
+   "replace a dependency with a controlled stand-in",
+   "measure elapsed time",
+   "generate random test data"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-mc-40",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is the purpose of an index in a relational database?",
+  "choices": [
+   "To normalise the schema",
+   "To enforce referential integrity",
+   "To compress the table",
+   "To speed up row lookup at the cost of extra storage and write time"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-math-1",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is 12 x 5?",
+  "choices": [
+   "60",
+   "50",
+   "70",
+   "80"
+  ],
+  "answer": 0,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-math-2",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is 240 / 8?",
+  "choices": [
+   "20",
+   "30",
+   "25",
+   "40"
+  ],
+  "answer": 1,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-math-3",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "A price falls from $100 to $75. What percentage decrease is that?",
+  "choices": [
+   "15%",
+   "20%",
+   "25%",
+   "40%"
+  ],
+  "answer": 2,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-math-4",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "What is the average of 2, 4, 6 and 8?",
+  "choices": [
+   "7",
+   "4",
+   "6",
+   "5"
+  ],
+  "answer": 3,
+  "subject": "english"
+ },
+ {
+  "id": "en/en-math-5",
+  "source": "hand-authored/English",
+  "category": "english_mc",
+  "lang": "en",
+  "question": "If 4 books cost $60, one book costs how much?",
+  "choices": [
+   "$15",
+   "$10",
+   "$12",
+   "$20"
+  ],
+  "answer": 0,
+  "subject": "english"
+ }
+]

@@ -1,0 +1,599 @@
+[
+ {
+  "id": "fa/fa-mc-1",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام یک از گزینه‌های زیر یک عدد اول است؟",
+  "choices": [
+   "۴",
+   "۶",
+   "۷",
+   "۹"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-2",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "پایتخت ایران کدام شهر است؟",
+  "choices": [
+   "شیراز",
+   "تهران",
+   "اصفهان",
+   "تبریز"
+  ],
+  "answer": 1,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-3",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "بزرگ‌ترین سیاره منظومه شمسی کدام است؟",
+  "choices": [
+   "زمین",
+   "زهره",
+   "مشتری",
+   "مریخ"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-4",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "گاز اصلی جو زمین چیست؟",
+  "choices": [
+   "اکسیژن",
+   "کربن دی اکسید",
+   "هیدروژن",
+   "نیتروژن"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-5",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "اگر ۲۵ درصد عددی برابر ۸۰ باشد، آن عدد چقدر است؟",
+  "choices": [
+   "۳۲۰",
+   "۴۰۰",
+   "۲۵۰",
+   "۲۰۰"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-6",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام یک یک واحد اندازه‌گیری مقاومت الکتریکی است؟",
+  "choices": [
+   "ولت",
+   "اهم",
+   "آمپر",
+   "وات"
+  ],
+  "answer": 1,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-7",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام گزینه معادل انگلیسی «database» است؟",
+  "choices": [
+   "درگاه عبور",
+   "شبکهٔ عبور",
+   "پایگاه داده",
+   "پایگاه اتصال"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-8",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام زبان یک زمان راست‌به‌چپ است؟",
+  "choices": [
+   "فرانسه",
+   "آلمانی",
+   "انگلیسی",
+   "فارسی"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-9",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "سردترین سیارهٔ منظومهٔ شمسی کدام است؟",
+  "choices": [
+   "جوبیتر",
+   "مریخ",
+   "زهرا",
+   "نپتون"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-10",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "شیراز در کدام استان قرار دارد؟",
+  "choices": [
+   "اصفهان",
+   "تهران",
+   "خراسان",
+   "فارس"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-11",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "واحد اندازه‌گیری نیرو کدام است؟",
+  "choices": [
+   "نیوتن",
+   "ژول",
+   "وات",
+   "پاسکال"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-12",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "شیمی‌دان ایرانی که کتاب «کشف‌الاسرار» را نوشت، که بود؟",
+  "choices": [
+   "بیرون",
+   "ابوریحان",
+   "دانشمند نکته‌ای",
+   "محمد بن ابراهیم"
+  ],
+  "answer": 1,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-13",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "در گیاهان، رنگ سبز از کدام رنگدانه است؟",
+  "choices": [
+   "کاروتنوئید",
+   "آنتوسیانین",
+   "کلروفیل",
+   "بیلی‌روبین"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-14",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام عدد اول است؟",
+  "choices": [
+   "۲۷",
+   "۳۳",
+   "۲۱",
+   "۲۹"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-15",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "در سیستم متریک، هر کیلوگرم برابر چند گرم است؟",
+  "choices": [
+   "۱۰۰۰",
+   "۱۰",
+   "۱۰۰",
+   "۱۰۰۰۰"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-16",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "«می‌روم» از نظر دستوری چه نوعی است؟",
+  "choices": [
+   "صفت",
+   "فعل",
+   "حرف اضافه",
+   "اسم"
+  ],
+  "answer": 1,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-17",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "قارهٔ کوچک‌تر کدام است؟",
+  "choices": [
+   "اروپا",
+   "آفریقا",
+   "استرالیا",
+   "آمریکای جنوبی"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-18",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "مولکول آب از چند اتم ساخته شده است؟",
+  "choices": [
+   "۲",
+   "۴",
+   "۵",
+   "۳"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-19",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام زبان برنامه‌نویسی هم به‌عنوان نام یک جنس پوستهٔ سخت‌تنگه نیز به کار می‌رود؟",
+  "choices": [
+   "پایتون",
+   "پی اچ پی",
+   "گو",
+   "جاوا"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-20",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "در بدن انسان، کدام اندام وظیفهٔ پمپاژ خون را دارد؟",
+  "choices": [
+   "ریه",
+   "کبد",
+   "قلب",
+   "کلیه"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-21",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "عدد ۹ در فارسی چگونه نوشته می‌شود؟",
+  "choices": [
+   "شش",
+   "هشت",
+   "ده",
+   "نه"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-22",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام یک از این‌ها یک گاز نجیب است؟",
+  "choices": [
+   "آرگون",
+   "نیتروژن",
+   "کربن‌دی‌اکسید",
+   "اکسیژن"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-23",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "در تبدیل واحد دما، ۱۰۰ درجهٔ سانتی‌گراد برابر چند درجهٔ فارنهایت است؟",
+  "choices": [
+   "۱۰۰",
+   "۲۱۲",
+   "۳۲",
+   "۴۰۰"
+  ],
+  "answer": 1,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-24",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "انسان معمولاً چند دندان دائمی دارد؟",
+  "choices": [
+   "۶۴",
+   "۱۶",
+   "۳۲",
+   "۲۰"
+  ],
+  "answer": 2,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-math-4",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "حاصل ۱۲ ضرب در ۵ چقدر است؟",
+  "choices": [
+   "۶۰",
+   "۸۰",
+   "۵۰",
+   "۷۰"
+  ],
+  "answer": 0,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-5",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "حاصل ۲۴۰ تقسیم بر ۸ چقدر است؟",
+  "choices": [
+   "۲۵",
+   "۳۰",
+   "۴۰",
+   "۲۰"
+  ],
+  "answer": 1,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-6",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "اگر قیمت کالایی ۵۰ هزار تومان باشد و ۲۰ درصد تخفیف بخورد، قیمت نهایی چقدر است؟",
+  "choices": [
+   "۳۰ هزار",
+   "۴۵ هزار",
+   "۴۰ هزار",
+   "۶۰ هزار"
+  ],
+  "answer": 2,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-7",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "قیمت کالایی از ۱۰۰ هزار تومان به ۷۵ هزار تومان رسید؛ این کاهش چند درصد است؟",
+  "choices": [
+   "۱۵ درصد",
+   "۲۰ درصد",
+   "۴۰ درصد",
+   "۲۵ درصد"
+  ],
+  "answer": 3,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-8",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "حاصل ۱۰۰ منهای ۳۷ چقدر است؟",
+  "choices": [
+   "۶۳",
+   "۵۳",
+   "۶۷",
+   "۷۳"
+  ],
+  "answer": 0,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-9",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "اگر ۴ کتاب ۶۰ هزار تومان باشد، یک کتاب چند تومان است؟",
+  "choices": [
+   "۱۰ هزار",
+   "۱۵ هزار",
+   "۱۲ هزار",
+   "۲۰ هزار"
+  ],
+  "answer": 1,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-10",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "میانگین اعداد ۲، ۴، ۶ و ۸ چقدر است؟",
+  "choices": [
+   "۷",
+   "۵",
+   "۴",
+   "۶"
+  ],
+  "answer": 1,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-mc-25",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام یک از این‌ها یک عدد زوج است؟",
+  "choices": [
+   "۷",
+   "۹",
+   "۱۵",
+   "۱۲"
+  ],
+  "answer": 3,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-26",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "در سیستم‌های دیجیتال، هر بیت چند مقدار می‌تواند داشته باشد؟",
+  "choices": [
+   "دو",
+   "هشت",
+   "شانزده",
+   "یک"
+  ],
+  "answer": 0,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-mc-27",
+  "source": "hand-authored/Persian",
+  "category": "fa_mc",
+  "lang": "fa",
+  "question": "کدام سیاره بیشترین تعداد قمر دارد؟",
+  "choices": [
+   "مریخ",
+   "زحل",
+   "عطارد",
+   "زمین"
+  ],
+  "answer": 1,
+  "subject": "fa_mc"
+ },
+ {
+  "id": "fa/fa-nli-1",
+  "source": "hand-authored/Persian",
+  "category": "fa_nli",
+  "lang": "fa",
+  "question": "برای هر جمله یکی از سه گزینه را انتخاب کنید:\n۱ = نتیجه حتماً از مقدم به دست می‌آید.\n۲ = نتیجه با مقدم تناقض دارد.\n۳ = مقدم نه نتیجه را تأیید می‌کند و نه رد می‌کند.\n\nمقدم: «بعضی دانشجویان در کلاس حضور داشتند.»\nنتیجه: «همه دانشجویان در کلاس حضور داشتند.»",
+  "choices": [
+   "۳",
+   "۱",
+   "۲"
+  ],
+  "answer": 0,
+  "subject": "fa_nli"
+ },
+ {
+  "id": "fa/fa-nli-2",
+  "source": "hand-authored/Persian",
+  "category": "fa_nli",
+  "lang": "fa",
+  "question": "برای هر جمله یکی از سه گزینه را انتخاب کنید:\n۱ = نتیجه حتماً از مقدم به دست می‌آید.\n۲ = نتیجه با مقدم تناقض دارد.\n۳ = مقدم نه نتیجه را تأیید می‌کند و نه رد می‌کند.\n\nمقدم: «علی در خانه بود.»\nنتیجه: «علی کتاب خواند.»",
+  "choices": [
+   "۱",
+   "۳",
+   "۲"
+  ],
+  "answer": 1,
+  "subject": "fa_nli"
+ },
+ {
+  "id": "fa/fa-nli-3",
+  "source": "hand-authored/Persian",
+  "category": "fa_nli",
+  "lang": "fa",
+  "question": "برای هر جمله یکی از سه گزینه را انتخاب کنید:\n۱ = نتیجه حتماً از مقدم به دست می‌آید.\n۲ = نتیجه با مقدم تناقض دارد.\n۳ = مقدم نه نتیجه را تأیید می‌کند و نه رد می‌کند.\n\nمقدم: «آسمان آبی است.»\nنتیجه: «هوا آبی است.»",
+  "choices": [
+   "۱",
+   "۲",
+   "۳"
+  ],
+  "answer": 2,
+  "subject": "fa_nli"
+ },
+ {
+  "id": "fa/fa-math-1",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "اگر پنج کتاب ۸۰ هزار تومان باشد، سه کتاب چند تومان است؟",
+  "choices": [
+   "۴۸ هزار",
+   "۲۴۰ هزار",
+   "۱۶۰ هزار",
+   "۴۰۰ هزار"
+  ],
+  "answer": 0,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-2",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "حاصل ۱۷ ضرب در ۳ چقدر است؟",
+  "choices": [
+   "۴۰",
+   "۴۵",
+   "۵۱",
+   "۵۰"
+  ],
+  "answer": 2,
+  "subject": "fa_math"
+ },
+ {
+  "id": "fa/fa-math-3",
+  "source": "hand-authored/Persian",
+  "category": "fa_math",
+  "lang": "fa",
+  "question": "اگر قیمت کالایی ۲۰۰ هزار تومان باشد و ۱۰ درصد تخفیف بخورد، قیمت نهایی چقدر است؟",
+  "choices": [
+   "۱۶۰ هزار",
+   "۱۷۰ هزار",
+   "۲۰۰ هزار",
+   "۱۸۰ هزار"
+  ],
+  "answer": 3,
+  "subject": "fa_math"
+ }
+]

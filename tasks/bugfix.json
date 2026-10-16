@@ -1,0 +1,98 @@
+[
+ {
+  "id": "bugfix/off_by_one",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef sum_range(a, b):\n    \"\"\"Return the sum of integers from a to b INCLUSIVE.\"\"\"\n    return sum(range(a, b))\n```\n\nIt should satisfy:\n```python\nassert sum_range(1, 4) == 10\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert sum_range(1, 4) == 10",
+  "hint": "b is exclusive; should be b + 1"
+ },
+ {
+  "id": "bugfix/mutable_default",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef append_item(item, lst=[]):\n    lst.append(item)\n    return lst\n```\n\nIt should satisfy:\n```python\nassert append_item(1) == [1]\nassert append_item(2) == [2]\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert append_item(1) == [1]\nassert append_item(2) == [2]",
+  "hint": "mutable default argument"
+ },
+ {
+  "id": "bugfix/none_compare",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef is_none(x):\n    return x == None\n```\n\nIt should satisfy:\n```python\nassert is_none(None) is True\nassert is_none(0) is False\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert is_none(None) is True\nassert is_none(0) is False",
+  "hint": "== None should be is None"
+ },
+ {
+  "id": "bugfix/shadowed_loop",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef total(items):\n    total = 0\n    for item in items:\n        if item < 0:\n            continue\n        total += item\n    return total\n```\n\nIt should satisfy:\n```python\nassert total([1, 2, 3]) == 6\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert total([1, 2, 3]) == 6",
+  "hint": "no actual bug here - verify the function is correct"
+ },
+ {
+  "id": "bugfix/wrong_operator",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef is_even(n):\n    return n % 2 == 1\n```\n\nIt should satisfy:\n```python\nassert is_even(4) is True\nassert is_even(5) is False\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert is_even(4) is True\nassert is_even(5) is False",
+  "hint": "modulo/equality operator inverted"
+ },
+ {
+  "id": "bugfix/unclosed_file",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef read_all(path):\n    f = open(path)\n    data = f.read()\n    return data\n```\n\nIt should satisfy:\n```python\nassert isinstance(read_all.__doc__, type(None)) or True\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert isinstance(read_all.__doc__, type(None)) or True",
+  "hint": "file handle never closed"
+ },
+ {
+  "id": "bugfix/string_vs_int",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef parse_port(value):\n    return int(value) + 1\n```\n\nIt should satisfy:\n```python\nassert parse_port('80') == 81\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert parse_port('80') == 81",
+  "hint": "no actual bug - verify correctness"
+ },
+ {
+  "id": "bugfix/index_error",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef second(lst):\n    return lst[1]\n```\n\nIt should satisfy:\n```python\nassert second([1,2,3]) == 2\nassert second([5]) is None\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert second([1,2,3]) == 2\nassert second([5]) is None",
+  "hint": "index 1 out of range for 1-element list"
+ },
+ {
+  "id": "bugfix/wrong_key",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef get_age(person):\n    return person['ages']\n```\n\nIt should satisfy:\n```python\ndef p(): return {'age': 30}\nassert get_age(p()) == 30\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "def p(): return {'age': 30}\nassert get_age(p()) == 30",
+  "hint": "wrong dict key"
+ },
+ {
+  "id": "bugfix/infinite_loop",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef count_down(n):\n    count = 0\n    while n > 0:\n        count += 1\n    return count\n```\n\nIt should satisfy:\n```python\nassert count_down(3) == 3\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert count_down(3) == 3",
+  "hint": "n never decremented - infinite loop"
+ },
+ {
+  "id": "bugfix/type_confusion",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef average(nums):\n    total = 0\n    for n in nums:\n        total += n\n    return total / len(nums)\n```\n\nIt should satisfy:\n```python\nassert average([2, 4]) == 3\nassert average([]) is None\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert average([2, 4]) == 3\nassert average([]) is None",
+  "hint": "empty list divides by zero"
+ },
+ {
+  "id": "bugfix/float_truncation",
+  "source": "hand-authored/SWE-bench-lineage",
+  "lang": "python",
+  "prompt": "The following Python function is buggy. Fix it.\n\n```python\ndef half(n):\n    return n // 2\n```\n\nIt should satisfy:\n```python\nassert half(5) == 2.5\nassert half(4) == 2\n```\nReply with only the corrected function inside a ```python block.",
+  "test": "assert half(5) == 2.5\nassert half(4) == 2",
+  "hint": "// truncates; true division needed"
+ }
+]

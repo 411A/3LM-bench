@@ -1,0 +1,37 @@
+[
+ {
+  "id": "refactor/loop_to_comprehension",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Refactor this Python code for clarity and efficiency. Behaviour MUST stay identical.\n\n```python\nout = []\nfor x in range(30):\n    if x % 3 == 0 and x != 0:\n        out.append(x * x)\n```\n\nReply with only the refactored code inside a ```python block.",
+  "test": "assert out == [x*x for x in range(30) if x % 3 == 0 and x != 0]"
+ },
+ {
+  "id": "refactor/extract_function",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Refactor this Python code for clarity and efficiency. Behaviour MUST stay identical.\n\n```python\ndef process(data):\n    total = 0\n    for d in data:\n        if d < 0:\n            total += -d\n        else:\n            total += d\n    return total\n```\n\nReply with only the refactored code inside a ```python block.",
+  "test": "assert process([-1, 2, -3]) == 6"
+ },
+ {
+  "id": "refactor/early_return",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Refactor this Python code for clarity and efficiency. Behaviour MUST stay identical.\n\n```python\ndef check(n):\n    if n < 0:\n        result = False\n    elif n == 0:\n        result = True\n    else:\n        result = n % 2 == 0\n    return result\n```\n\nReply with only the refactored code inside a ```python block.",
+  "test": "assert check(-1) is False\nassert check(0) is True\nassert check(4) is True\nassert check(3) is False"
+ },
+ {
+  "id": "refactor/remove_duplicates",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Refactor this Python code for clarity and efficiency. Behaviour MUST stay identical.\n\n```python\ndef dedupe(lst):\n    seen = []\n    for item in lst:\n        if item not in seen:\n            seen.append(item)\n    return seen\n```\n\nReply with only the refactored code inside a ```python block.",
+  "test": "assert dedupe([1,1,2,3,2]) == [1,2,3]"
+ },
+ {
+  "id": "refactor/replace_loop_sum",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Refactor this Python code for clarity and efficiency. Behaviour MUST stay identical.\n\n```python\ndef total(values):\n    t = 0\n    i = 0\n    while i < len(values):\n        t += values[i]\n        i += 1\n    return t\n```\n\nReply with only the refactored code inside a ```python block.",
+  "test": "assert total([1,2,3]) == 6"
+ }
+]

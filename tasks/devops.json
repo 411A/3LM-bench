@@ -1,0 +1,180 @@
+[
+ {
+  "id": "devops/0",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "dockerfile-fastapi",
+  "prompt": "Write a Dockerfile that runs a FastAPI app on port 8000, as a non-root user, with a healthcheck. Output only Dockerfile content.",
+  "checks": {
+   "must_contain": [
+    "FROM",
+    "EXPOSE 8000",
+    "USER",
+    "HEALTHCHECK"
+   ],
+   "must_not_contain": [
+    "USER root",
+    "privileged"
+   ],
+   "lang": "dockerfile"
+  }
+ },
+ {
+  "id": "devops/1",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "dockerfile-multistage",
+  "prompt": "Write a multi-stage Dockerfile that builds a Go binary and copies it into a minimal final image. Output only Dockerfile content.",
+  "checks": {
+   "must_contain": [
+    "FROM",
+    "AS",
+    "COPY"
+   ],
+   "must_not_contain": [],
+   "lang": "dockerfile"
+  }
+ },
+ {
+  "id": "devops/2",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "compose-nginx-postgres",
+  "prompt": "Write a docker-compose file for an nginx service and a postgres 15 service with a persistent volume. Output only YAML.",
+  "checks": {
+   "must_contain": [
+    "services:",
+    "nginx",
+    "postgres",
+    "volumes:"
+   ],
+   "must_not_contain": [
+    "privileged: true"
+   ],
+   "lang": "compose"
+  }
+ },
+ {
+  "id": "devops/3",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "compose-healthcheck",
+  "prompt": "Write a docker-compose with an app service that has a depends_on a db service which defines a healthcheck. Output only YAML.",
+  "checks": {
+   "must_contain": [
+    "services:",
+    "depends_on",
+    "healthcheck"
+   ],
+   "must_not_contain": [],
+   "lang": "compose"
+  }
+ },
+ {
+  "id": "devops/4",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "k8s-deployment-service",
+  "prompt": "Write a Kubernetes Deployment and Service exposing a web app on port 80 with a readiness probe and non-root security context. Output only YAML.",
+  "checks": {
+   "must_contain": [
+    "kind: Deployment",
+    "kind: Service",
+    "readinessProbe",
+    "runAsNonRoot"
+   ],
+   "must_not_contain": [
+    "image: nginx:latest"
+   ],
+   "lang": "k8s"
+  }
+ },
+ {
+  "id": "devops/5",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "k8s-labels-match",
+  "prompt": "Write a Kubernetes Deployment where selector.matchLabels exactly equals template.metadata.labels. Output only YAML.",
+  "checks": {
+   "must_contain": [
+    "kind: Deployment",
+    "matchLabels",
+    "labels"
+   ],
+   "must_not_contain": [],
+   "lang": "k8s"
+  }
+ },
+ {
+  "id": "devops/6",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "cicd-github-actions",
+  "prompt": "Write a GitHub Actions workflow that runs tests on push to main using a pinned action version. Output only YAML.",
+  "checks": {
+   "must_contain": [
+    "on:",
+    "jobs:",
+    "runs-on:",
+    "uses:"
+   ],
+   "must_not_contain": [
+    "@master",
+    "@main",
+    "write-all"
+   ],
+   "lang": "cicd"
+  }
+ },
+ {
+  "id": "devops/7",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "cicd-secrets",
+  "prompt": "Write a GitHub Actions workflow that reads a token from secrets and does NOT print it. Output only YAML.",
+  "checks": {
+   "must_contain": [
+    "secrets.",
+    "if:",
+    "run:"
+   ],
+   "must_not_contain": [
+    "echo ${{ secrets"
+   ],
+   "lang": "cicd"
+  }
+ },
+ {
+  "id": "devops/8",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "systemd-unit",
+  "prompt": "Write a systemd service unit for a Python app that restarts on failure. Output only the unit file.",
+  "checks": {
+   "must_contain": [
+    "[Service]",
+    "ExecStart",
+    "Restart="
+   ],
+   "must_not_contain": [],
+   "lang": "systemd"
+  }
+ },
+ {
+  "id": "devops/9",
+  "source": "hand-authored/FDE-Bench-lineage",
+  "category": "devops",
+  "lang": "nginx-vhost",
+  "prompt": "Write an nginx server block that proxies /api to a backend on port 8000 and serves static files. Output only the config.",
+  "checks": {
+   "must_contain": [
+    "server {",
+    "location /api",
+    "proxy_pass",
+    "listen"
+   ],
+   "must_not_contain": [],
+   "lang": "nginx"
+  }
+ }
+]

@@ -1,0 +1,111 @@
+[
+ {
+  "id": "rust/reverse_string",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `reverse_string(s: &str) -> String` that returns s reversed.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(reverse_string(\"abc\"), \"cba\");",
+   "assert_eq!(reverse_string(\"\"), \"\");"
+  ],
+  "entry_point": "reverse_string"
+ },
+ {
+  "id": "rust/is_palindrome",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `is_palindrome(s: &str) -> bool` returning true if s reads the same backwards, ignoring case.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert!(is_palindrome(\"Aba\"));",
+   "assert!(!is_palindrome(\"ab\"));"
+  ],
+  "entry_point": "is_palindrome"
+ },
+ {
+  "id": "rust/gcd",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `gcd(a: u64, b: u64) -> u64` computing the greatest common divisor.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(gcd(12, 18), 6);",
+   "assert_eq!(gcd(7, 13), 1);"
+  ],
+  "entry_point": "gcd"
+ },
+ {
+  "id": "rust/fib",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `fib(n: u32) -> u64` returning the nth Fibonacci number, f(0)=0, f(1)=1.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(fib(0), 0);",
+   "assert_eq!(fib(10), 55);"
+  ],
+  "entry_point": "fib"
+ },
+ {
+  "id": "rust/is_prime",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `is_prime(n: u64) -> bool` returning true if n is prime.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert!(is_prime(7));",
+   "assert!(!is_prime(9));"
+  ],
+  "entry_point": "is_prime"
+ },
+ {
+  "id": "rust/sum_vec",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `sum_vec(v: &Vec<i64>) -> i64` summing all elements.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(sum_vec(&vec![1,2,3]), 6);",
+   "assert_eq!(sum_vec(&vec![]), 0);"
+  ],
+  "entry_point": "sum_vec"
+ },
+ {
+  "id": "rust/max_slice",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `max_slice(v: &[i32]) -> Option<i32>` returning the maximum, or None if empty.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(max_slice(&[1,5,3]), Some(5));",
+   "assert_eq!(max_slice(&[]), None);"
+  ],
+  "entry_point": "max_slice"
+ },
+ {
+  "id": "rust/count_upper",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `count_upper(s: &str) -> usize` counting ASCII uppercase letters.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(count_upper(\"AbC\"), 2);",
+   "assert_eq!(count_upper(\"\"), 0);"
+  ],
+  "entry_point": "count_upper"
+ },
+ {
+  "id": "rust/vowel_count",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `vowel_count(s: &str) -> usize` counting ASCII vowels.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "assert_eq!(vowel_count(\"hello\"), 2);",
+   "assert_eq!(vowel_count(\"xyz\"), 0);"
+  ],
+  "entry_point": "vowel_count"
+ },
+ {
+  "id": "rust/bubble_sort",
+  "source": "hand-authored/MultiPL-E-format",
+  "lang": "rust",
+  "prompt": "Write a function `bubble_sort(v: &mut Vec<i32>)` that sorts in place ascending.\n\nWrite only the function definition. Do NOT write `fn main`, do NOT write `#[test]`, and do NOT include a `use` statement. Output only Rust code.",
+  "tests": [
+   "let mut v=vec![3,1,2]; bubble_sort(&mut v); assert_eq!(v, vec![1,2,3]);"
+  ],
+  "entry_point": "bubble_sort"
+ }
+]

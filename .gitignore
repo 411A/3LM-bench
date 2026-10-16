@@ -1,0 +1,13 @@
+# caches, downloads, local-only artifacts (never commit)
+data/raw/
+data/*.part
+tasks/std_*.json
+results/
+logs/
+__pycache__/
+.ruff_cache/
+*.pyc
+.venv/
+.DS_Store
+# local speed probe output (regenerable)
+results/speed.json

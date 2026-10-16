@@ -1,0 +1,527 @@
+[
+ {
+  "id": "sci/arc-1",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which process transfers bacterial DNA from one bacterium to another via a bacteriophage?",
+  "choices": [
+   "Transduction",
+   "Transcription",
+   "Transformation",
+   "Translation"
+  ],
+  "answer": 0,
+  "subject": "biology"
+ },
+ {
+  "id": "sci/arc-2",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A gas is compressed isothermally to half its volume. What happens to its pressure?",
+  "choices": [
+   "Quadruples",
+   "Halves",
+   "Stays the same",
+   "Doubles"
+  ],
+  "answer": 3,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/arc-3",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which particle carries the electromagnetic force?",
+  "choices": [
+   "Photon",
+   "Gluon",
+   "W boson",
+   "Graviton"
+  ],
+  "answer": 0,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/arc-4",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "In a controlled experiment, the independent variable is the factor that:",
+  "choices": [
+   "Is inferred statistically",
+   "Is deliberately manipulated",
+   "Is measured as the outcome",
+   "Is kept constant"
+  ],
+  "answer": 1,
+  "subject": "biology"
+ },
+ {
+  "id": "sci/arc-5",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "An element in group 17 of the periodic table is most likely to:",
+  "choices": [
+   "Lose electrons and form +1 ions",
+   "Share three electrons",
+   "Gain electrons and form -1 ions",
+   "Form metallic bonds"
+  ],
+  "answer": 2,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/arc-6",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which of these is a pure substance?",
+  "choices": [
+   "Steel",
+   "Seawater",
+   "Air",
+   "Distilled water"
+  ],
+  "answer": 3,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/arc-7",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A wave with a frequency of 50 Hz has a period of:",
+  "choices": [
+   "0.02 s",
+   "2 s",
+   "50 s",
+   "0.5 s"
+  ],
+  "answer": 0,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/arc-8",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "In DNA, adenine pairs with:",
+  "choices": [
+   "Guanine",
+   "Thymine",
+   "Uracil",
+   "Cytosine"
+  ],
+  "answer": 1,
+  "subject": "biology"
+ },
+ {
+  "id": "sci/arc-9",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which best explains why metals conduct electricity?",
+  "choices": [
+   "High melting point",
+   "Ionic bonds",
+   "Free electrons in the lattice",
+   "Neutron scattering"
+  ],
+  "answer": 2,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/arc-10",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "The speed of light in vacuum is approximately:",
+  "choices": [
+   "3 x 10^6 m/s",
+   "3 x 10^8 m/s",
+   "3 x 10^10 m/s",
+   "3 x 10^4 m/s"
+  ],
+  "answer": 1,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/arc-11",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Natural selection acts most directly on:",
+  "choices": [
+   "Genotypes",
+   "Individual alleles only",
+   "Phenotypes",
+   "Populations of species only"
+  ],
+  "answer": 2,
+  "subject": "biology"
+ },
+ {
+  "id": "sci/arc-12",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which change is chemical rather than physical?",
+  "choices": [
+   "Ice melting",
+   "Sugar dissolving",
+   "Water boiling",
+   "Iron rusting"
+  ],
+  "answer": 3,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/arc-13",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "In an ecosystem, organisms that make their own food are called:",
+  "choices": [
+   "Producers",
+   "Predators",
+   "Consumers",
+   "Decomposers"
+  ],
+  "answer": 0,
+  "subject": "biology"
+ },
+ {
+  "id": "sci/arc-14",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "The SI unit of electrical resistance is the:",
+  "choices": [
+   "Volt",
+   "Ohm",
+   "Ampere",
+   "Watt"
+  ],
+  "answer": 1,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/arc-15",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A solution with pH 3 is:",
+  "choices": [
+   "Basic",
+   "Neutral",
+   "Acidic",
+   "Saline"
+  ],
+  "answer": 2,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/cs-1",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "What is the time complexity of quicksort in the worst case?",
+  "choices": [
+   "O(n^2)",
+   "O(n log n)",
+   "O(n)",
+   "O(log n)"
+  ],
+  "answer": 0,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-2",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which data structure gives O(1) average lookup by key?",
+  "choices": [
+   "Sorted array",
+   "Linked list",
+   "Hash table",
+   "Binary tree"
+  ],
+  "answer": 2,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-3",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "In a binary search tree, an in-order traversal yields keys in:",
+  "choices": [
+   "Random order",
+   "Descending order",
+   "Level order",
+   "Ascending order"
+  ],
+  "answer": 3,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-4",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "What does the 'S' in ACID stand for in databases?",
+  "choices": [
+   "Atomicity",
+   "Scalability",
+   "Synchronisation",
+   "Speed"
+  ],
+  "answer": 0,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-5",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which sorting algorithm is stable and runs in O(n log n) average time, at the cost of O(n) auxiliary space?",
+  "choices": [
+   "Quicksort",
+   "Merge sort",
+   "Heapsort",
+   "Selection sort"
+  ],
+  "answer": 1,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-6",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A deadlock requires which conditions?",
+  "choices": [
+   "Mutual exclusion only",
+   "Preemption and circular wait",
+   "Mutual exclusion, hold and wait, no preemption, circular wait",
+   "Single-threaded execution"
+  ],
+  "answer": 2,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-7",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "What does a compiler do during semantic analysis?",
+  "choices": [
+   "Strip whitespace",
+   "Link symbols",
+   "Optimise machine code",
+   "Check type and name semantics"
+  ],
+  "answer": 3,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-8",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which memory allocation strategy suffers from external fragmentation?",
+  "choices": [
+   "First fit",
+   "Buddy system",
+   "Slab allocation",
+   "Fixed-partition paging"
+  ],
+  "answer": 0,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-9",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "In Big-O terms, binary search on a sorted array of n items is:",
+  "choices": [
+   "O(1)",
+   "O(log n)",
+   "O(n)",
+   "O(n log n)"
+  ],
+  "answer": 1,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/cs-10",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A hash table with chaining and a good hash has expected lookup:",
+  "choices": [
+   "O(n^2)",
+   "O(1)",
+   "O(log n)",
+   "O(n)"
+  ],
+  "answer": 1,
+  "subject": "computer_science"
+ },
+ {
+  "id": "sci/ph-1",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A block slides down a frictionless incline. Its acceleration depends on:",
+  "choices": [
+   "The block's mass",
+   "The block's colour",
+   "The incline angle",
+   "The incline length only"
+  ],
+  "answer": 2,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/ph-2",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Newton's second law states that force equals:",
+  "choices": [
+   "mass x velocity",
+   "mass / acceleration",
+   "acceleration / mass",
+   "mass x acceleration"
+  ],
+  "answer": 3,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/ph-3",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which quantity is conserved in an elastic collision but not in an inelastic one?",
+  "choices": [
+   "Kinetic energy",
+   "Charge",
+   "Momentum",
+   "Mass"
+  ],
+  "answer": 0,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/ph-4",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "The escape velocity from a planet depends on:",
+  "choices": [
+   "Only the planet's mass",
+   "The planet's mass and radius",
+   "The mass of the object",
+   "The object's colour"
+  ],
+  "answer": 1,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/ph-5",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Ohm's law relates voltage to:",
+  "choices": [
+   "charge and time",
+   "mass and acceleration",
+   "current and resistance",
+   "energy and power"
+  ],
+  "answer": 2,
+  "subject": "physics"
+ },
+ {
+  "id": "sci/ch-1",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Avogadro's number is approximately:",
+  "choices": [
+   "3.14 x 10^8",
+   "1.60 x 10^-19",
+   "9.11 x 10^-31",
+   "6.02 x 10^23"
+  ],
+  "answer": 3,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/ch-2",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "An exothermic reaction:",
+  "choices": [
+   "releases heat",
+   "absorbs heat",
+   "is always reversible",
+   "requires a catalyst"
+  ],
+  "answer": 0,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/ch-3",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "The number of moles in 22.4 L of gas at STP is approximately:",
+  "choices": [
+   "22.4",
+   "1.0",
+   "0.5",
+   "2.0"
+  ],
+  "answer": 1,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/ch-4",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "A catalyst affects a reaction by:",
+  "choices": [
+   "Shifting equilibrium",
+   "Increasing enthalpy",
+   "Lowering activation energy",
+   "Consuming reactants"
+  ],
+  "answer": 2,
+  "subject": "chemistry"
+ },
+ {
+  "id": "sci/ch-5",
+  "source": "ARC-C/MMLU-style hand-authored",
+  "category": "science_mc",
+  "lang": "en",
+  "question": "Which bond type involves electron sharing?",
+  "choices": [
+   "Ionic",
+   "Metallic",
+   "Coordinate only",
+   "Covalent"
+  ],
+  "answer": 3,
+  "subject": "chemistry"
+ }
+]

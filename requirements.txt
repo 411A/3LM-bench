@@ -1,0 +1,9 @@
+# llmbench runs on the standard library only. No torch, no transformers,
+# no datasets, no pyarrow. pandas/numpy are used only if present (optional).
+# Python >= 3.10.
+#
+# Toolchain needed for execution-based suites (all local, all optional per suite):
+#   ruff        (lint suite)
+#   rustc + clippy-driver + rustfmt   (rust + lint-rust suites)
+#   g++         (embedded_cpp suite)
+# No Docker, no GPU, no cloud APIs.

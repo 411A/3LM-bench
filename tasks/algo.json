@@ -1,0 +1,86 @@
+[
+ {
+  "id": "algo/two_sum",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the two indices that add up to target.\n\nWrite a Python function named `two_sum` with this signature:\n```python\ndef two_sum(nums, target):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert two_sum([2,7,11,15], 9) == [0,1]\nassert two_sum([3,2,4], 6) == [1,2]\nassert two_sum([1,2], 9) is None"
+ },
+ {
+  "id": "algo/binary_search",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the index of target in the sorted list arr, or -1 if absent.\n\nWrite a Python function named `binary_search` with this signature:\n```python\ndef binary_search(arr, target):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert binary_search([1,3,5,7], 5) == 2\nassert binary_search([1,3,5], 4) == -1"
+ },
+ {
+  "id": "algo/merge_intervals",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Merge overlapping intervals and return them sorted.\n\nWrite a Python function named `merge_intervals` with this signature:\n```python\ndef merge_intervals(intervals):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert merge_intervals([[1,3],[2,6],[8,10]]) == [[1,6],[8,10]]\nassert merge_intervals([]) == []"
+ },
+ {
+  "id": "algo/valid_parentheses",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return True if the bracket string is balanced.\n\nWrite a Python function named `valid_parentheses` with this signature:\n```python\ndef valid_parentheses(s):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert valid_parentheses('([]{})') is True\nassert valid_parentheses('(]') is False"
+ },
+ {
+  "id": "algo/coin_change",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the fewest coins to make amount, or -1 if impossible.\n\nWrite a Python function named `coin_change` with this signature:\n```python\ndef coin_change(coins, amount):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert coin_change([1,2,5], 11) == 3\nassert coin_change([2], 3) == -1"
+ },
+ {
+  "id": "algo/longest_common_prefix",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the longest common prefix of a list of strings.\n\nWrite a Python function named `longest_common_prefix` with this signature:\n```python\ndef longest_common_prefix(strs):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert longest_common_prefix(['flower','flow','flight']) == 'fl'\nassert longest_common_prefix([]) == ''"
+ },
+ {
+  "id": "algo/product_except_self",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the product of all other elements at each index, without division.\n\nWrite a Python function named `product_except_self` with this signature:\n```python\ndef product_except_self(nums):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert product_except_self([1,2,3,4]) == [24,12,8,6]"
+ },
+ {
+  "id": "algo/max_subarray",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the maximum sum of a contiguous subarray.\n\nWrite a Python function named `max_subarray` with this signature:\n```python\ndef max_subarray(nums):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert max_subarray([-2,1,-3,4,-1,2,1,-5,4]) == 6\nassert max_subarray([-1]) == -1"
+ },
+ {
+  "id": "algo/group_anagrams",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Group words that are anagrams of each other.\n\nWrite a Python function named `group_anagrams` with this signature:\n```python\ndef group_anagrams(words):\n```\nReply with only the function inside a ```python block.",
+  "test": "r = group_anagrams(['eat','tea','tan','ate','nat','bat'])\nassert sorted(r) == [['bat'], ['eat','tea','ate'], ['tan','nat']]"
+ },
+ {
+  "id": "algo/number_of_islands",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Count islands in a grid given as a list of strings of '1' and '0'.\n\nWrite a Python function named `number_of_islands` with this signature:\n```python\ndef number_of_islands(grid):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert number_of_islands(['110','010','111']) == 1\nassert number_of_islands(['000','000']) == 0"
+ },
+ {
+  "id": "algo/climb_stairs",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Ways to climb n stairs taking 1 or 2 at a time.\n\nWrite a Python function named `climb_stairs` with this signature:\n```python\ndef climb_stairs(n):\n```\nReply with only the function inside a ```python block.",
+  "test": "assert climb_stairs(2) == 2\nassert climb_stairs(3) == 3\nassert climb_stairs(10) == 89"
+ },
+ {
+  "id": "algo/top_k_frequent",
+  "source": "hand-authored",
+  "lang": "python",
+  "prompt": "Problem: Return the k most frequent elements, most frequent first.\n\nWrite a Python function named `top_k_frequent` with this signature:\n```python\ndef top_k_frequent(nums, k):\n```\nReply with only the function inside a ```python block.",
+  "test": "r = top_k_frequent([1,1,1,2,2,3], 2)\nassert sorted(r) == [1,2]"
+ }
+]

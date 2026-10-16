@@ -1,0 +1,872 @@
+[
+ {
+  "id": "el/ard/avr-sram",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "How much SRAM does the ATmega328P on the Arduino Uno have?",
+  "choices": [
+   "8 KB",
+   "32 KB",
+   "512 bytes",
+   "2 KB"
+  ],
+  "answer": 3,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/f-macro",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On AVR, what does the Arduino F() macro do?",
+  "choices": [
+   "Forces a float conversion",
+   "Disables interrupts briefly",
+   "Stores a string literal in flash and reads it as a pointer",
+   "Formats a string with printf"
+  ],
+  "answer": 2,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/adc-resolution",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "The ATmega328P ADC is 10-bit. How many distinct readings can it return?",
+  "choices": [
+   "256",
+   "512",
+   "1024",
+   "4096"
+  ],
+  "answer": 2,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/adc-reference",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What is the ADC reference voltage on an unmodified Arduino Uno?",
+  "choices": [
+   "It is configurable in software",
+   "5 V (AVCC)",
+   "3.3 V",
+   "1.1 V internal bandgap"
+  ],
+  "answer": 1,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/volatile-isr",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why must a variable shared between an ISR and loop() be declared volatile?",
+  "choices": [
+   "So it survives a power cycle",
+   "So it is placed in SRAM rather than flash",
+   "To make access atomic",
+   "So the compiler re-reads it instead of caching it in a register"
+  ],
+  "answer": 3,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/input-pullup",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What does pinMode(pin, INPUT_PULLUP) do?",
+  "choices": [
+   "Enables an internal 20-50 kOhm pull-up to VCC and leaves the pin high when nothing connects",
+   "Sets the pin to push-pull output",
+   "Enables a pull-down to GND",
+   "Configures an internal ADC channel"
+  ],
+  "answer": 0,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/pwm-timer0",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On the Uno, analogWrite() on pin 9 uses which timer, and what else depends on it?",
+  "choices": [
+   "A software timer, so nothing else is affected",
+   "Timer0, which also drives millis() and micros()",
+   "Timer1, shared with the servo library",
+   "Timer2, which also drives tone()"
+  ],
+  "answer": 1,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/delay-bad",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why is delay() considered bad practice in a loop()?",
+  "choices": [
+   "It blocks the CPU so nothing else runs, including pin updates and serial receive",
+   "It uses too much RAM",
+   "It is not supported on the Uno",
+   "It is too imprecise"
+  ],
+  "answer": 0,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/eeprom-endurance",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "The ATmega328P EEPROM is rated for roughly how many write cycles per cell?",
+  "choices": [
+   "1,000",
+   "100,000",
+   "1,000,000",
+   "10,000,000"
+  ],
+  "answer": 1,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/spi-divider",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On AVR, which register holds the SPI clock prescaler bits SPR1 and SPR0?",
+  "choices": [
+   "ADCSRA",
+   "SPSR",
+   "SPCR",
+   "PORTB"
+  ],
+  "answer": 2,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard/i2c-address-7bit",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Datasheets quote I2C addresses as 7-bit. Why do some libraries expect 8 bits?",
+  "choices": [
+   "They are for 8-bit microcontrollers",
+   "They mask the top bit",
+   "They use a different address base",
+   "They include the read/write bit shifted in"
+  ],
+  "answer": 3,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/ard-bootloader-flash",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On the ATmega328P, how much flash is reserved for the bootloader?",
+  "choices": [
+   "2 KB",
+   "0.5 KB",
+   "1 KB",
+   "4 KB"
+  ],
+  "answer": 0,
+  "subject": "arduino"
+ },
+ {
+  "id": "el/rpi/logic-level",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What is the GPIO logic level voltage on a Raspberry Pi?",
+  "choices": [
+   "5 V",
+   "3.3 V",
+   "1.8 V",
+   "It varies by pin"
+  ],
+  "answer": 1,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/5v-danger",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What happens if you drive a Raspberry Pi GPIO pin with a 5 V signal?",
+  "choices": [
+   "The 3.3 V SoC is at risk of permanent damage",
+   "It automatically level-shifts",
+   "Nothing, the pins are 5 V tolerant",
+   "It works at reduced noise immunity"
+  ],
+  "answer": 0,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/hw-pwm-pins",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Which GPIO numbers provide hardware PWM on most Raspberry Pi models?",
+  "choices": [
+   "2, 3, 4, 17",
+   "20, 21, 22, 23",
+   "24, 25, 26, 27",
+   "12, 13, 18, 19"
+  ],
+  "answer": 3,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/i2c-pullups",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Which physical pins carry the I2C bus's factory-fitted pull-up resistors?",
+  "choices": [
+   "Pins 2 and 3 (GPIO0 and GPIO1)",
+   "Pins 24 and 26",
+   "Pins 6 and 9",
+   "Pins 11 and 13"
+  ],
+  "answer": 0,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/gpiomem",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On a Pi 4 or later, what must a non-root user join to use the GPIO sysfs interface?",
+  "choices": [
+   "The spi group",
+   "The gpio group",
+   "The sudo group",
+   "The i2c group"
+  ],
+  "answer": 1,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/undervoltage",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A Pi 4 showing a 'undervoltage' warning is most likely because",
+  "choices": [
+   "The 5 V supply cannot supply 3 A and the SoC is being throttled",
+   "The SD card is failing",
+   "The GPIO pins are overloaded",
+   "The ambient temperature is too high"
+  ],
+  "answer": 0,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/hats-i2c-conflict",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why can an I2C HAT that has an EEPROM fail to be detected on some Pi models?",
+  "choices": [
+   "The Pi has only one I2C peripheral",
+   "The EEPROM needs 5 V",
+   "The EEPROM is on the same I2C bus the camera or CSI uses, at a fixed address",
+   "The hat must be on the SPI bus"
+  ],
+  "answer": 2,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/pwm-software",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why do most Raspberry Pi GPIOs not produce accurate hardware PWM?",
+  "choices": [
+   "They require an external clock",
+   "PWM is only available on the 40-pin header",
+   "They have no PWM capability at all",
+   "PWM must be emulated in software (timed loops), which is jittery"
+  ],
+  "answer": 3,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/rpi/logical-vs-physical",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On the Raspberry Pi 40-pin header, GPIO17 is on which physical pin?",
+  "choices": [
+   "pin 17",
+   "pin 40",
+   "pin 11",
+   "pin 3"
+  ],
+  "answer": 2,
+  "subject": "raspberry_pi"
+ },
+ {
+  "id": "el/esp32/adc2-wifi",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "On the ESP32, why is ADC2 unusable while Wi-Fi is active?",
+  "choices": [
+   "ADC2 is reserved for the flash chip",
+   "ADC2 draws too much current",
+   "ADC2 shares hardware with the Wi-Fi RF subsystem",
+   "ADC2 must be enabled by a driver call"
+  ],
+  "answer": 2,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/logic-level",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Is the ESP32's GPIO 5 V tolerant?",
+  "choices": [
+   "No, the ESP32 is 3.3 V only",
+   "Only when the flash is in QIO mode",
+   "Yes, on all pins",
+   "Yes, on pins 12-19"
+  ],
+  "answer": 0,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/adc-nonlinear",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "The ESP32's ADC response is non-linear at the extremes. What is the consequence?",
+  "choices": [
+   "It cannot be read at all below 0.3 V",
+   "It must always be calibrated against a known reference",
+   "It has only 8 bits of resolution",
+   "It requires an external reference chip"
+  ],
+  "answer": 1,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/strapping-pins",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What is special about ESP32 strapping pins (GPIO0, 2, 5, 12, 15)?",
+  "choices": [
+   "They cannot be used for input",
+   "They are 5 V tolerant",
+   "Their state at reset affects boot mode and must be set correctly",
+   "They are PWM-only"
+  ],
+  "answer": 2,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/deepsleep",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Typical ESP32 deep-sleep current is on the order of",
+  "choices": [
+   "1 microampere",
+   "1 milliampere",
+   "50 milliamperes",
+   "10 microamperes"
+  ],
+  "answer": 3,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/touch",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Which peripheral gives the ESP32 its capacitive touch inputs?",
+  "choices": [
+   "The I2C master",
+   "The PCNT unit",
+   "The ADC",
+   "The touch sensor peripheral"
+  ],
+  "answer": 3,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/watchdog",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What does the ESP32 task watchdog (TWDT) protect against?",
+  "choices": [
+   "Tasks that deadlock or block, so the CPU is restarted",
+   "Wi-Fi disconnection",
+   "Brownout events",
+   "Flash wear"
+  ],
+  "answer": 0,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/esp32/psram",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What problem does external PSRAM solve on an ESP32 module?",
+  "choices": [
+   "It replaces the flash storage",
+   "It expands the DRAM available to Wi-Fi, buffers and large buffers",
+   "It speeds up the CPU clock",
+   "It adds more ADC channels"
+  ],
+  "answer": 1,
+  "subject": "esp32"
+ },
+ {
+  "id": "el/bus/open-drain",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "An open-drain output can do which two things?",
+  "choices": [
+   "Drive HIGH or LOW",
+   "Drive HIGH only",
+   "Pull LOW or let go (float)",
+   "Tri-state with strong drive"
+  ],
+  "answer": 2,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/i2c-pullup-value",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "For a 3.3 V I2C bus with 1 mA sink current, the pull-up resistor should be about",
+  "choices": [
+   "100 ohm",
+   "10 kOhm",
+   "3.3 kOhm",
+   "1 MOhm"
+  ],
+  "answer": 2,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/rs485",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "What is the main advantage of RS-485 over RS-232?",
+  "choices": [
+   "It is cheaper",
+   "It needs only one wire",
+   "It is point-to-point",
+   "Differential signalling gives noise immunity and allows long runs"
+  ],
+  "answer": 3,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/can-terminators",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "CAN bus termination resistors should be placed",
+  "choices": [
+   "120 Ohm at each of the two physical ends only",
+   "At every node",
+   "In series with the transceiver",
+   "Only on the dominant wire"
+  ],
+  "answer": 0,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/current-loop",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "The main advantage of a 4-20 mA current loop over a voltage signal is",
+  "choices": [
+   "It has lower latency",
+   "It is immune to noise and can power the sensor from the loop",
+   "It is digital",
+   "It is cheaper"
+  ],
+  "answer": 1,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/modbus-registry",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "In Modbus, function code 3 reads what?",
+  "choices": [
+   "Holding registers",
+   "Coils",
+   "Discrete inputs",
+   "Input registers"
+  ],
+  "answer": 0,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/one-wire",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "1-Wire devices share a single signal line plus ground, and the bus needs",
+  "choices": [
+   "A separate clock wire",
+   "A pull-up resistor to define the idle HIGH",
+   "A differential pair",
+   "An external crystal"
+  ],
+  "answer": 1,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/spi-vs-i2c",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Compared to I2C, SPI typically achieves higher throughput because",
+  "choices": [
+   "It uses fewer pins",
+   "It has a separate clock line and separate chip-select lines, so it has no arbitration or stretching",
+   "It runs at lower voltage",
+   "It is fully duplex with no pull-ups needed"
+  ],
+  "answer": 1,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/level-shifter-bss138",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A BSS138 bidirectional level shifter works for I2C because",
+  "choices": [
+   "It is a high-speed comparator",
+   "It replicates the clock at 5 V",
+   "It boosts the pull-up current",
+   "It uses MOSFETs to pull the open-drain line to whichever side is higher"
+  ],
+  "answer": 3,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/watchdog-purpose",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A hardware watchdog timer does what?",
+  "choices": [
+   "Powers down peripherals between cycles",
+   "Logs timestamps",
+   "Resets the MCU if not periodically serviced, recovering from a hang",
+   "Increases clock speed under load"
+  ],
+  "answer": 2,
+  "subject": "io"
+ },
+ {
+  "id": "el/bus/shmitt",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why put a Schmitt trigger between a noisy digital source and a microcontroller input?",
+  "choices": [
+   "To provide hysteresis so noise near the threshold cannot cause chatter",
+   "To increase drive current",
+   "To convert the voltage level",
+   "To add a pull-up resistor"
+  ],
+  "answer": 0,
+  "subject": "io"
+ },
+ {
+  "id": "el/pwr/decoupling",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "The 100 nF ceramic capacitor placed at each IC power pin is there to",
+  "choices": [
+   "Set the DC level",
+   "Supply transient current locally and suppress high-frequency noise",
+   "Prevent ESD damage to the pin",
+   "Increase the supply voltage"
+  ],
+  "answer": 1,
+  "subject": "power"
+ },
+ {
+  "id": "el/pwr/ldo-vs-buck",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Compared with an LDO, a buck converter's advantage is",
+  "choices": [
+   "No inductor required",
+   "Lower output noise",
+   "Higher efficiency at large voltage drops, at the cost of switching noise",
+   "Simpler layout"
+  ],
+  "answer": 2,
+  "subject": "power"
+ },
+ {
+  "id": "el/pwr/ldo-dissipation",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "An LDO converting 5 V to 3.3 V at 300 mA dissipates approximately",
+  "choices": [
+   "1.5 W",
+   "0.5 W",
+   "1.65 W",
+   "0.3 W"
+  ],
+  "answer": 1,
+  "subject": "power"
+ },
+ {
+  "id": "el/pwr/flyback",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A diode placed across a relay or solenoid coil is required because",
+  "choices": [
+   "It protects the driver from ESD",
+   "It speeds up the release",
+   "The coil needs a return path for the reverse EMF when the field collapses",
+   "It reduces the coil's resistance"
+  ],
+  "answer": 2,
+  "subject": "power"
+ },
+ {
+  "id": "el/pwr/usb2-limit",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A USB 2.0 port provides a maximum of",
+  "choices": [
+   "100 mA",
+   "900 mA",
+   "2.4 A",
+   "500 mA"
+  ],
+  "answer": 3,
+  "subject": "power"
+ },
+ {
+  "id": "el/pwr/inrush",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A large capacitor bank switched onto a supply causes inrush current. What limits it?",
+  "choices": [
+   "NTC thermistors, soft-start, or a series resistor",
+   "A series fuse only",
+   "A parallel capacitor",
+   "Raising the supply voltage"
+  ],
+  "answer": 0,
+  "subject": "power"
+ },
+ {
+  "id": "el/pwr/ground-loop",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A ground loop causes measured noise because",
+  "choices": [
+   "The decoupling caps are too small",
+   "The supply is not isolated",
+   "The ground wire is too thin",
+   "Ground currents from two points meet and their potential difference adds a spurious voltage"
+  ],
+  "answer": 3,
+  "subject": "power"
+ },
+ {
+  "id": "el/sens/lsb",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A 12-bit ADC with a 3.0 V reference has an LSB of",
+  "choices": [
+   "3.0 V",
+   "1.22 mV",
+   "0.25 V",
+   "0.73 mV"
+  ],
+  "answer": 3,
+  "subject": "sensors"
+ },
+ {
+  "id": "el/sens/oversampling",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Averaging 16 samples of a noisy ADC reading improves",
+  "choices": [
+   "Effective resolution (ENOB) but not the nominal bit depth",
+   "It increases the ADC's nominal bit depth",
+   "Both the nominal bit depth and the LSB",
+   "Nothing"
+  ],
+  "answer": 0,
+  "subject": "sensors"
+ },
+ {
+  "id": "el/sens/thermocouple",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "For measuring up to 1200 degrees C, the appropriate sensor is a",
+  "choices": [
+   "LM75",
+   "K-type thermocouple with a MAX31855 amplifier",
+   "NTC thermistor",
+   "DHT22"
+  ],
+  "answer": 1,
+  "subject": "sensors"
+ },
+ {
+  "id": "el/sens/dht-accuracy",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "How does the DHT22 compare with the DHT11 in temperature accuracy?",
+  "choices": [
+   "DHT22 is less accurate",
+   "DHT22 is more accurate, about +/-0.2 C versus +/-0.5 C",
+   "They are identical",
+   "DHT22 cannot measure temperature"
+  ],
+  "answer": 1,
+  "subject": "sensors"
+ },
+ {
+  "id": "el/sens/ldr-divider",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "An LDR divider is wired 5V -> LDR -> ADC pin -> 10k -> GND. What does the ADC read when it is very dark?",
+  "choices": [
+   "Exactly VCC/2",
+   "It reads noise",
+   "Near VCC (LDR resistance high)",
+   "Near 0 V (LDR resistance low)"
+  ],
+  "answer": 2,
+  "subject": "sensors"
+ },
+ {
+  "id": "el/dbg/logic-analyser",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "For debugging a suspected I2C or SPI fault, a logic analyser is preferred to an oscilloscope because",
+  "choices": [
+   "It has higher bandwidth",
+   "It measures voltage more accurately",
+   "It is cheaper and decodes the protocol in software",
+   "It can capture longer records"
+  ],
+  "answer": 2,
+  "subject": "debug"
+ },
+ {
+  "id": "el/dbg/floating-pin",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "An unconnected input floating high or low at random is best fixed by",
+  "choices": [
+   "A pull-up or pull-down resistor",
+   "A longer wire",
+   "A higher sample rate",
+   "Using analogRead instead"
+  ],
+  "answer": 0,
+  "subject": "debug"
+ },
+ {
+  "id": "el/dbg/i2c-pullup-missing",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "An I2C bus reads all zeros on SDA. The most common cause is",
+  "choices": [
+   "The master is clocking too fast",
+   "Missing or too-strong pull-up resistors leaving the line low",
+   "The slave address is wrong",
+   "The clock line is inverted"
+  ],
+  "answer": 1,
+  "subject": "debug"
+ },
+ {
+  "id": "el/dbg/brownout",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "A device resets randomly under motor load. The most likely cause is",
+  "choices": [
+   "Flash wear",
+   "An I2C bus fault",
+   "Excessive baud rate",
+   "Supply droop when the motor draws current, tripping the brown-out detector"
+  ],
+  "answer": 3,
+  "subject": "debug"
+ },
+ {
+  "id": "el/dbg/pwm-freq",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why should PWM frequency be kept above about 20 kHz when driving a motor?",
+  "choices": [
+   "To push it above human hearing and above the amplifier's passband",
+   "To reduce CPU load",
+   "To increase torque",
+   "To reduce ripple current"
+  ],
+  "answer": 0,
+  "subject": "debug"
+ },
+ {
+  "id": "el/dbg/millis-rollover",
+  "source": "hand-authored/embedded-practice",
+  "category": "electronics_mc",
+  "lang": "en",
+  "question": "Why must elapsed time be computed as (uint32_t)(now - last) rather than now - last?",
+  "choices": [
+   "It is faster",
+   "It avoids floating point",
+   "millis() returns signed values",
+   "Unsigned subtraction wraps correctly at the 49.7-day millis() rollover"
+  ],
+  "answer": 3,
+  "subject": "debug"
+ }
+]
