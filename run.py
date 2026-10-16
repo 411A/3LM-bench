@@ -482,6 +482,17 @@ RUNNERS = {
     "std_belebele_fa": (run_mc, "std_belebele_fa"),
     "std_mmlu": (run_mc, "std_mmlu"),
     "std_gsm8k": (run_gsm8k, "std_gsm8k"),
+    # Stratified 30-item screening instances (tasks/std_*_s30.json via
+    # standard_strata.py). Separate keys/categories so s30 numbers can never
+    # mix with full-split numbers. Upstream files untouched.
+    "std_arc_challenge_s30": (run_mc, "std_arc_challenge_s30"),
+    "std_arc_easy_s30": (run_mc, "std_arc_easy_s30"),
+    "std_hellaswag_s30": (run_mc, "std_hellaswag_s30"),
+    "std_winogrande_s30": (run_mc, "std_winogrande_s30"),
+    "std_truthfulqa_mc_s30": (run_mc, "std_truthfulqa_mc_s30"),
+    "std_belebele_fa_s30": (run_mc, "std_belebele_fa_s30"),
+    "std_mmlu_s30": (run_mc, "std_mmlu_s30"),
+    "std_gsm8k_s30": (run_gsm8k, "std_gsm8k_s30"),
 }
 ALL_TASKS = list(RUNNERS)
 CUSTOM_TASKS = ["code_humaneval", "code_mbpp", "bugfix", "algo", "refactor",
@@ -493,7 +504,11 @@ STANDARD_TASKS = [t for t in ALL_TASKS if t.startswith("std_")]
 # ============================================================ aggregation
 MC_CATS = {"science", "electronics", "persian", "english",
            "std_arc_c", "std_arc_e", "std_hellaswag", "std_winogrande",
-           "std_truthfulqa", "std_belebele_fa", "std_mmlu"}
+           "std_truthfulqa", "std_belebele_fa", "std_mmlu",
+           "std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
+           "std_winogrande_s30", "std_truthfulqa_mc_s30",
+           "std_belebele_fa_s30", "std_mmlu_s30"}
+GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
 
 
@@ -593,7 +608,7 @@ def aggregate(records):
                 s[1] += 1 if r.get("correct") else 0
             entry["by_subject"] = {k2: {"n": v[0], "acc": round(v[1] / v[0], 4)}
                                    for k2, v in sorted(subs.items())}
-        elif cat == "std_gsm8k":
+        elif cat in GSM8K_CATS:
             k = sum(1 for r in rs if r.get("correct"))
             lo, hi = wilson(k, n)
             n_items = len({r.get("id") for r in rs})

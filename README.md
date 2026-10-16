@@ -71,6 +71,27 @@ are the only way the speed column means anything.
 | `std_mmlu` | MMLU 6-subject core (elem/high math, physics, bio, CS, world hist) | 1446 | single-token logprobs, by-subject |
 | `std_gsm8k` | GSM8K test, 0-shot `####` prompt (paper uses 8-shot CoT) | 1319 | generation + normalised exact match |
 
+Stratified s30 screening instances (`tasks/std_*_s30.json`, built by
+`standard_strata.py`, verified by `verify_standard.py`) — the default for
+screening and qualifiers. Upstream files are never modified; the 30s are
+separate instances with guaranteed subcategory coverage:
+
+| suite | strata (≥3 each, enforced) |
+|---|---|
+| ARC-C / ARC-E s30 | exam family: Mercury ×10, state exams ×10 (≥5 distinct exam sources), national/intl ×10 |
+| HellaSwag s30 | indomain ×15 (15 distinct activities), zeroshot ×15 (all 14 WikiHow activities) |
+| WinoGrande s30 | surface-length terciles ×10 (upstream ships no topic labels — stated, not invented) |
+| TruthfulQA s30 | choice-count bands 2–4 / 5–7 / 8+ ×10 (MC rows ship no topic fields — stated) |
+| Belebele-fa s30 | question-number 1 ×15 + 2 ×15 across 30 distinct passages |
+| MMLU-6 s30 | 6 subjects ×5 — physics, bio, CS, history and both maths all present |
+| GSM8K s30 | solution steps 0–2 / 3–4 / 5+ ×10, counted from official `<<..>>` annotations |
+
+Files are round-robin ordered, so any `--limit` prefix stays balanced, and the
+builder *fails* (non-zero exit) if any stratum cannot supply its items — a
+sampler that silently drops a subcategory is treated as broken. At n=30 the
+Wilson interval is ~±18pp: enough to separate 70% from 40% (the qualifier
+job), never enough to claim small wins.
+
 See `benchmarks/catalog.json` for licenses, papers, verification dates, and
 protocol deviations. Screening uses deterministic caps; full splits are
 Tier-3. Custom MC sets complement — never replace — these.

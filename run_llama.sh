@@ -153,17 +153,21 @@ profile_args() { # sets TASKS CAPS REPS AGENTIC LIMIT(for pilot/qualifier/tasks)
   case "$PROFILE" in
     pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1;;
     qualifier)
-      # WORLD CUP QUALIFIER: ~30 min/model. Same front-biased subsets for every
-      # model (deterministic task order), so the ranking is fair. MC kills the
-      # guessers, 3+3 code + 5 math + 3 chains test generation and tool use.
+      # WORLD CUP QUALIFIER: ~30 min/model. Stratified s30 subsets, identical
+      # for every model (deterministic seed), so the ranking is fair. MC kills
+      # the guessers, 3+3 code + 12 math + 3 chains test generation/tool use.
       # Survivors go to screening/full. Results ARE comparable across models
       # (identical items) but NOT against full-split numbers.
-      TASKS="science,electronics,persian,english,std_arc_easy,std_winogrande,std_truthfulqa_mc,std_hellaswag,std_belebele_fa,std_mmlu,std_gsm8k,code_humaneval,code_mbpp,agentic"
-      LIMIT="${LIMIT:-10}"
-      CAPS="code_humaneval=3,code_mbpp=3,std_gsm8k=5,agentic=3"
+      TASKS="science,electronics,persian,english,std_arc_easy_s30,std_winogrande_s30,std_truthfulqa_mc_s30,std_hellaswag_s30,std_belebele_fa_s30,std_mmlu_s30,std_gsm8k_s30,code_humaneval,code_mbpp,agentic"
+      LIMIT="${LIMIT:-12}"
+      CAPS="code_humaneval=3,code_mbpp=3,agentic=3"
       REPS=1; AGENTIC=1;;
     screening)
-      CAPS="code_humaneval=20,code_mbpp=20,std_hellaswag=100,std_arc_easy=100,std_arc_challenge=100,std_mmlu=100,std_belebele_fa=100,std_winogrande=100,std_truthfulqa_mc=100,std_gsm8k=30,agentic=8"
+      # Default comparable run: custom suites full + stratified s30 (30 each
+      # by construction, no caps needed). Full official splits are Tier-3
+      # opt-in via tasks=std_hellaswag,... (overnight).
+      TASKS="code_humaneval,code_mbpp,bugfix,algo,refactor,code_rust,embedded_cpp,science,electronics,persian,english,netdiag,devops,lint,agentic,std_arc_challenge_s30,std_arc_easy_s30,std_hellaswag_s30,std_winogrande_s30,std_truthfulqa_mc_s30,std_belebele_fa_s30,std_mmlu_s30,std_gsm8k_s30"
+      CAPS="code_humaneval=20,code_mbpp=20,agentic=8"
       REPS=1; AGENTIC=2;;
     tasks=*) TASKS="${PROFILE#tasks=}"; LIMIT="${LIMIT:-0}";;
     *) die "unknown profile $PROFILE";;

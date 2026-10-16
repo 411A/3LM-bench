@@ -93,6 +93,29 @@ if rows:
     check("belebele-fa is Persian text", fa_chars / len(rows) > 0.95,
           f"{fa_chars}/{len(rows)} contain Arabic-block chars")
 
+print("=== s30 coverage contract (no subcategory below 3, ever) ===")
+import glob as _glob
+from collections import Counter as _C
+for p in sorted(_glob.glob(os.path.join(TASKS, "std_*_s30.json"))):
+    name = os.path.basename(p)[:-5]
+    rows = json.load(open(p))
+    if name.endswith("gsm8k_s30"):
+        bad = [r for r in rows if not r.get("gold")]
+        check(f"{name} schema", not bad, f"n={len(rows)}")
+        strata = _C(r.get("stratum_name", "?") for r in rows)
+    else:
+        bad = [r for r in rows if not r.get("question")
+               or not isinstance(r.get("answer"), int)]
+        check(f"{name} schema", not bad, f"n={len(rows)}")
+        strata = _C(r.get("stratum_name", "?") for r in rows)
+    check(f"{name} min-per-stratum>=3",
+          bool(strata) and min(strata.values()) >= 3,
+          f"{dict(strata)}")
+    pre = _C(r.get("stratum") for r in rows[:12])
+    check(f"{name} prefix-balanced",
+          len(pre) >= min(3, len(strata)),
+          f"first12 strata={dict(pre)}")
+
 print()
 if fails:
     print(f"{len(fails)} FAILURES: {fails}")

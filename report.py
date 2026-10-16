@@ -23,7 +23,10 @@ RESULTS = os.path.join(HERE, "results")
 CATS = ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp", "science",
         "electronics", "persian", "english", "netdiag", "devops", "lint", "agentic",
         "std_arc_c", "std_arc_e", "std_hellaswag", "std_winogrande",
-        "std_truthfulqa", "std_belebele_fa", "std_mmlu", "std_gsm8k"]
+        "std_truthfulqa", "std_belebele_fa", "std_mmlu", "std_gsm8k",
+        "std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
+        "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_belebele_fa_s30",
+        "std_mmlu_s30", "std_gsm8k_s30"]
 
 HEAD = {
     "code": "HumanEval+MBPP", "bugfix": "BugFix", "algo": "Algo",
@@ -36,6 +39,12 @@ HEAD = {
     "std_hellaswag": "HellaSwag", "std_winogrande": "WinoGrande",
     "std_truthfulqa": "TruthfulQA-MC1", "std_belebele_fa": "Belebele-fa",
     "std_mmlu": "MMLU-6", "std_gsm8k": "GSM8K",
+    "std_arc_challenge_s30": "ARC-C (s30)", "std_arc_easy_s30": "ARC-E (s30)",
+    "std_hellaswag_s30": "HellaSwag (s30)",
+    "std_winogrande_s30": "WinoGrande (s30)",
+    "std_truthfulqa_mc_s30": "TruthfulQA (s30)",
+    "std_belebele_fa_s30": "Belebele-fa (s30)",
+    "std_mmlu_s30": "MMLU-6 (s30)", "std_gsm8k_s30": "GSM8K (s30)",
 }
 
 # What "higher is better" means per category, so the composite can be signed.
@@ -49,6 +58,10 @@ HIGHER_BETTER = {
     "std_hellaswag": "accuracy", "std_winogrande": "accuracy",
     "std_truthfulqa": "accuracy", "std_belebele_fa": "accuracy",
     "std_mmlu": "accuracy", "std_gsm8k": "accuracy",
+    "std_arc_challenge_s30": "accuracy", "std_arc_easy_s30": "accuracy",
+    "std_hellaswag_s30": "accuracy", "std_winogrande_s30": "accuracy",
+    "std_truthfulqa_mc_s30": "accuracy", "std_belebele_fa_s30": "accuracy",
+    "std_mmlu_s30": "accuracy", "std_gsm8k_s30": "accuracy",
 }
 
 
@@ -210,7 +223,11 @@ def main():
                 extra.append(f"calls {s.get('mean_tool_calls')}")
             if c in ("science", "electronics", "persian", "english",
                      "std_arc_c", "std_arc_e", "std_hellaswag", "std_winogrande",
-                     "std_truthfulqa", "std_belebele_fa", "std_mmlu"):
+                     "std_truthfulqa", "std_belebele_fa", "std_mmlu",
+                     "std_arc_challenge_s30", "std_arc_easy_s30",
+                     "std_hellaswag_s30", "std_winogrande_s30",
+                     "std_truthfulqa_mc_s30", "std_belebele_fa_s30",
+                     "std_mmlu_s30"):
                 extra.append(f"conf {s.get('mean_confidence')}")
                 extra.append(f"{s.get('tokens_per_item')} tok/item")
             print(f"| {n} | {fmt(v)} | {('[' + ', '.join(fmt(x,3) for x in i) + ']') if i else '-'} "

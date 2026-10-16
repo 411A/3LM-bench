@@ -57,9 +57,9 @@ group() { # name tasks limit reps
 }
 
 group custom-mc  "science,electronics,persian,english"                           5 1
-group std-mc1     "std_arc_challenge,std_arc_easy,std_winogrande"                5 1
-group std-mc2     "std_truthfulqa_mc,std_belebele_fa,std_mmlu"                   5 1
-group std-gen     "std_hellaswag,std_gsm8k"                                     3 1
+group std-mc1     "std_arc_challenge_s30,std_arc_easy_s30,std_winogrande_s30"  5 1
+group std-mc2     "std_truthfulqa_mc_s30,std_belebele_fa_s30,std_mmlu_s30"    5 1
+group std-gen     "std_hellaswag_s30,std_gsm8k_s30"                          3 1
 group code        "code_humaneval,code_mbpp"                                    2 1
 group gen1        "bugfix,algo,refactor,code_rust"                              2 1
 group gen2        "embedded_cpp,devops,lint,netdiag"                            2 1

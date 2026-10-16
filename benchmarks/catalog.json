@@ -1,1 +1,520 @@
-{"benchmarks": [{"domains": ["science", "reasoning"], "id": "arc_challenge", "integration": "tasks/std_arc_challenge.json via standard_fetch.py; runner run_mc (single-token logprob)", "license": "CC BY-SA 4.0", "metric": "accuracy (logprob choice)", "modality": "text", "n": 1170, "paper": "Clark et al. 2018, arXiv:1803.05457", "protocol_deviation": "none for MC scoring; official test split", "status": "verified", "task_ids": "std_arc_challenge", "url": "https://huggingface.co/datasets/allenai/ai2_arc", "verified_date": "2026-10-16"}, {"domains": ["science", "reasoning"], "id": "arc_easy", "integration": "tasks/std_arc_easy.json via standard_fetch.py; runner run_mc", "license": "CC BY-SA 4.0", "metric": "accuracy (logprob choice)", "modality": "text", "n": 2350, "paper": "Clark et al. 2018, arXiv:1803.05457", "protocol_deviation": "none; official test split", "status": "verified", "task_ids": "std_arc_easy", "url": "https://huggingface.co/datasets/allenai/ai2_arc", "verified_date": "2026-10-16"}, {"domains": ["commonsense", "reasoning"], "id": "hellaswag", "integration": "tasks/std_hellaswag.json; runner run_mc", "license": "MIT", "metric": "accuracy (logprob choice)", "modality": "text", "n": 10042, "paper": "Zellers et al. 2019, arXiv:1905.07830", "protocol_deviation": "validation split (test labels hidden upstream); screening uses deterministic cap", "status": "verified", "task_ids": "std_hellaswag", "url": "https://huggingface.co/datasets/Rowan/hellaswag", "verified_date": "2026-10-16"}, {"domains": ["commonsense", "reasoning"], "id": "winogrande", "integration": "tasks/std_winogrande.json; runner run_mc (2 options)", "license": "CC BY 4.0 (validation visible)", "metric": "accuracy (logprob choice)", "modality": "text", "n": 1267, "paper": "Sakaguchi et al. 2021, arXiv:1907.10641", "protocol_deviation": "validation split (test hidden upstream)", "status": "verified", "task_ids": "std_winogrande", "url": "https://huggingface.co/datasets/allenai/winogrande", "verified_date": "2026-10-16"}, {"domains": ["mathematics", "reasoning"], "id": "gsm8k", "integration": "tasks/std_gsm8k.json; runner run_gsm8k (generation + #### extraction)", "license": "MIT", "metric": "exact match on normalised number", "modality": "text", "n": 1319, "paper": "Cobbe et al. 2021, arXiv:2110.14168", "protocol_deviation": "0-shot #### prompt (paper uses 8-shot CoT); recorded per record", "status": "verified", "task_ids": "std_gsm8k", "url": "https://huggingface.co/datasets/openai/gsm8k", "verified_date": "2026-10-16"}, {"domains": ["robustness", "knowledge"], "id": "truthfulqa_mc", "integration": "tasks/std_truthfulqa_mc.json; runner run_mc (MC1)", "license": "Apache-2.0", "metric": "MC1 accuracy", "modality": "text", "n": 817, "paper": "Lin et al. 2022, arXiv:2109.07958", "protocol_deviation": "MC1 only (MC2 not scored)", "status": "verified", "task_ids": "std_truthfulqa_mc", "url": "https://huggingface.co/datasets/truthfulqa/truthful_qa", "verified_date": "2026-10-16"}, {"domains": ["language", "reading-comprehension", "persian"], "id": "belebele_fa", "integration": "tasks/std_belebele_fa.json (pes_Arab direct jsonl); runner run_mc; Persian normalisation available but MC scored via logprob letters (no text match needed)", "license": "CC BY-SA 4.0", "metric": "accuracy (logprob choice)", "modality": "text", "n": 900, "paper": "Bandarkar et al. 2024, arXiv:2308.16884", "protocol_deviation": "none; official pes_Arab test-equivalent file", "status": "verified", "task_ids": "std_belebele_fa", "url": "https://huggingface.co/datasets/facebook/belebele", "verified_date": "2026-10-16"}, {"domains": ["knowledge", "science", "stem"], "id": "mmlu_6", "integration": "tasks/std_mmlu.json (6 subjects); runner run_mc; by_subject reported", "license": "MIT", "metric": "accuracy (logprob choice), per-subject", "modality": "text", "n": 1446, "paper": "Hendrycks et al. 2021, arXiv:2009.03300", "protocol_deviation": "6-subject core (not full 57); full fetch opt-in via --mmlu-subjects", "status": "verified", "subjects": ["elementary_mathematics", "high_school_mathematics", "high_school_physics", "high_school_biology", "high_school_computer_science", "high_school_world_history"], "task_ids": "std_mmlu", "url": "https://huggingface.co/datasets/cais/mmlu", "verified_date": "2026-10-16"}, {"domains": ["code", "algorithms"], "id": "humaneval", "integration": "tasks/code_humaneval.json (164); execution in subprocess + sentinel", "license": "MIT (openai/human-eval)", "metric": "pass@1 over reps", "modality": "code-exec", "n": 164, "paper": "Chen et al. 2021, arXiv:2107.03374", "protocol_deviation": "check(entry_point) baked into stored test (runner contract); documented in REVIEW.md D1", "status": "verified", "url": "https://github.com/openai/human-eval", "verified_date": "2026-10-16"}, {"domains": ["code", "algorithms"], "id": "mbpp_sanitized", "integration": "tasks/code_mbpp.json (426 of 427 canonical); execution + sentinel", "license": "CC BY 4.0 (Austin et al.)", "metric": "pass@1 over reps", "modality": "code-exec", "n": 426, "paper": "Austin et al. 2021, arXiv:2108.07732", "protocol_deviation": "0-shot (paper uses 3-shot); import math prepended (EvalPlus precedent)", "status": "verified", "url": "https://github.com/google-research/google-research/tree/master/mbpp", "verified_date": "2026-10-16"}, {"domains": ["code"], "id": "rust_multipl_e_convention", "integration": "tasks/code_rust.json; rustc + exec, MultiPL-E harness convention (model writes fn only)", "license": "custom (hand-made + MultiPL-E convention, not redistributed data)", "metric": "pass@1", "modality": "code-exec", "n": 10, "paper": "Cassano et al. 2023, arXiv:2208.08227 (convention only)", "protocol_deviation": "custom items following MultiPL-E convention; labelled custom", "status": "verified_partial", "verified_date": "2026-10-16"}, {"domains": ["electronics", "embedded", "iot-conceptual"], "id": "custom_electronics", "integration": "tasks/electronics.json (58 MC) + tasks/embedded_cpp.json (12 compiled)", "license": "custom (project-authored)", "metric": "MC accuracy / compile+assert pass", "modality": "text + code-exec", "n": 70, "protocol_deviation": "custom; not EEE-Bench (which is multimodal); never claim equivalence", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["persian", "language"], "id": "custom_persian", "integration": "tasks/persian.json (40 MC) + Belebele-fa standard above", "license": "custom (project-authored)", "metric": "MC accuracy with fa normalisation", "modality": "text", "n": 40, "protocol_deviation": "custom; complements (does not replace) Belebele-fa/ParsBench", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["language"], "id": "custom_english", "integration": "tasks/english.json (45 MC)", "license": "custom (project-authored)", "metric": "MC accuracy", "modality": "text", "n": 45, "protocol_deviation": "custom screening set", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["science"], "id": "custom_science", "integration": "tasks/science.json (35 MC, ARC/MMLU-STEM style)", "license": "custom (project-authored)", "metric": "MC accuracy", "modality": "text", "n": 35, "protocol_deviation": "custom; complements (does not replace) ARC/MMLU standard", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["software-engineering", "agents"], "id": "custom_agentic", "integration": "agentic.py 15 chains; scripted tools + ordered trace + pass^k", "license": "custom (project-authored)", "metric": "pass^k (chain_ok), trace rate", "modality": "tool-use", "n": 15, "paper": "tau-bench / AgentBench methodology (adapted, not vendored)", "protocol_deviation": "scripted world, not full tau-bench simulator; labelled custom", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["devops", "software-engineering"], "id": "custom_devops", "integration": "tasks/devops.json (10); gated static checks, FDE-Bench lattice style", "license": "custom (project-authored)", "metric": "mean gated score", "modality": "text-artifact", "n": 10, "protocol_deviation": "custom; format/scoring rubric adapted from FDE-Bench", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["networking"], "id": "custom_netdiag", "integration": "tasks/netdiag.json (11, 36% false-premise); verdict+device+cause thirds", "license": "custom (project-authored)", "metric": "mean thirds score", "modality": "text", "n": 11, "paper": "FaulT-Bench majority-counterexample design (adapted)", "protocol_deviation": "custom items; design adapted", "status": "verified", "verified_date": "2026-10-16"}, {"domains": ["code-quality"], "id": "custom_lint", "integration": "tasks/lint.json (14); ruff + clippy pinned rules", "license": "custom (project-authored)", "metric": "clean_rate, mean diags, gaming rate", "modality": "code-static", "n": 14, "protocol_deviation": "novel metric; reported as 4 numbers, never a gate", "status": "verified", "verified_date": "2026-10-16"}], "research_only": [{"id": "chembench", "note": "requires chemistry tooling (RDKit) unavailable here; data not fetched", "status": "research_only", "url": "https://github.com/lamalab-org/chem-bench"}, {"id": "chemllmbench", "note": "distinct from ChemBench; 8 tasks; needs cheminformatics stack", "status": "research_only", "url": "https://github.com/ChemFoundationModels/ChemLLMBench"}, {"id": "medqa_medmcqa_pubmedqa", "note": "recall-only for 4B models; clinical-safety misreading risk; deferred pending bilingual medical review", "status": "research_only", "url": "https://github.com/jind11/MedQA"}, {"id": "eee_bench_full", "note": "multimodal (circuit diagrams); text-only backend cannot fairly evaluate; custom electronics covers text subset", "status": "unsupported", "url": "https://github.com/Jike338/EEE-Bench"}, {"id": "iot_skillsbench_hil", "note": "needs Arduino/ESP32 hardware-in-the-loop; conceptual subset covered by embedded_cpp", "status": "unsupported", "url": "https://github.com/iot-agent/iot-skillsbench"}, {"id": "mmlu_pro_gpqa", "note": "expert-level; tiny models score near chance; Tier-3 opt-in candidate", "status": "research_only"}, {"id": "ifeval", "note": "instruction-following with verifiable constraints; candidate next adapter", "status": "research_only", "url": "https://github.com/google-research/google-research/tree/master/instruction_following_eval"}], "schema": "llmbench-catalog/1", "tiers": {"extended": "full standard splits (opt-in, --no-cap); GPQA/MMLU-Pro candidates", "screening": "deterministic caps over standard + custom (default for comparison)", "smoke": "--limit 5, pipeline check only, never reported as scores", "standard": "official splits for std_* (Tier-3, overnight)"}}
+{
+ "benchmarks": [
+  {
+   "domains": [
+    "science",
+    "reasoning"
+   ],
+   "id": "arc_challenge",
+   "integration": "tasks/std_arc_challenge.json via standard_fetch.py; runner run_mc (single-token logprob)",
+   "license": "CC BY-SA 4.0",
+   "metric": "accuracy (logprob choice)",
+   "modality": "text",
+   "n": 1170,
+   "paper": "Clark et al. 2018, arXiv:1803.05457",
+   "protocol_deviation": "none for MC scoring; official test split",
+   "status": "verified",
+   "task_ids": "std_arc_challenge",
+   "url": "https://huggingface.co/datasets/allenai/ai2_arc",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "science",
+    "reasoning"
+   ],
+   "id": "arc_easy",
+   "integration": "tasks/std_arc_easy.json via standard_fetch.py; runner run_mc",
+   "license": "CC BY-SA 4.0",
+   "metric": "accuracy (logprob choice)",
+   "modality": "text",
+   "n": 2350,
+   "paper": "Clark et al. 2018, arXiv:1803.05457",
+   "protocol_deviation": "none; official test split",
+   "status": "verified",
+   "task_ids": "std_arc_easy",
+   "url": "https://huggingface.co/datasets/allenai/ai2_arc",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "commonsense",
+    "reasoning"
+   ],
+   "id": "hellaswag",
+   "integration": "tasks/std_hellaswag.json; runner run_mc",
+   "license": "MIT",
+   "metric": "accuracy (logprob choice)",
+   "modality": "text",
+   "n": 10042,
+   "paper": "Zellers et al. 2019, arXiv:1905.07830",
+   "protocol_deviation": "validation split (test labels hidden upstream); screening uses deterministic cap",
+   "status": "verified",
+   "task_ids": "std_hellaswag",
+   "url": "https://huggingface.co/datasets/Rowan/hellaswag",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "commonsense",
+    "reasoning"
+   ],
+   "id": "winogrande",
+   "integration": "tasks/std_winogrande.json; runner run_mc (2 options)",
+   "license": "CC BY 4.0 (validation visible)",
+   "metric": "accuracy (logprob choice)",
+   "modality": "text",
+   "n": 1267,
+   "paper": "Sakaguchi et al. 2021, arXiv:1907.10641",
+   "protocol_deviation": "validation split (test hidden upstream)",
+   "status": "verified",
+   "task_ids": "std_winogrande",
+   "url": "https://huggingface.co/datasets/allenai/winogrande",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "mathematics",
+    "reasoning"
+   ],
+   "id": "gsm8k",
+   "integration": "tasks/std_gsm8k.json; runner run_gsm8k (generation + #### extraction)",
+   "license": "MIT",
+   "metric": "exact match on normalised number",
+   "modality": "text",
+   "n": 1319,
+   "paper": "Cobbe et al. 2021, arXiv:2110.14168",
+   "protocol_deviation": "0-shot #### prompt (paper uses 8-shot CoT); recorded per record",
+   "status": "verified",
+   "task_ids": "std_gsm8k",
+   "url": "https://huggingface.co/datasets/openai/gsm8k",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "robustness",
+    "knowledge"
+   ],
+   "id": "truthfulqa_mc",
+   "integration": "tasks/std_truthfulqa_mc.json; runner run_mc (MC1)",
+   "license": "Apache-2.0",
+   "metric": "MC1 accuracy",
+   "modality": "text",
+   "n": 817,
+   "paper": "Lin et al. 2022, arXiv:2109.07958",
+   "protocol_deviation": "MC1 only (MC2 not scored)",
+   "status": "verified",
+   "task_ids": "std_truthfulqa_mc",
+   "url": "https://huggingface.co/datasets/truthfulqa/truthful_qa",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "language",
+    "reading-comprehension",
+    "persian"
+   ],
+   "id": "belebele_fa",
+   "integration": "tasks/std_belebele_fa.json (pes_Arab direct jsonl); runner run_mc; Persian normalisation available but MC scored via logprob letters (no text match needed)",
+   "license": "CC BY-SA 4.0",
+   "metric": "accuracy (logprob choice)",
+   "modality": "text",
+   "n": 900,
+   "paper": "Bandarkar et al. 2024, arXiv:2308.16884",
+   "protocol_deviation": "none; official pes_Arab test-equivalent file",
+   "status": "verified",
+   "task_ids": "std_belebele_fa",
+   "url": "https://huggingface.co/datasets/facebook/belebele",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "knowledge",
+    "science",
+    "stem"
+   ],
+   "id": "mmlu_6",
+   "integration": "tasks/std_mmlu.json (6 subjects); runner run_mc; by_subject reported",
+   "license": "MIT",
+   "metric": "accuracy (logprob choice), per-subject",
+   "modality": "text",
+   "n": 1446,
+   "paper": "Hendrycks et al. 2021, arXiv:2009.03300",
+   "protocol_deviation": "6-subject core (not full 57); full fetch opt-in via --mmlu-subjects",
+   "status": "verified",
+   "subjects": [
+    "elementary_mathematics",
+    "high_school_mathematics",
+    "high_school_physics",
+    "high_school_biology",
+    "high_school_computer_science",
+    "high_school_world_history"
+   ],
+   "task_ids": "std_mmlu",
+   "url": "https://huggingface.co/datasets/cais/mmlu",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "code",
+    "algorithms"
+   ],
+   "id": "humaneval",
+   "integration": "tasks/code_humaneval.json (164); execution in subprocess + sentinel",
+   "license": "MIT (openai/human-eval)",
+   "metric": "pass@1 over reps",
+   "modality": "code-exec",
+   "n": 164,
+   "paper": "Chen et al. 2021, arXiv:2107.03374",
+   "protocol_deviation": "check(entry_point) baked into stored test (runner contract); documented in REVIEW.md D1",
+   "status": "verified",
+   "url": "https://github.com/openai/human-eval",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "code",
+    "algorithms"
+   ],
+   "id": "mbpp_sanitized",
+   "integration": "tasks/code_mbpp.json (426 of 427 canonical); execution + sentinel",
+   "license": "CC BY 4.0 (Austin et al.)",
+   "metric": "pass@1 over reps",
+   "modality": "code-exec",
+   "n": 426,
+   "paper": "Austin et al. 2021, arXiv:2108.07732",
+   "protocol_deviation": "0-shot (paper uses 3-shot); import math prepended (EvalPlus precedent)",
+   "status": "verified",
+   "url": "https://github.com/google-research/google-research/tree/master/mbpp",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "code"
+   ],
+   "id": "rust_multipl_e_convention",
+   "integration": "tasks/code_rust.json; rustc + exec, MultiPL-E harness convention (model writes fn only)",
+   "license": "custom (hand-made + MultiPL-E convention, not redistributed data)",
+   "metric": "pass@1",
+   "modality": "code-exec",
+   "n": 10,
+   "paper": "Cassano et al. 2023, arXiv:2208.08227 (convention only)",
+   "protocol_deviation": "custom items following MultiPL-E convention; labelled custom",
+   "status": "verified_partial",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "electronics",
+    "embedded",
+    "iot-conceptual"
+   ],
+   "id": "custom_electronics",
+   "integration": "tasks/electronics.json (58 MC) + tasks/embedded_cpp.json (12 compiled)",
+   "license": "custom (project-authored)",
+   "metric": "MC accuracy / compile+assert pass",
+   "modality": "text + code-exec",
+   "n": 70,
+   "protocol_deviation": "custom; not EEE-Bench (which is multimodal); never claim equivalence",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "persian",
+    "language"
+   ],
+   "id": "custom_persian",
+   "integration": "tasks/persian.json (40 MC) + Belebele-fa standard above",
+   "license": "custom (project-authored)",
+   "metric": "MC accuracy with fa normalisation",
+   "modality": "text",
+   "n": 40,
+   "protocol_deviation": "custom; complements (does not replace) Belebele-fa/ParsBench",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "language"
+   ],
+   "id": "custom_english",
+   "integration": "tasks/english.json (45 MC)",
+   "license": "custom (project-authored)",
+   "metric": "MC accuracy",
+   "modality": "text",
+   "n": 45,
+   "protocol_deviation": "custom screening set",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "science"
+   ],
+   "id": "custom_science",
+   "integration": "tasks/science.json (35 MC, ARC/MMLU-STEM style)",
+   "license": "custom (project-authored)",
+   "metric": "MC accuracy",
+   "modality": "text",
+   "n": 35,
+   "protocol_deviation": "custom; complements (does not replace) ARC/MMLU standard",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "software-engineering",
+    "agents"
+   ],
+   "id": "custom_agentic",
+   "integration": "agentic.py 15 chains; scripted tools + ordered trace + pass^k",
+   "license": "custom (project-authored)",
+   "metric": "pass^k (chain_ok), trace rate",
+   "modality": "tool-use",
+   "n": 15,
+   "paper": "tau-bench / AgentBench methodology (adapted, not vendored)",
+   "protocol_deviation": "scripted world, not full tau-bench simulator; labelled custom",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "devops",
+    "software-engineering"
+   ],
+   "id": "custom_devops",
+   "integration": "tasks/devops.json (10); gated static checks, FDE-Bench lattice style",
+   "license": "custom (project-authored)",
+   "metric": "mean gated score",
+   "modality": "text-artifact",
+   "n": 10,
+   "protocol_deviation": "custom; format/scoring rubric adapted from FDE-Bench",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "networking"
+   ],
+   "id": "custom_netdiag",
+   "integration": "tasks/netdiag.json (11, 36% false-premise); verdict+device+cause thirds",
+   "license": "custom (project-authored)",
+   "metric": "mean thirds score",
+   "modality": "text",
+   "n": 11,
+   "paper": "FaulT-Bench majority-counterexample design (adapted)",
+   "protocol_deviation": "custom items; design adapted",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "domains": [
+    "code-quality"
+   ],
+   "id": "custom_lint",
+   "integration": "tasks/lint.json (14); ruff + clippy pinned rules",
+   "license": "custom (project-authored)",
+   "metric": "clean_rate, mean diags, gaming rate",
+   "modality": "code-static",
+   "n": 14,
+   "protocol_deviation": "novel metric; reported as 4 numbers, never a gate",
+   "status": "verified",
+   "verified_date": "2026-10-16"
+  },
+  {
+   "id": "std_arc_challenge_s30",
+   "source_suite": "std_arc_challenge",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "exam-family",
+    "proxy": false
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_arc_easy_s30",
+   "source_suite": "std_arc_easy",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "exam-family",
+    "proxy": false
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_hellaswag_s30",
+   "source_suite": "std_hellaswag",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "split_type(indomain/zeroshot)+distinct-activity",
+    "proxy": false,
+    "note": "zeroshot(WikiHow) has only 14 activity titles: all 14 covered"
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_winogrande_s30",
+   "source_suite": "std_winogrande",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "surface-length-terciles",
+    "cuts": [
+     94,
+     108
+    ],
+    "proxy": true,
+    "note": "upstream ships no topic labels; length only"
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_truthfulqa_mc_s30",
+   "source_suite": "std_truthfulqa_mc",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "choice-count-bands",
+    "proxy": true,
+    "note": "MC rows ship no topic fields; distractors only"
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_belebele_fa_s30",
+   "source_suite": "std_belebele_fa",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "question_number+distinct-passage",
+    "proxy": false
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_mmlu_s30",
+   "source_suite": "std_mmlu",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "subject",
+    "proxy": false,
+    "subjects": [
+     "mmlu/elementary_mathematics",
+     "mmlu/high_school_biology",
+     "mmlu/high_school_computer_science",
+     "mmlu/high_school_mathematics",
+     "mmlu/high_school_physics",
+     "mmlu/high_school_world_history"
+    ]
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_gsm8k_s30",
+   "source_suite": "std_gsm8k",
+   "kind": "screen30",
+   "n": 30,
+   "seed": 20261012,
+   "min_per_stratum": 3,
+   "strata": {
+    "type": "solution-step-bands",
+    "proxy": false,
+    "note": "steps from <<..>> in official answers; no topic labels upstream"
+   },
+   "order": "round-robin",
+   "status": "verified",
+   "verified_date": "2026-10-16",
+   "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  }
+ ],
+ "research_only": [
+  {
+   "id": "chembench",
+   "note": "requires chemistry tooling (RDKit) unavailable here; data not fetched",
+   "status": "research_only",
+   "url": "https://github.com/lamalab-org/chem-bench"
+  },
+  {
+   "id": "chemllmbench",
+   "note": "distinct from ChemBench; 8 tasks; needs cheminformatics stack",
+   "status": "research_only",
+   "url": "https://github.com/ChemFoundationModels/ChemLLMBench"
+  },
+  {
+   "id": "medqa_medmcqa_pubmedqa",
+   "note": "recall-only for 4B models; clinical-safety misreading risk; deferred pending bilingual medical review",
+   "status": "research_only",
+   "url": "https://github.com/jind11/MedQA"
+  },
+  {
+   "id": "eee_bench_full",
+   "note": "multimodal (circuit diagrams); text-only backend cannot fairly evaluate; custom electronics covers text subset",
+   "status": "unsupported",
+   "url": "https://github.com/Jike338/EEE-Bench"
+  },
+  {
+   "id": "iot_skillsbench_hil",
+   "note": "needs Arduino/ESP32 hardware-in-the-loop; conceptual subset covered by embedded_cpp",
+   "status": "unsupported",
+   "url": "https://github.com/iot-agent/iot-skillsbench"
+  },
+  {
+   "id": "mmlu_pro_gpqa",
+   "note": "expert-level; tiny models score near chance; Tier-3 opt-in candidate",
+   "status": "research_only"
+  },
+  {
+   "id": "ifeval",
+   "note": "instruction-following with verifiable constraints; candidate next adapter",
+   "status": "research_only",
+   "url": "https://github.com/google-research/google-research/tree/master/instruction_following_eval"
+  }
+ ],
+ "schema": "llmbench-catalog/1",
+ "tiers": {
+  "extended": "full standard splits (opt-in, --no-cap); GPQA/MMLU-Pro candidates",
+  "screening": "deterministic caps over standard + custom (default for comparison)",
+  "smoke": "--limit 5, pipeline check only, never reported as scores",
+  "standard": "official splits for std_* (Tier-3, overnight)"
+ }
+}

@@ -111,5 +111,166 @@
    "high_school_computer_science",
    "high_school_world_history"
   ]
+ },
+ "std_arc_challenge_s30": {
+  "source": "std_arc_challenge",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "exam-family",
+   "proxy": false
+  },
+  "stratum_names": [
+   "Mercury",
+   "state-exams",
+   "national-intl"
+  ],
+  "order": "round-robin",
+  "sha16": "32aa95d70b26e4e6"
+ },
+ "std_arc_easy_s30": {
+  "source": "std_arc_easy",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "exam-family",
+   "proxy": false
+  },
+  "stratum_names": [
+   "Mercury",
+   "state-exams",
+   "national-intl"
+  ],
+  "order": "round-robin",
+  "sha16": "279f2bbef919faf6"
+ },
+ "std_hellaswag_s30": {
+  "source": "std_hellaswag",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "split_type(indomain/zeroshot)+distinct-activity",
+   "proxy": false,
+   "note": "zeroshot(WikiHow) has only 14 activity titles: all 14 covered"
+  },
+  "stratum_names": [
+   "indomain",
+   "zeroshot"
+  ],
+  "order": "round-robin",
+  "sha16": "8d96245e4506a444"
+ },
+ "std_winogrande_s30": {
+  "source": "std_winogrande",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "surface-length-terciles",
+   "cuts": [
+    94,
+    108
+   ],
+   "proxy": true,
+   "note": "upstream ships no topic labels; length only"
+  },
+  "stratum_names": [
+   "short",
+   "mid",
+   "long"
+  ],
+  "order": "round-robin",
+  "sha16": "0a4507f87359c76c"
+ },
+ "std_truthfulqa_mc_s30": {
+  "source": "std_truthfulqa_mc",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "choice-count-bands",
+   "proxy": true,
+   "note": "MC rows ship no topic fields; distractors only"
+  },
+  "stratum_names": [
+   "choice2-4",
+   "choice5-7",
+   "choice8+"
+  ],
+  "order": "round-robin",
+  "sha16": "522131bbfeae22f4"
+ },
+ "std_belebele_fa_s30": {
+  "source": "std_belebele_fa",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "question_number+distinct-passage",
+   "proxy": false
+  },
+  "stratum_names": [
+   "qnum1",
+   "qnum2"
+  ],
+  "order": "round-robin",
+  "sha16": "25eb91a6b66ad88f"
+ },
+ "std_mmlu_s30": {
+  "source": "std_mmlu",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "subject",
+   "proxy": false,
+   "subjects": [
+    "mmlu/elementary_mathematics",
+    "mmlu/high_school_biology",
+    "mmlu/high_school_computer_science",
+    "mmlu/high_school_mathematics",
+    "mmlu/high_school_physics",
+    "mmlu/high_school_world_history"
+   ]
+  },
+  "stratum_names": [
+   "mmlu/elementary_mathematics",
+   "mmlu/high_school_biology",
+   "mmlu/high_school_computer_science",
+   "mmlu/high_school_mathematics",
+   "mmlu/high_school_physics",
+   "mmlu/high_school_world_history"
+  ],
+  "order": "round-robin",
+  "sha16": "5a451702179daca8"
+ },
+ "std_gsm8k_s30": {
+  "source": "std_gsm8k",
+  "kind": "screen30",
+  "n_items": 30,
+  "seed": 20261012,
+  "min_per_stratum": 3,
+  "strata": {
+   "type": "solution-step-bands",
+   "proxy": false,
+   "note": "steps from <<..>> in official answers; no topic labels upstream"
+  },
+  "stratum_names": [
+   "steps0-2",
+   "steps3-4",
+   "steps5+"
+  ],
+  "order": "round-robin",
+  "sha16": "c1c65d25915461b1"
  }
 }

@@ -36,25 +36,32 @@ MIN_FREE_MIB=900          # below this, ollama will thrash instead of serving
 # up. Tier B still runs every category but with fewer code items and one rep, so
 # the table has a row for them without costing another day.
 #
-# Standard suites (ARC/HellaSwag/WinoGrande/TruthfulQA/Belebele-fa/MMLU-6) are
-# MC via single-token logprobs (~1-3s/item); GSM8K is generation (~60-120s/item
-# at 3-8 tok/s) and is capped hardest. Full HellaSwag (10k) never runs uncapped
-# in a queue: screening caps keep a model to ~2-3h, full splits are Tier-3
-# overnight opt-in.
+# Standard suites run as stratified s30 instances (30 items each, guaranteed
+# subcategory coverage via standard_strata.py) — no caps needed. GSM8K-s30 is
+# generation (~45s/item at 3-8 tok/s): 30 items ≈ 23 min. Full official splits
+# (HellaSwag 10k etc.) never run in a queue: Tier-3 overnight opt-in only.
 #
-# Tier A: HumanEval 40 + MBPP 50, std caps 200/100, GSM8K 60, 2 reps, agentic 3
-# Tier B: HumanEval 20 + MBPP 20, std caps 100/50, GSM8K 30, 1 rep, agentic 2
+# Tier A: HumanEval 40 + MBPP 50 + s30, 2 reps, agentic 3
+# Tier B: HumanEval 20 + MBPP 20 + s30, 1 rep, agentic 2
 TIER_A_MODELS="nemotron-3-nano minicpm5-2b"
-TIER_A_CAPS="code_humaneval=40,code_mbpp=50,std_hellaswag=200,std_arc_easy=200,std_arc_challenge=150,std_mmlu=150,std_belebele_fa=150,std_winogrande=150,std_truthfulqa_mc=150,std_gsm8k=60,agentic=8"
+TIER_A_CAPS="code_humaneval=40,code_mbpp=50,agentic=8"
 TIER_A_REPS=2
 TIER_A_AGENTIC=3
-TIER_B_CAPS="code_humaneval=20,code_mbpp=20,std_hellaswag=100,std_arc_easy=100,std_arc_challenge=100,std_mmlu=100,std_belebele_fa=100,std_winogrande=100,std_truthfulqa_mc=100,std_gsm8k=30,agentic=8"
+TIER_B_CAPS="code_humaneval=20,code_mbpp=20,agentic=8"
+TIER_A_REPS=2
+TIER_A_AGENTIC=3
+TIER_B_CAPS="code_humaneval=20,code_mbpp=20,agentic=8"
 TIER_B_REPS=1
 TIER_B_AGENTIC=2
 # Profile selectors for run.py --tasks:
 PROFILE_CUSTOM="code_humaneval,code_mbpp,bugfix,algo,refactor,code_rust,embedded_cpp,science,electronics,persian,english,netdiag,devops,lint,agentic"
+PROFILE_S30="std_arc_challenge_s30,std_arc_easy_s30,std_hellaswag_s30,std_winogrande_s30,std_truthfulqa_mc_s30,std_belebele_fa_s30,std_mmlu_s30,std_gsm8k_s30"
+# Full official splits (Tier-3 overnight opt-in, NOT the default queue):
 PROFILE_STANDARD="std_arc_challenge,std_arc_easy,std_hellaswag,std_winogrande,std_truthfulqa_mc,std_belebele_fa,std_mmlu,std_gsm8k"
 PROFILE_ALL="all"
+# Default queue: custom suites full + stratified s30. Full splits never run
+# here (they would double-count alongside s30 and cost ~30h on HellaSwag).
+PROFILE_DEFAULT="$PROFILE_CUSTOM,$PROFILE_S30"
 
 # label | backend | model | port
 # Pipe delimiter, not colon: ollama tags contain colons ("nemotron-3-nano:4b"),
@@ -268,6 +275,7 @@ for entry in "${MODELS[@]}"; do
   for attempt in 1 2; do
     python3 -u run.py \
       --backend "$backend" --model "$model" --port "$port" \
+      --tasks "$PROFILE_DEFAULT" \
       --reps "$REPS" --per-task-cap "$CAPS" --agentic-reps "$AGENTIC_REPS" \
       --label "$label" ${extra[@]} > "$log" 2>&1
     rc=$?
