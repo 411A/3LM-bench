@@ -65,19 +65,22 @@ def main():
         macro = sum(vals) / len(vals) if vals else 0.0
         empty = max([v.get("empty_output_rate", 0) for v in s.values()
                      if isinstance(v, dict)] + [0])
+        n_errors = sum(v.get("n_errors", 0) for v in s.values()
+                       if isinstance(v, dict))
         rows.append({"label": os.path.basename(f)[:-7] + f" ({be})",
-                     "file": f,
+                     "file": f, "partial": bool(d.get("partial")),
                      "macro": round(macro, 4), "cats": len(vals),
                      "mc_significant": mc_sig,
                      "code_passed": code_pass,
                      "chains_solved": round(chains, 2),
-                     "empty_rate": empty})
-
+                     "empty_rate": empty, "n_errors": n_errors})
     for r in rows:
         r["no_signal"] = (r["mc_significant"] == 0 and r["code_passed"] == 0
                           and r["chains_solved"] == 0) or r["empty_rate"] > 0.5
 
-    ranked = sorted([r for r in rows if not r["no_signal"]],
+    # Rank only COMPLETE runs: partials neither advance nor consume slots.
+    ranked = sorted([r for r in rows
+                     if not r["no_signal"] and not r["partial"]],
                     key=lambda r: -r["macro"])
     if len(ranked) >= 3:
         adv_n = args.top or max(1, len(ranked) // 2)
@@ -89,17 +92,25 @@ def main():
     for r in rows:
         if r["no_signal"]:
             r["verdict"] = "CUT"
+    # Partial runs (dead server, Ctrl+C) are not rankable: their missing
+    # categories are unknown, not bad. Rerun them, don't judge them.
+    for r in rows:
+        if r["partial"]:
+            r["verdict"] = "PARTIAL"
 
     if args.json:
         print(json.dumps(rows, indent=1))
         return
     print("=== QUALIFIER TABLE (q-vs-q only; never vs full splits) ===\n")
     print(f"{'model':<22} {'macro':>6} {'MCsig':>6} {'code':>5} "
-          f"{'chains':>7} {'verdict':>8}")
-    for r in sorted(rows, key=lambda r: (r["verdict"] != "ADVANCE", -r["macro"])):
+          f"{'chains':>7} {'errs':>5} {'verdict':>8}")
+    order = {"ADVANCE": 0, "PARTIAL": 1, "CUT": 2}
+    for r in sorted(rows, key=lambda r: (order[r["verdict"]], -r["macro"])):
         print(f"{r['label']:<22} {r['macro']:>6.3f} {r['mc_significant']:>6} "
-              f"{r['code_passed']:>5} {r['chains_solved']:>7} {r['verdict']:>8}")
-    print("\nADVANCE = goes to screening/full. CUT = out of the tournament.")
+              f"{r['code_passed']:>5} {r['chains_solved']:>7} "
+              f"{r['n_errors']:>5} {r['verdict']:>8}")
+    print("\nADVANCE = goes to screening/full. CUT = out of the tournament. "
+          "PARTIAL = rerun first.")
 
 
 if __name__ == "__main__":

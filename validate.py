@@ -162,6 +162,20 @@ def main():
     note(S.score_netdiag(
         f"There is a fault. The faulty device is {dev}. The root cause is {cause}.",
         nt)["score"] == 1.0, "oracle netdiag scores 1.0 in-pipeline")
+    # ERROR stubs must never enter scoring denominators (a dead server once
+    # zeroed a model's code + agentic columns).
+    stub_recs = [
+        {"id": "code_humaneval#ERROR", "rep": 0, "category": "code",
+         "task": "code_humaneval", "passed": False, "correct": False,
+         "score": 0.0, "stopped": "error",
+         "tokens": {"eval": 0}, "speed": {"gen_tps": None}},
+        {"id": "h1", "rep": 0, "category": "code", "task": "code_humaneval",
+         "passed": True, "tokens": {"eval": 0}, "speed": {"gen_tps": None},
+         "lint": {"n_diagnostics": 0, "noqa_gaming": False}},
+    ]
+    agg2 = R.aggregate(stub_recs)
+    note(agg2["code"]["accuracy"] == 1.0 and agg2["code"]["n_errors"] == 1,
+         "ERROR stub excluded from scoring, counted in n_errors")
 
     print("=== report + compare render ===")
     import tempfile as _tf

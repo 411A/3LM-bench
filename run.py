@@ -519,7 +519,23 @@ def aggregate(records):
         by.setdefault(r["category"], []).append(r)
     summary = {}
     for cat, rs in by.items():
+        # ERROR stubs (harness/backend failures) are NOT model scores: they are
+        # excluded from every denominator and counted separately. Scoring them
+        # as failures corrupted real leaderboards (a dead server once zeroed a
+        # model's code and agentic columns). Missing = missing, never zero.
+        err_ids = {r.get("id") for r in rs
+                   if "ERROR" in str(r.get("id", ""))
+                   or r.get("stopped") in ("error", "exception")}
+        n_errors = sum(1 for r in rs if r.get("id") in err_ids)
+        rs = [r for r in rs if r.get("id") not in err_ids]
         n = len(rs)
+        if n == 0:
+            summary[cat] = {"n": 0, "n_items": 0, "n_samples": 0,
+                            "accuracy": None,
+                            "error": "no valid records: all are harness errors",
+                            "n_errors": n_errors,
+                            "error_ids": sorted(err_ids)}
+            continue
         if cat in CODE_CATS or cat == "embedded_cpp":
             k = sum(1 for r in rs if r.get("passed"))
             n_samples = len({r["id"] for r in rs})
@@ -757,6 +773,9 @@ def aggregate(records):
         ev = [r["tokens"]["eval"] for r in rs if r.get("tokens", {}).get("eval")]
         if ev:
             entry["eval_tokens_mean"] = round(sum(ev) / len(ev), 1)
+        entry["n_errors"] = n_errors
+        if n_errors:
+            entry["error_ids"] = sorted(err_ids)
         summary[cat] = entry
     return summary
 
@@ -787,6 +806,9 @@ def main():
     ap.add_argument("--offline", action="store_true",
                     help="refuse network-dependent paths: standard task files "
                          "must already exist (see standard_fetch.py --check)")
+    ap.add_argument("--timeout", type=int, default=900,
+                    help="per-request seconds (default 900; qualifier uses 300: "
+                         "a hung generation must not cost 30 min twice)")
     args = ap.parse_args()
 
     names = ALL_TASKS if args.tasks == "all" else args.tasks.split(",")
@@ -810,6 +832,7 @@ def main():
 
     port = args.port or (11434 if args.backend == "ollama" else 8090)
     b = Backend(args.backend, args.model, port=port, api_key=args.api_key,
+                timeout=args.timeout,
                 num_ctx=FROZEN["num_ctx"], n_gpu_layers=FROZEN["num_gpu_layers"],
                 model_path=args.model_path)
     if not b.alive():
@@ -844,6 +867,7 @@ def main():
     cfg["limit"] = args.limit
     cfg["subsample"] = args.subsample
     cfg["offline"] = bool(args.offline)
+    cfg["timeout"] = args.timeout
     if args.offline:
         missing = [n for n in names
                    if n.startswith("std_") and not os.path.exists(
@@ -875,6 +899,7 @@ def main():
         f"swap free {mi.get('SwapFree',0)//1024} MiB")
 
     records, t_start = [], time.monotonic()
+    server_dead = False
     # Resume: a dead run restarts mid-model instead of from zero. Completed
     # (task, rep) pairs are read back from the existing output file - but ONLY
     # if its config_hash matches, so a config change never silently inherits
@@ -897,6 +922,9 @@ def main():
             log(f"resume: unreadable {out_path} ({type(e).__name__}); starting fresh")
             records = []
     for ti, name in enumerate(names):
+        if server_dead:
+            log(f"  skipping {name}: server is dead, run aborted here")
+            break
         fn, cat = RUNNERS[name]
         # The agentic chains live in agentic.py, not a task file: they carry a
         # live tool environment, so they cannot be serialised as static prompts.
@@ -941,6 +969,9 @@ def main():
                     # night a runner OOM crash at rep level wiped 50 items into
                     # a single stub record, twice. A retry costs minutes; the
                     # stub costs the whole rep's statistical value.
+                    # BUT: if the server is dead (OOM-killed, connection
+                    # refused), retrying burns another full timeout and every
+                    # later task stubs identically. Probe liveness first.
                     attempt += 1
                     log(f"  !! backend error: {e}")
                     if attempt > 1:
@@ -950,6 +981,22 @@ def main():
                                 "chain_id": "ERR", "outcome_ok": False, "trace_ok": 0,
                                 "trace_total": 1, "n_tool_calls": 0, "stopped": "error",
                                 "calls": [], "tokens": {"eval": 0}, "speed": {"gen_tps": None}}]
+                        if not b.alive():
+                            log("  !! server is dead — aborting remaining tasks, "
+                                "keeping checkpoints (resume after restarting it)")
+                            server_dead = True
+                        break
+                    if not b.alive():
+                        log("  !! server is dead — skipping retry, recording stub")
+                        got = [{"id": f"{name}#ERROR", "rep": rep, "category": cat,
+                                "error": str(e)[:300], "passed": False, "correct": False,
+                                "score": 0.0, "n_diagnostics": None, "noqa_gaming": False,
+                                "chain_id": "ERR", "outcome_ok": False, "trace_ok": 0,
+                                "trace_total": 1, "n_tool_calls": 0, "stopped": "error",
+                                "calls": [], "tokens": {"eval": 0}, "speed": {"gen_tps": None}}]
+                        log("  !! server is dead — aborting remaining tasks, "
+                            "keeping checkpoints (resume after restarting it)")
+                        server_dead = True
                         break
                     log("  evicting runner, 30s cooldown, then retrying rep once")
                     b.evict()
@@ -988,8 +1035,7 @@ def main():
             checkpoint()           # per-rep: a dead run loses one rep, not the task
         # Bound runner memory growth between tasks (measured 2.8GB -> 6.8GB
         # across one sweep, ending in an OOM kill). Reload is ~10s of mmap.
-        log("  evicting runner between tasks")
-        b.evict()
+        log(f"  evicting runner between tasks ({b.evict()})")
         time.sleep(15)
 
     mi = meminfo()
@@ -1004,7 +1050,15 @@ def main():
         "backend_totals": b.summary(),
         "summary": aggregate(records),
         "records": records,
+        # partial = some tasks never ran (dead server, Ctrl+C) or stubbed.
+        # A partial file is resumable evidence, never a final score.
+        "partial": bool(server_dead) or any(
+            "ERROR" in str(r.get("id", "")) for r in records),
+        "server_dead": bool(server_dead),
     }
+    if result["partial"]:
+        log("WARNING: PARTIAL run — stubbed/unrun tasks present; "
+            "resume after fixing the backend, do not quote these scores")
     with open(out_path, "w") as f:
         json.dump(result, f, ensure_ascii=False, indent=1)
     log(f"=== done in {(time.monotonic()-t_start)/60:.1f} min -> {out_path}")

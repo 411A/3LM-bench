@@ -149,9 +149,9 @@ all_labels() {
 
 # ---- profile -> run.py args (model-independent part) ----
 profile_args() { # sets TASKS CAPS REPS AGENTIC LIMIT(for pilot/qualifier/tasks)
-  TASKS="all"; CAPS=""; REPS=1; AGENTIC=2
+  TASKS="all"; CAPS=""; REPS=1; AGENTIC=2; TIMEOUT=""
   case "$PROFILE" in
-    pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1;;
+    pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1; TIMEOUT=300;;
     qualifier)
       # WORLD CUP QUALIFIER: ~30 min/model. Stratified s30 subsets, identical
       # for every model (deterministic seed), so the ranking is fair. MC kills
@@ -161,7 +161,7 @@ profile_args() { # sets TASKS CAPS REPS AGENTIC LIMIT(for pilot/qualifier/tasks)
       TASKS="science,electronics,persian,english,std_arc_easy_s30,std_winogrande_s30,std_truthfulqa_mc_s30,std_hellaswag_s30,std_belebele_fa_s30,std_mmlu_s30,std_gsm8k_s30,code_humaneval,code_mbpp,agentic"
       LIMIT="${LIMIT:-12}"
       CAPS="code_humaneval=3,code_mbpp=3,agentic=3"
-      REPS=1; AGENTIC=1;;
+      REPS=1; AGENTIC=1; TIMEOUT=300;;
     screening)
       # Default comparable run: custom suites full + stratified s30 (30 each
       # by construction, no caps needed). Full official splits are Tier-3
@@ -202,7 +202,26 @@ cleanup() {
     STARTED_BY_ME=0
   fi
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+# One Ctrl+C stops the WHOLE queue (previously it only killed the inner
+# run.py and the loop marched on to the next model, forcing four more ^Cs).
+trap 'exit 130' INT TERM
+
+free_mib() { awk '/MemAvailable/{printf "%d", $2/1024}' /proc/meminfo; }
+
+wait_for_mem() {
+  local tries=0
+  while [ "$(free_mib)" -lt 900 ]; do
+    tries=$((tries+1))
+    if [ "$tries" -gt 24 ]; then
+      say "WARNING: only $(free_mib) MiB free after 2 min (floor 900); "
+      say "  starting anyway — OOM risk, watch for Killed servers"
+      return 0
+    fi
+    say "waiting for memory: $(free_mib) MiB free (floor 900), attempt $tries"
+    sleep 5
+  done
+}
 
 run_one() { # $1=label, $2=k/n for banner
   resolve_model "$1" || { say "FAILED $1: unknown model or missing file"; return 1; }
@@ -215,6 +234,8 @@ run_one() { # $1=label, $2=k/n for banner
   [ -s "$OUT" ] && [ "$DIAG" = 0 ] \
     && say "WARNING: $OUT exists and will be resumed/overwritten on config change"
   if [ "$DRYRUN" = 1 ]; then say "(dry run — nothing started)"; return 0; fi
+
+  wait_for_mem
 
   if server_up; then
     say "llama-server already up on :$PORT — reusing it"
@@ -237,6 +258,7 @@ run_one() { # $1=label, $2=k/n for banner
     --tasks "$TASKS" --reps "$REPS" \
     ${CAPS:+--per-task-cap "$CAPS"} \
     ${LIMIT:+--limit "$LIMIT"} \
+    ${TIMEOUT:+--timeout "$TIMEOUT"} \
     --agentic-reps "$AGENTIC" --label "$LABEL" --out "$OUT" 2>&1 | tee "$LOG"
   local rc=${PIPESTATUS[0]}
   cleanup

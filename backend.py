@@ -77,8 +77,12 @@ class Backend:
         load, 6.8GB when the OOM-killer took it mid-sweep). Evicting between
         tasks bounds that growth to one task's worth. Reload costs ~10s of
         mmap; losing a rep to OOM costs 50 items. Returns True if the server
-        reports no loaded models afterwards (ollama only).
+        reports no loaded models afterwards (ollama only), "persistent" for
+        llamacpp (the server owns the model; run_llama.sh restarts it per
+        model, nothing per task).
         """
+        if self.kind == "llamacpp":
+            return "persistent"
         try:
             if self.kind == "ollama":
                 import shutil

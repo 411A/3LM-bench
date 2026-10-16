@@ -65,6 +65,10 @@ def main():
         after = R.aggregate(recs)
         d["records"] = recs
         d["summary"] = after
+        # Backfill the partial flag on files written before it existed:
+        # any ERROR stub means the run never completed cleanly.
+        if any("ERROR" in str(r.get("id", "")) for r in recs):
+            d["partial"] = True
         changed = {c: v for c, v in after.items() if before.get(c) != v.get("accuracy", v.get("mean_score"))}
         name = os.path.basename(f)
         if args.dry_run:
