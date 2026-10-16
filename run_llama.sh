@@ -91,9 +91,23 @@ if [ -z "$WANT" ]; then
     [ -f "$DL/$file" ] && avail+=("$label")
   done
   [ "${#avail[@]}" -gt 0 ] || die "no GGUF found in $DL"
-  WANT=$(pick "Choose a model:" "${avail[@]}" < /dev/tty)
+  if [ -n "${LLAMA_MODEL:-}" ]; then
+    WANT="$LLAMA_MODEL"
+  elif [ -t 0 ]; then
+    WANT=$(pick "Choose a model:" "${avail[@]}")
+  else
+    die "no model given and stdin is not a tty (pass a model name or set LLAMA_MODEL)"
+  fi
 fi
-[ -z "$PROFILE" ] && PROFILE=$(pick "Choose a profile:" pilot screening custom < /dev/tty)
+if [ -z "$PROFILE" ]; then
+  if [ -n "${LLAMA_PROFILE:-}" ]; then
+    PROFILE="$LLAMA_PROFILE"
+  elif [ -t 0 ]; then
+    PROFILE=$(pick "Choose a profile:" pilot screening custom)
+  else
+    die "no profile given and stdin is not a tty (pass a profile or set LLAMA_PROFILE)"
+  fi
+fi
 [ "$PROFILE" = custom ] && PROFILE="tasks=std_arc_challenge,std_arc_easy,std_hellaswag,std_winogrande,std_truthfulqa_mc,std_belebele_fa,std_mmlu,std_gsm8k"
 
 # resolve label -> gguf + port
