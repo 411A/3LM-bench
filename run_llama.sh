@@ -13,6 +13,8 @@
 #
 # Profiles:
 #   pilot      bounded diagnostic sweep (writes /tmp/diag only, never results/)
+#   qualifier  ~30 min/model World-Cup qualifier -> results/<label>-q.json,
+#              ranked by qualify.py into CUT vs ADVANCE
 #   screening  tier-B caps across all suites -> results/<label>.json
 #   custom     standard suites only (ARC/HellaSwag/GSM8K/...) -> results/<label>.json
 #   tasks=a,b  explicit task list, e.g. tasks=english,std_gsm8k (with --limit N)
@@ -68,7 +70,7 @@ while [ $i -lt $# ]; do
     --dry-run) DRYRUN=1;;
     --limit) i=$((i+1)); LIMIT="${ARGS[$i]:?--limit needs a number}";;
     --limit=*) LIMIT="${a#--limit=}";;
-    --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;    pilot|screening|custom) PROFILE="$a";;
+    --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;    pilot|screening|custom|qualifier) PROFILE="$a";;
     tasks=*) PROFILE="$a";;
     --*) die "unknown flag $a";;
     *) [ -z "$WANT" ] && WANT="$a" || die "extra arg $a";;
@@ -117,6 +119,7 @@ if [ -z "$PROFILE" ]; then
   elif [ -t 0 ]; then
     PROFILE=$(pick "Choose a profile:" \
       "pilot::all 23 suites x ~5 items -> /tmp only, ~45 min, NOT scores" \
+      "qualifier::14 fast suites, ~30 min/model -> results, ranks + CUT/ADVANCE" \
       "screening::tier-B caps, all suites -> results/, hours, comparable" \
       "custom::8 standard suites, FULL splits -> results/, overnight")
   else
@@ -139,6 +142,16 @@ LABEL="$WANT"
 TASKS="all"; CAPS=""; REPS=1; AGENTIC=2; OUT="results/$LABEL.json"; DIAG=0
 case "$PROFILE" in
   pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1; OUT="/tmp/diag/llama-$LABEL.json"; DIAG=1;;
+  qualifier)
+    # WORLD CUP QUALIFIER: ~30 min/model. Same front-biased subsets for every
+    # model (deterministic task order), so the ranking is fair. MC kills the
+    # guessers, 3+3 code + 5 math + 3 chains test generation and tool use.
+    # Survivors go to screening/full. Results ARE comparable across models
+    # (identical items) but NOT against full-split numbers.
+    TASKS="science,electronics,persian,english,std_arc_easy,std_winogrande,std_truthfulqa_mc,std_hellaswag,std_belebele_fa,std_mmlu,std_gsm8k,code_humaneval,code_mbpp,agentic"
+    LIMIT="${LIMIT:-10}"
+    CAPS="code_humaneval=3,code_mbpp=3,std_gsm8k=5,agentic=3"
+    REPS=1; AGENTIC=1; OUT="results/$LABEL-q.json";;
   screening)
     CAPS="code_humaneval=20,code_mbpp=20,std_hellaswag=100,std_arc_easy=100,std_arc_challenge=100,std_mmlu=100,std_belebele_fa=100,std_winogrande=100,std_truthfulqa_mc=100,std_gsm8k=30,agentic=8"
     REPS=1; AGENTIC=2;;
@@ -147,7 +160,10 @@ case "$PROFILE" in
 esac
 # A bounded --limit subset is front-biased and must never silently overwrite a
 # real results file. Route it to /tmp/diag unless --out says otherwise.
-if [ -n "${LIMIT:-}" ] && [ "${LIMIT:-0}" != 0 ] && [ "$PROFILE" != pilot ]; then
+# Exception: the qualifier profile, whose identical subsets per model ARE the
+# ranking instrument (q-vs-q only, never vs full splits).
+if [ -n "${LIMIT:-}" ] && [ "${LIMIT:-0}" != 0 ] && [ "$PROFILE" != pilot ] \
+   && [[ "$PROFILE" != qualifier* ]]; then
   OUT="/tmp/diag/llama-$LABEL-custom.json"; DIAG=1
 fi
 [ -n "${OUT_OVERRIDE:-}" ] && OUT="$OUT_OVERRIDE" && DIAG=0

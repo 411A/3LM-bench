@@ -105,7 +105,8 @@ def subsample(tasks, n, seed=20261012):
 def run_code(b, tasks, args, rep):
     """Python generation + execution + lint."""
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                         {"role": "user", "content": t["prompt"]}],
                        max_tokens=FROZEN["gen_max_tokens"],
@@ -140,7 +141,7 @@ def run_code(b, tasks, args, rep):
         # (AssertionError vs NameError vs timeout) in ~100 chars.
         err1 = (ex.get("stderr_tail") or "").strip().splitlines()
         err1 = (": " + err1[-1][:100]) if (err1 and not ex.get("passed")) else ""
-        log(f"    {t['id']:<32} {'PASS' if ex['passed'] else 'fail ' + str(ex.get('error')):<22} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {'PASS' if ex['passed'] else 'fail ' + str(ex.get('error')):<22} "
             f"lint={lint.get('n_diagnostics', 0):>2} {r['gen_tps']}tok/s{style}{err1}")
     return out
 
@@ -148,7 +149,8 @@ def run_code(b, tasks, args, rep):
 def run_rust(b, tasks, args, rep):
     """Rust generation + compile + run + clippy + rustfmt."""
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                         {"role": "user", "content": t["prompt"]}],
                        max_tokens=FROZEN["gen_max_tokens"],
@@ -174,7 +176,7 @@ def run_rust(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
             f"clippy={clip.get('n_diagnostics', 0)} {r['gen_tps']}tok/s")
     return out
 
@@ -187,7 +189,8 @@ def run_mc(b, tasks, args, rep):
     uniformly. Mean top-1 probability on the letter set is the tell.
     """
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         _mc = b.mc_logprobs(t["question"], t["choices"], system=SYSTEM_MC)
         if len(_mc) == 5:           # older signature, no letter_mass
             idx, letter, dist, meta, mode = _mc
@@ -225,7 +228,7 @@ def run_mc(b, tasks, args, rep):
             "speed": {"gen_tps": None, "ttft_s": meta["ttft_s"],
                       "wall_s": meta["wall_s"]},
         })
-        log(f"    {t['id']:<28} {'OK ' if ok else 'X  '} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<28} {'OK ' if ok else 'X  '} "
             f"picked={letter} gold={chr(65 + t['answer'])} "
             f"mass={letter_mass:.3f} ({meta['wall_s']}s)")
     return out
@@ -233,7 +236,8 @@ def run_mc(b, tasks, args, rep):
 
 def run_netdiag(b, tasks, args, rep):
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         msgs = [{"role": "system", "content":
                  "You are a network engineer. Given the topology, the configuration and "
                  "the reported symptom, diagnose the problem. If the evidence shows "
@@ -256,14 +260,15 @@ def run_netdiag(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    {t['id']:<28} score={s['score']:.2f} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<28} score={s['score']:.2f} "
             f"{'(false premise)' if not t['is_anomaly'] else t['root_cause']:<14} {r['gen_tps']}tok/s")
     return out
 
 
 def run_devops(b, tasks, args, rep):
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                         {"role": "user", "content": t["prompt"]}],
                        max_tokens=FROZEN["gen_max_tokens"],
@@ -280,7 +285,7 @@ def run_devops(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    {t['id']:<32} {c['must_hit']}/{c['must_total']} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {c['must_hit']}/{c['must_total']} "
             f"score={c['score']:.2f} miss={','.join(c['missed']) or '-'}")
     return out
 
@@ -288,7 +293,8 @@ def run_devops(b, tasks, args, rep):
 def run_lint(b, tasks, args, rep):
     """The lint-as-benchmark suite. No unit tests: the artifact is the point."""
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         lang = t["lang"]
         sysmsg = SYSTEM_CODER
         r = b.generate([{"role": "system", "content": sysmsg},
@@ -327,7 +333,7 @@ def run_lint(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    {t['id']:<32} diags={primary:>3} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} diags={primary:>3} "
             f"gaming={out[-1]['noqa_gaming']} fmt={fmt.get('already_formatted', '?')} "
             f"{r['gen_tps']}tok/s")
     return out
@@ -357,7 +363,8 @@ def run_agentic(b, tasks, args, rep):
     # --per-task-cap silently had no effect on this suite.
     wanted = {t["id"] for t in tasks} if tasks else None
     chains = [c for c in agentic.CHAINS if wanted is None or c["id"] in wanted]
-    for c in chains:
+    n_tasks = len(chains)
+    for i, c in enumerate(chains):
         r = agentic.run_chain(b, c, max_tokens=FROZEN["agent_max_tokens"],
                               temperature=FROZEN["gen_temperature"],
                               seed=FROZEN["seed_base"] + rep)
@@ -365,7 +372,7 @@ def run_agentic(b, tasks, args, rep):
         r["category"] = "agentic"
         r["prompt"] = c["prompt"]
         out.append(r)
-        log(f"    {c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
+        log(f"    [{i+1}/{n_tasks}] \{c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
             f"outcome={'OK' if r['outcome_ok'] else 'X'} "
             f"calls={r['n_tool_calls']} stop={r['stopped']}")
     return out
@@ -380,7 +387,8 @@ def run_cpp(b, tasks, args, rep):
     judge.
     """
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                         {"role": "user", "content": t["prompt"]}],
                        max_tokens=FROZEN["gen_max_tokens"],
@@ -405,7 +413,7 @@ def run_cpp(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
             f"warn={res.get('n_warnings')} {r['gen_tps']}tok/s")
     return out
 
@@ -419,7 +427,8 @@ def run_gsm8k(b, tasks, args, rep):
     per record so the deviation is auditable.
     """
     out = []
-    for t in tasks:
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
         msgs = [{"role": "system", "content":
                  "You are a careful math assistant. Reason step by step, "
                  "then write the final numeric answer after ####."},
@@ -442,7 +451,7 @@ def run_gsm8k(b, tasks, args, rep):
                       "load_s": r.get("load_s"),
                       "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    {t['id']:<28} {'OK ' if s['correct'] else 'X  '} "
+        log(f"    [{i+1}/{n_tasks}] \{t['id']:<28} {'OK ' if s['correct'] else 'X  '} "
             f"pred={s['pred'][:16]:<16} gold={s['gold'][:16]:<16} {r['gen_tps']}tok/s")
     return out
 
@@ -872,7 +881,7 @@ def main():
         except Exception as e:  # noqa: BLE001
             log(f"resume: unreadable {out_path} ({type(e).__name__}); starting fresh")
             records = []
-    for name in names:
+    for ti, name in enumerate(names):
         fn, cat = RUNNERS[name]
         # The agentic chains live in agentic.py, not a task file: they carry a
         # live tool environment, so they cannot be serialised as static prompts.
@@ -885,7 +894,7 @@ def main():
         if args.limit:
             tasks = tasks[:args.limit]
         reps_here = rep_for.get(name, args.reps)
-        log(f"--- {name} ({len(tasks)}/{total_available} items x {reps_here} reps) ---")
+        log(f"--- [{ti+1}/{len(names)}] {name} ({len(tasks)}/{total_available} items x {reps_here} reps) ---")
 
         def checkpoint():
             agg = aggregate(records)
