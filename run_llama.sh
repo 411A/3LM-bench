@@ -26,6 +26,7 @@ APIKEY="local-llama"
 
 # label | gguf file | default port
 KNOWN=(
+  "nemotron-3-nano|nemotron-3-nano.gguf|8097"
   "minicpm5-2b|minicpm5-2b.gguf|8091"
   "k2-horizon|k2-horizon.gguf|8092"
   "qwen35-4b|qwen4b.gguf|8093"
@@ -43,7 +44,7 @@ list_models() {
     IFS='|' read -r label file port <<<"$entry"
     if [ -f "$DL/$file" ]; then
       printf '  %-15s %-22s %5s MB  (port %s)\n' "$label" "$file" \
-        "$(du -m "$DL/$file" | cut -f1)" "$port"
+        "$(du -mL "$DL/$file" | cut -f1)" "$port"
     else
       printf '  %-15s MISSING %s\n' "$label" "$file"
     fi
@@ -56,7 +57,7 @@ list_models() {
 [ ! -x "$BIN" ] && die "llama-server not found at $BIN"
 
 # ---- arg parsing (menus for anything not given) ----
-DRYRUN=0; LIMIT=""
+DRYRUN=0; LIMIT=""; OUT_OVERRIDE=""
 WANT=""; PROFILE=""
 ARGS=("$@")
 i=0
@@ -67,7 +68,7 @@ while [ $i -lt $# ]; do
     --dry-run) DRYRUN=1;;
     --limit) i=$((i+1)); LIMIT="${ARGS[$i]:?--limit needs a number}";;
     --limit=*) LIMIT="${a#--limit=}";;
-    pilot|screening|custom) PROFILE="$a";;
+    --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;    pilot|screening|custom) PROFILE="$a";;
     tasks=*) PROFILE="$a";;
     --*) die "unknown flag $a";;
     *) [ -z "$WANT" ] && WANT="$a" || die "extra arg $a";;
@@ -115,8 +116,15 @@ case "$PROFILE" in
   tasks=*) TASKS="${PROFILE#tasks=}"; LIMIT="${LIMIT:-0}";;
   *) die "unknown profile $PROFILE";;
 esac
+# A bounded --limit subset is front-biased and must never silently overwrite a
+# real results file. Route it to /tmp/diag unless --out says otherwise.
+if [ -n "${LIMIT:-}" ] && [ "${LIMIT:-0}" != 0 ] && [ "$PROFILE" != pilot ]; then
+  OUT="/tmp/diag/llama-$LABEL-custom.json"; DIAG=1
+fi
+[ -n "${OUT_OVERRIDE:-}" ] && OUT="$OUT_OVERRIDE" && DIAG=0
+[ -s "$OUT" ] && [ "$DIAG" = 0 ] && say "WARNING: $OUT exists and will be resumed/overwritten on config change"
 
-say "model   : $LABEL ($GGUF, $(du -h "$GGUF" | cut -f1)) via llama.cpp :$PORT"
+say "model   : $LABEL ($GGUF, $(du -hL "$GGUF" | cut -f1)) via llama.cpp :$PORT"
 say "profile : $PROFILE  tasks=$TASKS  limit=${LIMIT:-none}  reps=$REPS"
 say "out     : $OUT"
 [ "$DRYRUN" = 1 ] && { say "(dry run — nothing started)"; exit 0; }
@@ -180,11 +188,11 @@ trap cleanup EXIT INT TERM
 
 # ---- benchmark: everything streams live AND lands in the log file ----
 mkdir -p logs "$(dirname "$OUT")"
-LOG="logs/$LABEL.log"
+LOG="logs/llama-run-$LABEL.log"
 say "logging live to $LOG (Ctrl+C stops the run; server cleanup still runs)"
 # shellcheck disable=SC2086
 python3 -u run.py --backend llamacpp --model "$LABEL" --port "$PORT" \
-  --api-key "$APIKEY" \
+  --api-key "$APIKEY" --model-path "$GGUF" \
   --tasks "$TASKS" --reps "$REPS" \
   ${CAPS:+--per-task-cap "$CAPS"} \
   ${LIMIT:+--limit "$LIMIT"} \

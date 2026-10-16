@@ -743,6 +743,9 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--port", type=int, default=None)
     ap.add_argument("--api-key", default=None)
+    ap.add_argument("--model-path", default=None,
+                    help="local weight file for digesting (llamacpp/GGUF): "
+                         "its sha256 is recorded in provenance")
     ap.add_argument("--tasks", default="all")
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--limit", type=int, default=0, help="max items per task (smoke)")
@@ -783,7 +786,8 @@ def main():
 
     port = args.port or (11434 if args.backend == "ollama" else 8090)
     b = Backend(args.backend, args.model, port=port, api_key=args.api_key,
-                num_ctx=FROZEN["num_ctx"], n_gpu_layers=FROZEN["num_gpu_layers"])
+                num_ctx=FROZEN["num_ctx"], n_gpu_layers=FROZEN["num_gpu_layers"],
+                model_path=args.model_path)
     if not b.alive():
         raise SystemExit(f"no server answering on {b.host}:{b.port}")
     import inspect as _inspect
