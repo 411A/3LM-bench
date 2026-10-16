@@ -76,25 +76,37 @@ while [ $i -lt $# ]; do
   i=$((i+1))
 done
 
-pick() { # $1=prompt, $2..=options; echoes choice
+pick() { # $1=prompt, $2..=label::desc entries; echoes chosen label
   local prompt="$1"; shift
-  local opts=("$@")
-  if [ "${#opts[@]}" -eq 1 ]; then echo "${opts[0]}"; return; fi
+  local -a labels=() shown=()
+  local e l d
+  for e in "$@"; do
+    l="${e%%::*}"; d="${e#*::}"
+    labels+=("$l"); shown+=("$l -- $d")
+  done
+  if [ "${#labels[@]}" -eq 1 ]; then echo "${labels[0]}"; return; fi
   echo "$prompt" >&2
-  select o in "${opts[@]}"; do [ -n "$o" ] && { echo "$o"; break; }; done
+  local o
+  select o in "${shown[@]}"; do
+    if [ -n "$o" ]; then echo "${o%% -- *}"; break; fi
+  done
 }
 
 if [ -z "$WANT" ]; then
-  avail=()
+  entries=()
   for entry in "${KNOWN[@]}"; do
-    IFS='|' read -r label file _ <<<"$entry"
-    [ -f "$DL/$file" ] && avail+=("$label")
+    IFS='|' read -r label file p <<<"$entry"
+    if [ -f "$DL/$file" ]; then
+      note="$(du -hL "$DL/$file" | cut -f1)B, port $p"
+      [ "$label" = nemotron-3-nano ] && note="$note, ex-Ollama blob (same weights)"
+      entries+=("$label::$note")
+    fi
   done
-  [ "${#avail[@]}" -gt 0 ] || die "no GGUF found in $DL"
+  [ "${#entries[@]}" -gt 0 ] || die "no GGUF found in $DL"
   if [ -n "${LLAMA_MODEL:-}" ]; then
     WANT="$LLAMA_MODEL"
   elif [ -t 0 ]; then
-    WANT=$(pick "Choose a model:" "${avail[@]}")
+    WANT=$(pick "Choose a model:" "${entries[@]}")
   else
     die "no model given and stdin is not a tty (pass a model name or set LLAMA_MODEL)"
   fi
@@ -103,7 +115,10 @@ if [ -z "$PROFILE" ]; then
   if [ -n "${LLAMA_PROFILE:-}" ]; then
     PROFILE="$LLAMA_PROFILE"
   elif [ -t 0 ]; then
-    PROFILE=$(pick "Choose a profile:" pilot screening custom)
+    PROFILE=$(pick "Choose a profile:" \
+      "pilot::all 23 suites x ~5 items -> /tmp only, ~45 min, NOT scores" \
+      "screening::tier-B caps, all suites -> results/, hours, comparable" \
+      "custom::8 standard suites, FULL splits -> results/, overnight")
   else
     die "no profile given and stdin is not a tty (pass a profile or set LLAMA_PROFILE)"
   fi
