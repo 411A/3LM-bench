@@ -195,11 +195,16 @@ server_up() {
     "http://127.0.0.1:$PORT/health")" = 200 ]
 }
 STARTED_BY_ME=0
+SPAWNED=0
 cleanup() {
-  if [ "$STARTED_BY_ME" = 1 ]; then
-    say "stopping my llama-server on :$PORT"
+  # SPAWNED covers the startup window: ^C while waiting for /health must
+  # still kill the child (an orphaned server once squatted 2h and filled
+  # swap). Reused servers (never spawned) are left alone.
+  if [ "$STARTED_BY_ME" = 1 ] || [ "$SPAWNED" = 1 ]; then
+    say "stopping llama-server on :$PORT"
     pkill -f "llama-server.*$PORT" 2>/dev/null || true
     STARTED_BY_ME=0
+    SPAWNED=0
   fi
 }
 trap cleanup EXIT
@@ -237,11 +242,19 @@ run_one() { # $1=label, $2=k/n for banner
 
   wait_for_mem
 
+  # Stray servers from killed runs squat on GBs and corrupt every timing
+  # number. Mine is identified by PORT; anything else gets named, not killed.
+  strays=$(pgrep -af "llama-server --model" 2>/dev/null \
+    | grep -v "port $PORT\$" | grep -v "port $PORT " || true)
+  [ -n "$strays" ] && say "WARNING: stray llama-server(s) holding RAM:" \
+    && echo "$strays" | sed 's/^/    /' | cut -c1-120
+
   if server_up; then
     say "llama-server already up on :$PORT — reusing it"
   else
     say "starting llama-server for $LABEL on :$PORT (ctx $CTX)"
     mkdir -p logs
+    SPAWNED=1
     nohup bash "$HOME/ollama-work/run-llama.sh" "$GGUF" "$PORT" "$CTX" \
       >> "logs/llama-$LABEL.log" 2>&1 &
     for _ in $(seq 1 60); do sleep 5; server_up && break; done

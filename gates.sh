@@ -33,8 +33,9 @@ fi
 if want policy; then
   say "--- policy: repo hygiene rules ---"
   ok=1
-  # no absolute private paths in tracked code
-  if git ls-files '*.py' '*.sh' | xargs grep -n "/home/\|/tmp/opencode" 2>/dev/null | grep -v "^Binary"; then
+  # no absolute private paths in tracked code (the gate excludes itself:
+  # it necessarily contains the patterns it searches for)
+  if git ls-files '*.py' '*.sh' | grep -v "^gates.sh$" | xargs grep -n "/home/\|/tmp/opencode" 2>/dev/null | grep -v "^Binary"; then
     say "absolute paths found above"; ok=0
   fi
   # no secrets in tracked code

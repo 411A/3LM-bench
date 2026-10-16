@@ -899,18 +899,24 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     out_path = args.out or os.path.join(RESULTS_DIR, f"{label}.json")
 
-    cfg = dict(FROZEN)
-    cfg["backend"] = args.backend
-    cfg["port"] = port
-    cfg["model"] = args.model
-    cfg["reps"] = args.reps
-    cfg["reps_per_task"] = rep_for or {"(all)": args.reps}
-    cfg["caps_per_task"] = caps
-    cfg["tasks"] = names
-    cfg["limit"] = args.limit
-    cfg["subsample"] = args.subsample
-    cfg["offline"] = bool(args.offline)
-    cfg["timeout"] = args.timeout
+    if resumed_cfg:
+        # Adopt the file's config verbatim: recomputing would inject newer
+        # keys (e.g. timeout) and the hash could never match an older file,
+        # silently restarting instead of resuming.
+        cfg = dict(resumed_cfg)
+    else:
+        cfg = dict(FROZEN)
+        cfg["backend"] = args.backend
+        cfg["port"] = port
+        cfg["model"] = args.model
+        cfg["reps"] = args.reps
+        cfg["reps_per_task"] = rep_for or {"(all)": args.reps}
+        cfg["caps_per_task"] = caps
+        cfg["tasks"] = names
+        cfg["limit"] = args.limit
+        cfg["subsample"] = args.subsample
+        cfg["offline"] = bool(args.offline)
+        cfg["timeout"] = args.timeout
     if args.offline:
         missing = [n for n in names
                    if n.startswith("std_") and not os.path.exists(
@@ -943,6 +949,7 @@ def main():
 
     records, t_start = [], time.monotonic()
     server_dead = False
+    consec_err = 0
     # Resume: a dead run restarts mid-model instead of from zero. Completed
     # (task, rep) pairs are read back from the existing output file - but ONLY
     # if its config_hash matches, so a config change never silently inherits
@@ -1028,6 +1035,11 @@ def main():
                             log("  !! server is dead — aborting remaining tasks, "
                                 "keeping checkpoints (resume after restarting it)")
                             server_dead = True
+                        consec_err += 1
+                        if consec_err >= 3 and not server_dead:
+                            log("  !! 3 consecutive backend failures — server is "
+                                "wedged, aborting remaining tasks")
+                            server_dead = True
                         break
                     if not b.alive():
                         log("  !! server is dead — skipping retry, recording stub")
@@ -1073,6 +1085,8 @@ def main():
                 r["category"] = cat
                 r["task"] = name
             records.extend(got)
+            if not any("ERROR" in str(r.get("id", "")) for r in got):
+                consec_err = 0  # clean rep resets the circuit breaker
             el = time.monotonic() - t0
             log(f"  rep {rep + 1} done in {el/60:.1f} min  (elapsed {el/60:.1f} min)")
             checkpoint()           # per-rep: a dead run loses one rep, not the task

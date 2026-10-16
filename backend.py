@@ -82,7 +82,23 @@ class Backend:
         model, nothing per task).
         """
         if self.kind == "llamacpp":
-            return "persistent"
+            # Bound server-side growth between tasks: unload the model so the
+            # next request reloads it fresh via mmap (slow first request, but
+            # recorded in load_s). Best-effort across server versions: legacy
+            # POST /unload, then router-era POST /models/unload. Never raises.
+            import urllib.request as _u
+            for path in ("/unload", "/models/unload"):
+                try:
+                    req = _u.Request(
+                        f"http://{self.host}:{self.port}{path}",
+                        data=b"{}", method="POST",
+                        headers={"Content-Type": "application/json"})
+                    with _u.urlopen(req, timeout=120) as r:
+                        if 200 <= r.status < 300:
+                            return f"unloaded via {path}"
+                except Exception:  # noqa: BLE001
+                    continue
+            return "persistent (unload unsupported by this server)"
         try:
             if self.kind == "ollama":
                 import shutil
