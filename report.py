@@ -77,7 +77,12 @@ def main():
     ap.add_argument("--filter", default="")
     args = ap.parse_args()
 
-    files = sorted(glob.glob(os.path.join(RESULTS, "*.json")))
+    files = sorted(glob.glob(os.path.join(RESULTS, "**", "*.json"),
+                                 recursive=True))
+    # Backend separation is structural: results/ollama/ vs results/llamacpp/.
+    # Rows are namespaced "label (backend)" so cross-backend rows can never
+    # be mistaken for same-setup comparisons. speed.json (a dict of probes,
+    # not a run) is skipped.
     runs = []
     for f in files:
         try:
@@ -96,8 +101,11 @@ def main():
 
     rows = {}
     for d in runs:
-        rows[d["config"].get("label") or os.path.basename(d["config"]["model"])
-              .replace("/", "_").replace(":", "_")] = d
+        base = (d["config"].get("label")
+                or os.path.basename(d["config"]["model"])
+                .replace("/", "_").replace(":", "_"))
+        be = d["config"].get("backend", "?")
+        rows[f"{base} ({be})"] = d
 
     if args.json:
         print(json.dumps({k: {"config": v["config"], "summary": v["summary"],

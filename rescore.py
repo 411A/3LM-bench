@@ -45,10 +45,10 @@ def main():
     ap.add_argument("--files", default="")
     args = ap.parse_args()
 
-    pats = args.files.split(",") if args.files else [os.path.join(RESULTS, "*.json")]
+    pats = args.files.split(",") if args.files else [os.path.join(RESULTS, "**", "*.json")]
     files = []
     for p in pats:
-        files.extend(sorted(glob.glob(p)))
+        files.extend(sorted(glob.glob(p, recursive=True)))
     files = [f for f in files if not f.endswith("speed.json")]
 
     for f in files:

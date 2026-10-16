@@ -20,7 +20,7 @@ fi
 
 echo
 echo "=== results so far ==="
-for f in results/*.json; do
+for f in results/*.json results/*/*.json; do
   [ -e "$f" ] || continue
   case "$f" in */speed.json) continue ;; esac
   python3 - "$f" <<'PY'

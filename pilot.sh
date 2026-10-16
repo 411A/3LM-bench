@@ -41,7 +41,7 @@ EXTRA=()
 
 group() { # name tasks limit reps
   local name="$1" tasks="$2" limit="$3" reps="$4"
-  local out="$OUT/$name.json"
+  local out="$OUT/${BACKEND}-$name.json"
   if [ -s "$out" ]; then
     echo "--- $name: exists ($out), skipping (delete it to re-run) ---"
     return 0

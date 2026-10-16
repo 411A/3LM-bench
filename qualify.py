@@ -45,14 +45,16 @@ def main():
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
-    files = sorted(glob.glob(os.path.join(RESULTS, "*-q.json")))
+    files = sorted(glob.glob(os.path.join(RESULTS, "**", "*-q.json"),
+                                 recursive=True))
     if not files:
-        raise SystemExit("no qualifier runs in results/ (looked for *-q.json)")
+        raise SystemExit("no qualifier runs in results/ (looked for **/*-q.json)")
 
     rows = []
     for f in files:
         d = json.load(open(f))
         s = d.get("summary", {})
+        be = d.get("config", {}).get("backend", "?")
         mc_sig = sum(1 for c, v in s.items()
                      if isinstance(v, dict) and v.get("significant_vs_chance"))
         code_pass = sum(v.get("passed", 0) for c, v in s.items()
@@ -63,7 +65,8 @@ def main():
         macro = sum(vals) / len(vals) if vals else 0.0
         empty = max([v.get("empty_output_rate", 0) for v in s.values()
                      if isinstance(v, dict)] + [0])
-        rows.append({"label": os.path.basename(f)[:-7], "file": f,
+        rows.append({"label": os.path.basename(f)[:-7] + f" ({be})",
+                     "file": f,
                      "macro": round(macro, 4), "cats": len(vals),
                      "mc_significant": mc_sig,
                      "code_passed": code_pass,

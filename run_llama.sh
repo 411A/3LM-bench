@@ -6,6 +6,8 @@
 #
 # Usage:
 #   bash run_llama.sh                        # choose model + profile from menus
+#   bash run_llama.sh all qualifier          # EVERY local GGUF, one at a time
+#   bash run_llama.sh qwen35-2b,nemotron-3-nano screening
 #   bash run_llama.sh qwen2b                 # model by name, profile menu
 #   bash run_llama.sh qwen2b pilot           # no menus at all
 #   bash run_llama.sh --list                 # show available models and exit
@@ -70,7 +72,8 @@ while [ $i -lt $# ]; do
     --dry-run) DRYRUN=1;;
     --limit) i=$((i+1)); LIMIT="${ARGS[$i]:?--limit needs a number}";;
     --limit=*) LIMIT="${a#--limit=}";;
-    --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;    pilot|screening|custom|qualifier) PROFILE="$a";;
+    --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;
+    pilot|screening|custom|qualifier) PROFILE="$a";;
     tasks=*) PROFILE="$a";;
     --*) die "unknown flag $a";;
     *) [ -z "$WANT" ] && WANT="$a" || die "extra arg $a";;
@@ -113,6 +116,154 @@ if [ -z "$WANT" ]; then
     die "no model given and stdin is not a tty (pass a model name or set LLAMA_MODEL)"
   fi
 fi
+# NOTE: the profile menu lives after the model menu (model list section
+# below) so interactive runs choose model first, then profile.
+
+# resolve label -> gguf + port. No mixing: every llamacpp result lives under
+# results/llamacpp/ (ollama runs use results/ollama/ via run_all.sh),
+# so a backend is never silently compared against another.
+resolve_model() { # $1=label; sets GGUF PORT LABEL, returns 1 if unknown
+  GGUF=""; PORT=""
+  local entry label file p
+  for entry in "${KNOWN[@]}"; do
+    IFS='|' read -r label file p <<<"$entry"
+    if [ "$label" = "$1" ]; then GGUF="$DL/$file"; PORT="$p"; fi
+  done
+  if [ -z "$GGUF" ]; then
+    if [ -f "$DL/$1" ]; then GGUF="$DL/$1"; PORT=8090;
+    elif [ -f "$1" ]; then GGUF="$1"; PORT=8090;
+    else return 1; fi
+  fi
+  [ -f "$GGUF" ] || return 1
+  LABEL="$1"
+  return 0
+}
+
+all_labels() {
+  local entry label file _
+  for entry in "${KNOWN[@]}"; do
+    IFS='|' read -r label file _ <<<"$entry"
+    [ -f "$DL/$file" ] && echo "$label"
+  done
+}
+
+# ---- profile -> run.py args (model-independent part) ----
+profile_args() { # sets TASKS CAPS REPS AGENTIC LIMIT(for pilot/qualifier/tasks)
+  TASKS="all"; CAPS=""; REPS=1; AGENTIC=2
+  case "$PROFILE" in
+    pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1;;
+    qualifier)
+      # WORLD CUP QUALIFIER: ~30 min/model. Same front-biased subsets for every
+      # model (deterministic task order), so the ranking is fair. MC kills the
+      # guessers, 3+3 code + 5 math + 3 chains test generation and tool use.
+      # Survivors go to screening/full. Results ARE comparable across models
+      # (identical items) but NOT against full-split numbers.
+      TASKS="science,electronics,persian,english,std_arc_easy,std_winogrande,std_truthfulqa_mc,std_hellaswag,std_belebele_fa,std_mmlu,std_gsm8k,code_humaneval,code_mbpp,agentic"
+      LIMIT="${LIMIT:-10}"
+      CAPS="code_humaneval=3,code_mbpp=3,std_gsm8k=5,agentic=3"
+      REPS=1; AGENTIC=1;;
+    screening)
+      CAPS="code_humaneval=20,code_mbpp=20,std_hellaswag=100,std_arc_easy=100,std_arc_challenge=100,std_mmlu=100,std_belebele_fa=100,std_winogrande=100,std_truthfulqa_mc=100,std_gsm8k=30,agentic=8"
+      REPS=1; AGENTIC=2;;
+    tasks=*) TASKS="${PROFILE#tasks=}"; LIMIT="${LIMIT:-0}";;
+    *) die "unknown profile $PROFILE";;
+  esac
+}
+
+# per-model OUT: backend folder + qualifier suffix; bounded --limit subsets
+# never silently overwrite real results (diag-safe), except the qualifier,
+# whose identical subsets per model ARE the ranking instrument.
+model_out() { # sets OUT DIAG
+  OUT="results/llamacpp/$LABEL.json"; DIAG=0
+  case "$PROFILE" in
+    pilot) OUT="/tmp/diag/llamacpp-$LABEL.json"; DIAG=1;;
+    qualifier) OUT="results/llamacpp/$LABEL-q.json";;
+    tasks=*)
+      if [ -n "${LIMIT:-}" ] && [ "${LIMIT:-0}" != 0 ]; then
+        OUT="/tmp/diag/llamacpp-$LABEL-custom.json"; DIAG=1
+      fi;;
+  esac
+  [ -n "${OUT_OVERRIDE:-}" ] && OUT="$OUT_OVERRIDE" && DIAG=0
+}
+
+server_up() {
+  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' \
+    "http://127.0.0.1:$PORT/health")" = 200 ]
+}
+STARTED_BY_ME=0
+cleanup() {
+  if [ "$STARTED_BY_ME" = 1 ]; then
+    say "stopping my llama-server on :$PORT"
+    pkill -f "llama-server.*$PORT" 2>/dev/null || true
+    STARTED_BY_ME=0
+  fi
+}
+trap cleanup EXIT INT TERM
+
+run_one() { # $1=label, $2=k/n for banner
+  resolve_model "$1" || { say "FAILED $1: unknown model or missing file"; return 1; }
+  profile_args
+  model_out
+  say "================================================================"
+  say "MODEL $LABEL ($2)  $GGUF ($(du -hL "$GGUF" | cut -f1))  :$PORT"
+  say "profile : $PROFILE  tasks=$TASKS  limit=${LIMIT:-none}  reps=$REPS"
+  say "out     : $OUT"
+  [ -s "$OUT" ] && [ "$DIAG" = 0 ] \
+    && say "WARNING: $OUT exists and will be resumed/overwritten on config change"
+  if [ "$DRYRUN" = 1 ]; then say "(dry run — nothing started)"; return 0; fi
+
+  if server_up; then
+    say "llama-server already up on :$PORT — reusing it"
+  else
+    say "starting llama-server for $LABEL on :$PORT (ctx $CTX)"
+    mkdir -p logs
+    nohup bash "$HOME/ollama-work/run-llama.sh" "$GGUF" "$PORT" "$CTX" \
+      >> "logs/llama-$LABEL.log" 2>&1 &
+    for _ in $(seq 1 60); do sleep 5; server_up && break; done
+    server_up || { say "FAILED $LABEL: server never healthy — see logs/llama-$LABEL.log"; return 1; }
+    STARTED_BY_ME=1
+  fi
+
+  mkdir -p logs "$(dirname "$OUT")"
+  local LOG="logs/llama-run-$LABEL.log"
+  say "logging live to $LOG"
+  # shellcheck disable=SC2086
+  python3 -u run.py --backend llamacpp --model "$LABEL" --port "$PORT" \
+    --api-key "$APIKEY" --model-path "$GGUF" \
+    --tasks "$TASKS" --reps "$REPS" \
+    ${CAPS:+--per-task-cap "$CAPS"} \
+    ${LIMIT:+--limit "$LIMIT"} \
+    --agentic-reps "$AGENTIC" --label "$LABEL" --out "$OUT" 2>&1 | tee "$LOG"
+  local rc=${PIPESTATUS[0]}
+  cleanup
+  [ "$DIAG" = 1 ] && say "diagnostic run — $OUT is NOT a benchmark score (front-biased --limit subsets)"
+  say "done rc=$rc -> $OUT"
+  return "$rc"
+}
+
+# ---- model list: menu / all / comma list ----
+if [ -z "$WANT" ]; then
+  entries=()
+  for label in $(all_labels); do
+    for entry in "${KNOWN[@]}"; do
+      IFS='|' read -r l file p <<<"$entry"
+      if [ "$l" = "$label" ]; then
+        note="$(du -hL "$DL/$file" | cut -f1)B, port $p"
+        [ "$label" = nemotron-3-nano ] && note="$note, ex-Ollama blob (same weights)"
+        entries+=("$label::$note")
+      fi
+    done
+  done
+  entries+=("all::run every model above, one at a time, same profile")
+  [ "${#entries[@]}" -gt 0 ] || die "no GGUF found in $DL"
+  if [ -n "${LLAMA_MODEL:-}" ]; then
+    WANT="$LLAMA_MODEL"
+  elif [ -t 0 ]; then
+    WANT=$(pick "Choose a model:" "${entries[@]}")
+  else
+    die "no model given and stdin is not a tty (pass a model name, 'all', or set LLAMA_MODEL)"
+  fi
+fi
 if [ -z "$PROFILE" ]; then
   if [ -n "${LLAMA_PROFILE:-}" ]; then
     PROFILE="$LLAMA_PROFILE"
@@ -128,55 +279,29 @@ if [ -z "$PROFILE" ]; then
 fi
 [ "$PROFILE" = custom ] && PROFILE="tasks=std_arc_challenge,std_arc_easy,std_hellaswag,std_winogrande,std_truthfulqa_mc,std_belebele_fa,std_mmlu,std_gsm8k"
 
-# resolve label -> gguf + port
-GGUF=""; PORT=""
-for entry in "${KNOWN[@]}"; do
-  IFS='|' read -r label file p <<<"$entry"
-  if [ "$label" = "$WANT" ]; then GGUF="$DL/$file"; PORT="$p"; fi
-done
-[ -z "$GGUF" ] && { [ -f "$DL/$WANT" ] && GGUF="$DL/$WANT" || GGUF="$WANT"; PORT=8090; WANT=$(basename "$GGUF" .gguf); }
-[ -f "$GGUF" ] || die "model file not found: $GGUF"
-LABEL="$WANT"
-
-# ---- profile -> run.py args ----
-TASKS="all"; CAPS=""; REPS=1; AGENTIC=2; OUT="results/$LABEL.json"; DIAG=0
-case "$PROFILE" in
-  pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1; OUT="/tmp/diag/llama-$LABEL.json"; DIAG=1;;
-  qualifier)
-    # WORLD CUP QUALIFIER: ~30 min/model. Same front-biased subsets for every
-    # model (deterministic task order), so the ranking is fair. MC kills the
-    # guessers, 3+3 code + 5 math + 3 chains test generation and tool use.
-    # Survivors go to screening/full. Results ARE comparable across models
-    # (identical items) but NOT against full-split numbers.
-    TASKS="science,electronics,persian,english,std_arc_easy,std_winogrande,std_truthfulqa_mc,std_hellaswag,std_belebele_fa,std_mmlu,std_gsm8k,code_humaneval,code_mbpp,agentic"
-    LIMIT="${LIMIT:-10}"
-    CAPS="code_humaneval=3,code_mbpp=3,std_gsm8k=5,agentic=3"
-    REPS=1; AGENTIC=1; OUT="results/$LABEL-q.json";;
-  screening)
-    CAPS="code_humaneval=20,code_mbpp=20,std_hellaswag=100,std_arc_easy=100,std_arc_challenge=100,std_mmlu=100,std_belebele_fa=100,std_winogrande=100,std_truthfulqa_mc=100,std_gsm8k=30,agentic=8"
-    REPS=1; AGENTIC=2;;
-  tasks=*) TASKS="${PROFILE#tasks=}"; LIMIT="${LIMIT:-0}";;
-  *) die "unknown profile $PROFILE";;
-esac
-# A bounded --limit subset is front-biased and must never silently overwrite a
-# real results file. Route it to /tmp/diag unless --out says otherwise.
-# Exception: the qualifier profile, whose identical subsets per model ARE the
-# ranking instrument (q-vs-q only, never vs full splits).
-if [ -n "${LIMIT:-}" ] && [ "${LIMIT:-0}" != 0 ] && [ "$PROFILE" != pilot ] \
-   && [[ "$PROFILE" != qualifier* ]]; then
-  OUT="/tmp/diag/llama-$LABEL-custom.json"; DIAG=1
+# ---- expand WANT to the queue: all | a,b | single ----
+MODELS=()
+if [ "$WANT" = all ]; then
+  while read -r l; do MODELS+=("$l"); done < <(all_labels)
+elif [[ "$WANT" == *,* ]]; then
+  IFS=',' read -ra MODELS <<<"$WANT"
+else
+  MODELS=("$WANT")
 fi
-[ -n "${OUT_OVERRIDE:-}" ] && OUT="$OUT_OVERRIDE" && DIAG=0
-[ -s "$OUT" ] && [ "$DIAG" = 0 ] && say "WARNING: $OUT exists and will be resumed/overwritten on config change"
+[ "${#MODELS[@]}" -gt 0 ] || die "empty model queue"
 
-say "model   : $LABEL ($GGUF, $(du -hL "$GGUF" | cut -f1)) via llama.cpp :$PORT"
-say "profile : $PROFILE  tasks=$TASKS  limit=${LIMIT:-none}  reps=$REPS"
-say "out     : $OUT"
-[ "$DRYRUN" = 1 ] && { say "(dry run — nothing started)"; exit 0; }
+if [ "$DRYRUN" = 1 ]; then
+  for m in "${MODELS[@]}"; do
+    resolve_model "$m" || die "unknown model: $m"
+    profile_args; model_out
+    say "would run: $LABEL  profile=$PROFILE  tasks=$TASKS  "
+    say "           limit=${LIMIT:-none}  reps=$REPS  out=$OUT"
+  done
+  say "(dry run — nothing started)"
+  exit 0
+fi
 
 # ---- never two runners; never two models resident ----
-# Anchored pattern: matches only a real `python3 -u run.py ...` process,
-# never a shell whose command line merely mentions it.
 if pgrep -f "^python3 -u run\.py" >/dev/null 2>&1; then
   die "another run.py is active — one model at a time (see status.sh)"
 fi
@@ -189,7 +314,7 @@ except Exception: n = 0
 raise SystemExit(0 if n == 0 else 1)' 2>/dev/null
 }
 
-# ollama keep-alive would hold GBs alongside llama-server: ask it to drop them
+# ollama keep-alive would hold GBs alongside llama-server: drop once, up front
 if ! ollama_loaded; then
   say "unloading ollama models first (7.6 GB cannot hold two runtimes)"
   curl -s -m 20 http://127.0.0.1:11434/api/generate \
@@ -201,48 +326,21 @@ if ! ollama_loaded; then
   ollama_loaded || say "WARNING: ollama still reports loaded models; continuing anyway"
 fi
 
-# ---- server (reuse if already healthy on this port) ----
-# NOTE: /health returns 503 while the model is still loading, and plain
-# `curl -s` exits 0 for a 503 — so an empty check declares a loading server
-# ready and the first probe dies. Require HTTP 200 explicitly.
-server_up() {
-  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' \
-    "http://127.0.0.1:$PORT/health")" = 200 ]
-}
-STARTED_BY_ME=0
-if server_up; then
-  say "llama-server already up on :$PORT — reusing it"
-else
-  say "starting llama-server for $LABEL on :$PORT (ctx $CTX)"
-  mkdir -p logs
-  # shellcheck disable=SC2086
-  nohup bash "$HOME/ollama-work/run-llama.sh" "$GGUF" "$PORT" "$CTX" \
-    >> "logs/llama-$LABEL.log" 2>&1 &
-  for _ in $(seq 1 60); do sleep 5; server_up && break; done
-  server_up || die "server never became healthy — see logs/llama-$LABEL.log"
-  STARTED_BY_ME=1
-fi
-
-cleanup() {
-  if [ "$STARTED_BY_ME" = 1 ]; then
-    say "stopping my llama-server on :$PORT"
-    pkill -f "llama-server.*$PORT" 2>/dev/null || true
+# ---- the queue: strictly one model at a time ----
+DONE=(); FAILED=()
+k=0
+for m in "${MODELS[@]}"; do
+  k=$((k + 1))
+  if run_one "$m" "$k/${#MODELS[@]}"; then
+    DONE+=("$m")
+  else
+    FAILED+=("$m")
   fi
-}
-trap cleanup EXIT INT TERM
+done
 
-# ---- benchmark: everything streams live AND lands in the log file ----
-mkdir -p logs "$(dirname "$OUT")"
-LOG="logs/llama-run-$LABEL.log"
-say "logging live to $LOG (Ctrl+C stops the run; server cleanup still runs)"
-# shellcheck disable=SC2086
-python3 -u run.py --backend llamacpp --model "$LABEL" --port "$PORT" \
-  --api-key "$APIKEY" --model-path "$GGUF" \
-  --tasks "$TASKS" --reps "$REPS" \
-  ${CAPS:+--per-task-cap "$CAPS"} \
-  ${LIMIT:+--limit "$LIMIT"} \
-  --agentic-reps "$AGENTIC" --label "$LABEL" --out "$OUT" 2>&1 | tee "$LOG"
-rc=${PIPESTATUS[0]}
-[ "$DIAG" = 1 ] && say "diagnostic run — $OUT is NOT a benchmark score (front-biased --limit subsets)"
-say "done rc=$rc -> $OUT  (full log: $LOG)"
-exit "$rc"
+echo
+say "==================== QUEUE FINISHED ===================="
+[ "${#DONE[@]}" -gt 0 ] && say "DONE:   ${DONE[*]}"
+[ "${#FAILED[@]}" -gt 0 ] && say "FAILED: ${FAILED[*]}"
+[ "${#FAILED[@]}" -gt 0 ] && exit 1
+exit 0

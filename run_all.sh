@@ -222,7 +222,8 @@ for entry in "${MODELS[@]}"; do
     say "skip $label (handled by the other driver)"
     continue
   fi
-  out="results/$label.json"
+  # Backend-separated results: results/<backend>/<label>.json, never mixed.
+  out="results/$backend/$label.json"
   if [ -n "${RESUME:-}" ] && [ -s "$out" ]; then
     say "skip $label (already have results)"
     continue

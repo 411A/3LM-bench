@@ -141,7 +141,7 @@ def run_code(b, tasks, args, rep):
         # (AssertionError vs NameError vs timeout) in ~100 chars.
         err1 = (ex.get("stderr_tail") or "").strip().splitlines()
         err1 = (": " + err1[-1][:100]) if (err1 and not ex.get("passed")) else ""
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {'PASS' if ex['passed'] else 'fail ' + str(ex.get('error')):<22} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if ex['passed'] else 'fail ' + str(ex.get('error')):<22} "
             f"lint={lint.get('n_diagnostics', 0):>2} {r['gen_tps']}tok/s{style}{err1}")
     return out
 
@@ -176,7 +176,7 @@ def run_rust(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
             f"clippy={clip.get('n_diagnostics', 0)} {r['gen_tps']}tok/s")
     return out
 
@@ -228,7 +228,7 @@ def run_mc(b, tasks, args, rep):
             "speed": {"gen_tps": None, "ttft_s": meta["ttft_s"],
                       "wall_s": meta["wall_s"]},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<28} {'OK ' if ok else 'X  '} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if ok else 'X  '} "
             f"picked={letter} gold={chr(65 + t['answer'])} "
             f"mass={letter_mass:.3f} ({meta['wall_s']}s)")
     return out
@@ -260,7 +260,7 @@ def run_netdiag(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<28} score={s['score']:.2f} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<28} score={s['score']:.2f} "
             f"{'(false premise)' if not t['is_anomaly'] else t['root_cause']:<14} {r['gen_tps']}tok/s")
     return out
 
@@ -285,7 +285,7 @@ def run_devops(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {c['must_hit']}/{c['must_total']} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {c['must_hit']}/{c['must_total']} "
             f"score={c['score']:.2f} miss={','.join(c['missed']) or '-'}")
     return out
 
@@ -333,7 +333,7 @@ def run_lint(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} diags={primary:>3} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} diags={primary:>3} "
             f"gaming={out[-1]['noqa_gaming']} fmt={fmt.get('already_formatted', '?')} "
             f"{r['gen_tps']}tok/s")
     return out
@@ -372,7 +372,7 @@ def run_agentic(b, tasks, args, rep):
         r["category"] = "agentic"
         r["prompt"] = c["prompt"]
         out.append(r)
-        log(f"    [{i+1}/{n_tasks}] \{c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
+        log(f"    [{i+1}/{n_tasks}] {c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
             f"outcome={'OK' if r['outcome_ok'] else 'X'} "
             f"calls={r['n_tool_calls']} stop={r['stopped']}")
     return out
@@ -413,7 +413,7 @@ def run_cpp(b, tasks, args, rep):
             "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                       "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
             f"warn={res.get('n_warnings')} {r['gen_tps']}tok/s")
     return out
 
@@ -451,7 +451,7 @@ def run_gsm8k(b, tasks, args, rep):
                       "load_s": r.get("load_s"),
                       "prompt_cached_tokens": r.get("prompt_cached_tokens")},
         })
-        log(f"    [{i+1}/{n_tasks}] \{t['id']:<28} {'OK ' if s['correct'] else 'X  '} "
+        log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if s['correct'] else 'X  '} "
             f"pred={s['pred'][:16]:<16} gold={s['gold'][:16]:<16} {r['gen_tps']}tok/s")
     return out
 
