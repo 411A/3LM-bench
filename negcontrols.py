@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -409,8 +410,6 @@ check("prose-wrapped code EXECUTES",
 
 print()
 print("=== a fresh build must not reintroduce the position bias ===")
-import subprocess                                                 # noqa: E402
-import tempfile                                                    # noqa: E402
 with tempfile.TemporaryDirectory() as td:
     # copy the builders and the tasks dir, then rebuild from scratch in isolation
     import shutil

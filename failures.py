@@ -13,7 +13,6 @@ print the gold-vs-got that decided them.
 """
 import argparse
 import json
-import sys
 
 
 def card(r):

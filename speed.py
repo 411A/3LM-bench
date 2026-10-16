@@ -158,7 +158,7 @@ def main():
         res = bench_llamacpp(args.gguf, args.ctx, args.n_predict, args.threads, args.reps)
         if res.get("available"):
             print(f"  llama-bench pp512: {res['pp512_tps']} tok/s")
-            print(f"  llama-bench tg{n_predict}: {res['tg_tps']} tok/s")
+            print(f"  llama-bench tg{args.n_predict}: {res['tg_tps']} tok/s")
     else:
         b = Backend("ollama", args.model, port=port, num_ctx=args.ctx)
         if not b.alive():

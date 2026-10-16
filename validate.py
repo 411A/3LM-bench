@@ -16,7 +16,6 @@ run), not model quality: canned answers are deliberately mediocre. Correctness
 of the scorers themselves is covered by verify_*.py / negcontrols.py.
 """
 import copy
-import glob
 import json
 import os
 import sys
@@ -145,8 +144,6 @@ def main():
 
     print("=== known-good probes (guards scorer over-correction in-pipeline) ===")
     import scorers as S
-    t = R.load_tasks("code_humaneval")[0]
-    fn_src = "def " + t.get("entry_point", "f") + "PLACEHOLDER"
     # use the task's own test with a trivially-correct stub is unreliable;
     # instead verify the pass PATH executes: a function returning the right
     # shape for MBPP item 0 is covered by verify_tasks. Here: run_python runs.

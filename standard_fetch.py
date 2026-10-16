@@ -19,7 +19,6 @@ import argparse
 import hashlib
 import json
 import os
-import sys
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -119,7 +118,6 @@ def _get(url, timeout=60, retries=6):
 
 def fetch_rows(dataset, config, split, total, raw_path):
     """Paginate datasets-server rows API; cache raw JSON rows to raw_path."""
-    import time as _t
     rows = []
     offset = 0
     # resume partial cache if present (rate-limit safe)

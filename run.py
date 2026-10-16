@@ -782,8 +782,10 @@ def aggregate(records):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--backend", choices=["ollama", "llamacpp"], required=True)
-    ap.add_argument("--model", required=True)
+    ap.add_argument("--backend", choices=["ollama", "llamacpp"], required=False,
+                    help="not needed with --resume (taken from the file)")
+    ap.add_argument("--model", required=False,
+                    help="not needed with --resume (taken from the file)")
     ap.add_argument("--port", type=int, default=None)
     ap.add_argument("--api-key", default=None)
     ap.add_argument("--model-path", default=None,
@@ -809,7 +811,46 @@ def main():
     ap.add_argument("--timeout", type=int, default=900,
                     help="per-request seconds (default 900; qualifier uses 300: "
                          "a hung generation must not cost 30 min twice)")
+    ap.add_argument("--resume", default=None, metavar="RESULTS_JSON",
+                    help="resume this file: rerun only missing/stubbed "
+                         "(task, rep) pairs using the file's own config. "
+                         "Connection (--backend/--model/--port) must match; "
+                         "task flags are ignored")
     args = ap.parse_args()
+
+    resumed_cfg = None
+    if not args.resume and (not args.backend or not args.model):
+        raise SystemExit("need --backend + --model (or --resume a results file)")
+    if args.resume:
+        if not os.path.exists(args.resume):
+            raise SystemExit(f"nothing to resume: {args.resume} not found")
+        prev0 = json.load(open(args.resume))
+        resumed_cfg = prev0.get("config") or {}
+        for k in ("backend", "model", "port"):
+            cli = {"backend": args.backend, "model": args.model,
+                   "port": args.port}[k]
+            if cli is not None and cli != resumed_cfg.get(k):
+                raise SystemExit(
+                    f"--resume refuses: --{k} {cli} != file's {resumed_cfg.get(k)} "
+                    f"(resuming across setups poisons comparability)")
+        args.backend = resumed_cfg["backend"]
+        args.model = resumed_cfg["model"]
+        args.port = resumed_cfg.get("port")
+        args.tasks = ",".join(resumed_cfg.get("tasks", []))
+        args.reps = resumed_cfg.get("reps", args.reps)
+        args.limit = resumed_cfg.get("limit", 0)
+        args.subsample = resumed_cfg.get("subsample", 0)
+        args.offline = resumed_cfg.get("offline", False)
+        args.timeout = resumed_cfg.get("timeout", 900)
+        args.per_task_cap = ",".join(
+            f"{k}={v}" for k, v in (resumed_cfg.get("caps_per_task") or {}).items())
+        rep_for_resumed = {k: v for k, v in
+                           (resumed_cfg.get("reps_per_task") or {}).items()
+                           if k in RUNNERS}
+        args.agentic_reps = 0
+        args.out = args.resume
+        log(f"resume mode: {len(prev0.get('records', []))} records present, "
+            f"only gaps will run")
 
     names = ALL_TASKS if args.tasks == "all" else args.tasks.split(",")
     bad = [n for n in names if n not in RUNNERS]
@@ -829,6 +870,8 @@ def main():
             rep_for[k.strip()] = int(v)
     if args.agentic_reps and "agentic" in names:
         rep_for["agentic"] = args.agentic_reps
+    if resumed_cfg:
+        rep_for.update(rep_for_resumed)
 
     port = args.port or (11434 if args.backend == "ollama" else 8090)
     b = Backend(args.backend, args.model, port=port, api_key=args.api_key,
@@ -879,7 +922,7 @@ def main():
                 f"standard_fetch.py --check to audit the cache")
     cfg_hash = hashlib.sha256(json.dumps(cfg, sort_keys=True).encode()).hexdigest()[:12]
 
-    log(f"=== llmbench run ===")
+    log("=== llmbench run ===")
     log(f"model    : {args.model}  via {args.backend}:{port}")
     log(f"tasks    : {', '.join(names)}")
     log(f"reps     : {args.reps}   limit: {args.limit or 'none'}")

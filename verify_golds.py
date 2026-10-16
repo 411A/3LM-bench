@@ -116,7 +116,7 @@ for suite in ("science", "electronics", "persian", "english"):
         # also catch the gold quoted inside guillemets in Persian items
         if f"«{gold}»" in q or f'"{gold}"' in q:
             fail(f"{r['id']}: gold {gold!r} is quoted in the question")
-print(f"    checked 4 suites for verbatim leaks")
+print("    checked 4 suites for verbatim leaks")
 
 # --------------------------------------------------------------- 3. structure
 print()

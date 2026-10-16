@@ -10,15 +10,14 @@ Real datasets (downloaded, unmodified):
 
 Everything lands in tasks/*.json as {id, prompt, ...metadata}.
 """
-import gzip, json, os, random, re, sys
+import gzip, json, os, random
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "tasks")
 # Raw upstream downloads (HumanEval.jsonl.gz, sanitized-mbpp.json).
 # Override with RES_DIR env to point at an existing cache.
 _candidates = [os.environ.get("RES_DIR", ""),
-               os.path.join(HERE, "data", "res"),
-               "/tmp/opencode/res"]
+               os.path.join(HERE, "data", "res")]
 RES = next((c for c in _candidates if c and os.path.isdir(c)),
            os.path.join(HERE, "data", "res"))
 os.makedirs(OUT, exist_ok=True)

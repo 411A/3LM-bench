@@ -61,7 +61,7 @@ list_models() {
 [ ! -x "$BIN" ] && die "llama-server not found at $BIN"
 
 # ---- arg parsing (menus for anything not given) ----
-DRYRUN=0; LIMIT=""; OUT_OVERRIDE=""
+DRYRUN=0; LIMIT=""; OUT_OVERRIDE=""; RESUME_MODE=0
 WANT=""; PROFILE=""
 ARGS=("$@")
 i=0
@@ -73,7 +73,7 @@ while [ $i -lt $# ]; do
     --limit) i=$((i+1)); LIMIT="${ARGS[$i]:?--limit needs a number}";;
     --limit=*) LIMIT="${a#--limit=}";;
     --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;
-    pilot|screening|custom|qualifier) PROFILE="$a";;
+    --resume) RESUME_MODE=1;;    pilot|screening|custom|qualifier) PROFILE="$a";;
     tasks=*) PROFILE="$a";;
     --*) die "unknown flag $a";;
     *) [ -z "$WANT" ] && WANT="$a" || die "extra arg $a";;
@@ -252,6 +252,8 @@ run_one() { # $1=label, $2=k/n for banner
   mkdir -p logs "$(dirname "$OUT")"
   local LOG="logs/llama-run-$LABEL.log"
   say "logging live to $LOG"
+  local RESUME_FLAG=()
+  [ "$RESUME_MODE" = 1 ] && RESUME_FLAG=(--resume "$OUT")
   # shellcheck disable=SC2086
   python3 -u run.py --backend llamacpp --model "$LABEL" --port "$PORT" \
     --api-key "$APIKEY" --model-path "$GGUF" \
@@ -259,6 +261,7 @@ run_one() { # $1=label, $2=k/n for banner
     ${CAPS:+--per-task-cap "$CAPS"} \
     ${LIMIT:+--limit "$LIMIT"} \
     ${TIMEOUT:+--timeout "$TIMEOUT"} \
+    "${RESUME_FLAG[@]}" \
     --agentic-reps "$AGENTIC" --label "$LABEL" --out "$OUT" 2>&1 | tee "$LOG"
   local rc=${PIPESTATUS[0]}
   cleanup
@@ -315,6 +318,9 @@ else
   MODELS=("$WANT")
 fi
 [ "${#MODELS[@]}" -gt 0 ] || die "empty model queue"
+if [ "$RESUME_MODE" = 1 ] && [ "${#MODELS[@]}" -gt 1 ]; then
+  die "--resume takes one model (one file): rerun each failed model separately"
+fi
 
 if [ "$DRYRUN" = 1 ]; then
   for m in "${MODELS[@]}"; do

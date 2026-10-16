@@ -4,8 +4,7 @@ import json
 import sys
 
 from backend import Backend
-from scorers import (check_devops, extract_code, lint_python, lint_rust, normalize_fa,
-                     run_python, run_rust, score_netdiag)
+from scorers import (extract_code, lint_python, run_python, run_rust)
 
 kind = sys.argv[1] if len(sys.argv) > 1 else "ollama"
 name = sys.argv[2] if len(sys.argv) > 2 else "nemotron-3-nano:4b"

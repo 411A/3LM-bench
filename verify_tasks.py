@@ -32,8 +32,7 @@ import scorers as S  # noqa: E402
 
 def _res_file(name):
     cands = [os.environ.get("RES_DIR", ""),
-             os.path.join(HERE, "data", "res"),
-             "/tmp/opencode/res"]
+             os.path.join(HERE, "data", "res")]
     for c in cands:
         if c and os.path.exists(os.path.join(c, name)):
             return os.path.join(c, name)
@@ -312,7 +311,7 @@ def check_structured():
               "would score full marks")
         ok = False
     elif fp / len(nd) < 0.25:
-        print(f"    WARN false-premise share below the 25% floor")
+        print("    WARN false-premise share below the 25% floor")
     for t in nd:
         if t["is_anomaly"] and not t.get("root_cause"):
             print(f"    FAIL {t['id']}: anomaly with no root cause")

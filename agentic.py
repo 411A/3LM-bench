@@ -420,7 +420,7 @@ def run_chain(b, chain, max_tokens=200, temperature=0.7, seed=None):
     # TURN than step k. A same-turn pair means the argument was guessed.
     called = [(n, _norm_args(a), t["turn"])
               for t in trace for n, a in t["tool_calls"]]
-    trace_ok, detail, order_ok = 0, [], True
+    trace_ok, detail = 0, []
     cursor = 0          # index into `called`; enforces relative order
     prev_turn = -1
     for want_name, want_args in chain["steps"]:

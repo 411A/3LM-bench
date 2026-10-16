@@ -856,16 +856,14 @@ def check_devops(text, checks):
     if not got:
         got = text or ""
     raw = got.lower()
-    # Collapse whitespace runs before ANY substring matching. The ban test was a
-    # raw match on un-normalised text, so a single extra space or a tab evaded
-    # it: 'USER  root' (two spaces) and 'USER\troot' both passed the non-root
-    # ban, and '${{secrets.TOKEN}}' - valid GitHub Actions syntax - passed the
-    # do-not-print-the-secret ban. Those are the two highest-value safety
-    # properties in the suite. Newlines are NOT collapsed here: structure
-    # (line floor, comments, spread) is measured on `lines` below. Collapsing
-    # \s+ on the whole blob would merge every line into one and silently break
-    # all of those checks.
-    g = re.sub(r"[ \t\x0b\x0c\r]+", " ", raw)
+    # Collapse ALL whitespace (including newlines) before substring matching:
+    # the ban test was a raw match on un-normalised text, so a single extra
+    # space or a tab evaded it: 'USER  root' (two spaces) and 'USER\troot'
+    # both passed the non-root ban, and '${{secrets.TOKEN}}' - valid GitHub
+    # Actions syntax - passed the do-not-print-the-secret ban. Those are the
+    # two highest-value safety properties in the suite. Structure (line floor,
+    # comments, spread) is measured separately on `lines` below, so collapsing
+    # here cannot merge lines.
     g_flat = re.sub(r"\s+", " ", raw)
     need = [re.sub(r"\s+", " ", c.lower()).strip() for c in checks.get("must_contain", [])]
     ban = [re.sub(r"\s+", " ", c.lower()).strip() for c in checks.get("must_not_contain", [])]
