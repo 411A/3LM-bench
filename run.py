@@ -101,6 +101,19 @@ def subsample(tasks, n, seed=20261012):
     return [tasks[i] for i in idx]
 
 
+def _err1(stderr, width=100):
+    """The most informative failure line: for tracebacks it is the LAST line
+    (the exception), for rustc/g++ it is the FIRST 'error' line (the last
+    lines are span markers and footers). Never crashes, never empty."""
+    lines = (stderr or "").strip().splitlines()
+    if not lines:
+        return ""
+    for ln in lines:
+        if "error" in ln.lower():
+            return ": " + ln.strip()[:width]
+    return ": " + lines[-1].strip()[:width]
+
+
 def _item_error(t, rep, cat, e, extra=None):
     """Per-item last resort: one bad item must never cost its whole rep.
 
@@ -220,7 +233,7 @@ def run_rust(b, tasks, args, rep):
                 "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                           "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
             })
-            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{_err1(res.get("stderr_tail")) if not res.get("passed") else ""} "
                 f"clippy={clip.get('n_diagnostics', 0)} {r['gen_tps']}tok/s")
         except BackendError:
             raise
@@ -488,7 +501,7 @@ def run_cpp(b, tasks, args, rep):
                 "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                           "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
             })
-            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{_err1(res.get("stderr_tail")) if not res.get("passed") else ""} "
                 f"warn={res.get('n_warnings')} {r['gen_tps']}tok/s")
         except BackendError:
             raise
