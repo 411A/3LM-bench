@@ -249,11 +249,12 @@ class Backend:
             "max_tokens": max_tokens,
             "temperature": temperature,
             "top_p": top_p,
-            # cache_prompt MUST stay False: with True the server retains every
-            # item's prompt cache across requests (independent benchmark items
-            # never reuse prefixes, so it only accumulates). Measured 2026-10:
-            # llama-server RSS ballooned 2.7GB -> 6.75GB over one screening run,
-            # swap filled 100%, decode collapsed to 0.16 tok/s.
+            # cache_prompt MUST stay False: belt-and-braces alongside the
+            # server-side --no-cache-prompt (the real switch; b11558 ignores
+            # the per-request field, proven by 480 cache-eviction lines and
+            # RSS 2.7GB -> 6.4GB with the field already False). Independent
+            # benchmark items never share prefixes, so the pool only
+            # accumulates and is never hit: pure cost, zero benefit.
             "cache_prompt": False,
             "stream": False,
         }
