@@ -101,48 +101,91 @@ def subsample(tasks, n, seed=20261012):
     return [tasks[i] for i in idx]
 
 
+def _item_error(t, rep, cat, e, extra=None):
+    """Per-item last resort: one bad item must never cost its whole rep.
+
+    A rep-level crash used to discard every completed item into a single
+    ERROR stub (an empty model output once reached a log line that assumed
+    an int, killing 5 good MBPP items). BackendError is NEVER routed here:
+    it propagates to the rep handler, which owns retry/abort. The log line
+    itself uses no format specs, so it cannot crash either.
+    """
+    import traceback as _tb
+    tail = " | ".join(_tb.format_exc().strip().splitlines()[-2:])
+    tid = t.get("id", "?") if isinstance(t, dict) else "?"
+    log(f"    !! {tid} {type(e).__name__}: {str(e)[:160]}")
+    # The #ERROR suffix is the harness-artifact convention: aggregate() and
+    # compare() both exclude such records from scoring (missing, never zero),
+    # while task+rep fields keep them attributable and resumable.
+    rec = {"id": f"{tid}#ERROR", "rep": rep, "category": cat,
+           "passed": False, "correct": False, "score": 0.0,
+           "error": f"{type(e).__name__}: {e}"[:300],
+           "trace": tail[:300],
+           "tokens": {"prompt": 0, "eval": 0},
+           "speed": {"gen_tps": None, "wall_s": None}}
+    if cat == "net_diag":
+        rec["is_anomaly"] = t.get("is_anomaly", True)
+        rec.update(verdict_ok=False, device_ok=False, cause_ok=False,
+                   verdict_unclear=False)
+    if cat == "agentic":
+        rec.update(chain_id=tid, outcome_ok=False,
+                   trace_ok=0, trace_total=len(t.get("steps", []) or [1]),
+                   n_tool_calls=0, stopped="exception", calls=[],
+                   expect_no_calls=bool(t.get("expect_no_calls")))
+    if extra:
+        rec.update(extra)
+    return rec
+
+
 # ============================================================ task runners
 def run_code(b, tasks, args, rep):
     """Python generation + execution + lint."""
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        r = b.generate([{"role": "system", "content": SYSTEM_CODER},
-                        {"role": "user", "content": t["prompt"]}],
-                       max_tokens=FROZEN["gen_max_tokens"],
-                       temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        raw = r["content"]
-        code = extract_code(raw, "python")
-        code, completion_style = S.reconcile_prefix(t["prompt"], code, "python")
-        syn_ok, syn_err = S.python_syntax_ok(code)
-        ex = {"passed": False, "error": "syntax_error", "stderr_tail": syn_err} \
-            if not syn_ok else run_python(code, t.get("test", ""))
-        lint = lint_python(code) if code.strip() else {"available": False, "empty": True,
-                                                       "n_diagnostics": None, "clean": False,
-                                                       "noqa_gaming": False, "lines": 0}
-        out.append({
-            "id": t["id"], "rep": rep, "category": "code",
-            "prompt": t["prompt"], "completion_raw": raw, "code_extracted": code,
-            "test": t.get("test", ""),
-            "completion_style": completion_style,
-            "syntax_ok": syn_ok, "syntax_error": syn_err,
-            "passed": bool(ex["passed"]), "exec_error": ex.get("error"),
-            "exec_stage": ex.get("stage"), "stderr_tail": ex.get("stderr_tail", "")[:400],
-            "lint": lint,
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "prompt_tps": r["prompt_tps"],
-                      "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        style = "" if completion_style == "complete" else f" [{completion_style}]"
-        # The failure REASON belongs on the log line: "fail nonzero_exit" alone
-        # forces a JSON dig for every failure. First stderr line carries it
-        # (AssertionError vs NameError vs timeout) in ~100 chars.
-        err1 = (ex.get("stderr_tail") or "").strip().splitlines()
-        err1 = (": " + err1[-1][:100]) if (err1 and not ex.get("passed")) else ""
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if ex['passed'] else 'fail ' + str(ex.get('error')):<22} "
-            f"lint={lint.get('n_diagnostics', 0):>2} {r['gen_tps']}tok/s{style}{err1}")
+        try:
+            r = b.generate([{"role": "system", "content": SYSTEM_CODER},
+                            {"role": "user", "content": t["prompt"]}],
+                           max_tokens=FROZEN["gen_max_tokens"],
+                           temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            raw = r["content"]
+            code = extract_code(raw, "python")
+            code, completion_style = S.reconcile_prefix(t["prompt"], code, "python")
+            syn_ok, syn_err = S.python_syntax_ok(code)
+            ex = {"passed": False, "error": "syntax_error", "stderr_tail": syn_err} \
+                if not syn_ok else run_python(code, t.get("test", ""))
+            lint = lint_python(code) if code.strip() else {"available": False, "empty": True,
+                                                           "n_diagnostics": None, "clean": False,
+                                                           "noqa_gaming": False, "lines": 0}
+            out.append({
+                "id": t["id"], "rep": rep, "category": "code",
+                "prompt": t["prompt"], "completion_raw": raw, "code_extracted": code,
+                "test": t.get("test", ""),
+                "completion_style": completion_style,
+                "syntax_ok": syn_ok, "syntax_error": syn_err,
+                "passed": bool(ex["passed"]), "exec_error": ex.get("error"),
+                "exec_stage": ex.get("stage"), "stderr_tail": ex.get("stderr_tail", "")[:400],
+                "lint": lint,
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "prompt_tps": r["prompt_tps"],
+                          "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            style = "" if completion_style == "complete" else f" [{completion_style}]"
+            # The failure REASON belongs on the log line: "fail nonzero_exit" alone
+            # forces a JSON dig for every failure. First stderr line carries it
+            # (AssertionError vs NameError vs timeout) in ~100 chars.
+            err1 = (ex.get("stderr_tail") or "").strip().splitlines()
+            err1 = (": " + err1[-1][:100]) if (err1 and not ex.get("passed")) else ""
+            ndiag = lint.get("n_diagnostics")
+            ndiag_s = f"{ndiag:>2}" if isinstance(ndiag, int) else " -"
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if ex['passed'] else 'fail ' + str(ex.get('error')):<22} "
+                f"lint={ndiag_s} {r['gen_tps']}tok/s{style}{err1}")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "code", e))
     return out
 
 
@@ -151,33 +194,38 @@ def run_rust(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        r = b.generate([{"role": "system", "content": SYSTEM_CODER},
-                        {"role": "user", "content": t["prompt"]}],
-                       max_tokens=FROZEN["gen_max_tokens"],
-                       temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        raw = r["content"]
-        code = extract_code(raw, "rust")
-        res = S.run_rust(code, t["tests"], t["entry_point"]) if code.strip() else \
-            {"passed": False, "error": "empty_output", "stage": "extract"}
-        clip = lint_rust(code) if code.strip() else {"available": False, "empty": True,
-                                                        "n_diagnostics": None, "clean": False}
-        fmt = rustfmt_check(code) if code.strip() else {"available": False}
-        out.append({
-            "id": t["id"], "rep": rep, "category": "rust",
-            "prompt": t["prompt"], "completion_raw": raw, "code_extracted": code,
-            "test": "\n".join(t["tests"]),
-            "passed": bool(res.get("passed")), "exec_error": res.get("error"),
-            "exec_stage": res.get("stage"),
-            "stderr_tail": (res.get("stderr_tail") or "")[:500],
-            "wrote_fn_main": res.get("wrote_main"), "used_test_attr": res.get("uses_test_attr"),
-            "clippy": clip, "rustfmt": fmt,
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
-            f"clippy={clip.get('n_diagnostics', 0)} {r['gen_tps']}tok/s")
+        try:
+            r = b.generate([{"role": "system", "content": SYSTEM_CODER},
+                            {"role": "user", "content": t["prompt"]}],
+                           max_tokens=FROZEN["gen_max_tokens"],
+                           temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            raw = r["content"]
+            code = extract_code(raw, "rust")
+            res = S.run_rust(code, t["tests"], t["entry_point"]) if code.strip() else \
+                {"passed": False, "error": "empty_output", "stage": "extract"}
+            clip = lint_rust(code) if code.strip() else {"available": False, "empty": True,
+                                                            "n_diagnostics": None, "clean": False}
+            fmt = rustfmt_check(code) if code.strip() else {"available": False}
+            out.append({
+                "id": t["id"], "rep": rep, "category": "rust",
+                "prompt": t["prompt"], "completion_raw": raw, "code_extracted": code,
+                "test": "\n".join(t["tests"]),
+                "passed": bool(res.get("passed")), "exec_error": res.get("error"),
+                "exec_stage": res.get("stage"),
+                "stderr_tail": (res.get("stderr_tail") or "")[:500],
+                "wrote_fn_main": res.get("wrote_main"), "used_test_attr": res.get("uses_test_attr"),
+                "clippy": clip, "rustfmt": fmt,
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+                f"clippy={clip.get('n_diagnostics', 0)} {r['gen_tps']}tok/s")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "rust", e))
     return out
 
 
@@ -191,46 +239,51 @@ def run_mc(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        _mc = b.mc_logprobs(t["question"], t["choices"], system=SYSTEM_MC)
-        if len(_mc) == 5:           # older signature, no letter_mass
-            idx, letter, dist, meta, mode = _mc
-            letter_mass = max(dist.values()) if dist else 0.0
-        else:
-            idx, letter, dist, meta, mode, letter_mass = _mc
-        ok = (idx == t["answer"])
-        # `correct` is the argmax pick, full stop. It used to be
-        # `ok and letter_mass >= 0.15`, which recorded a model that picked the
-        # gold letter as INCORRECT whenever its total mass on the letter set
-        # fell below 15%. That is a systematic under-report: it penalises exactly
-        # the uncertain-but-right models the suite is trying to characterise,
-        # and it was inert on confident models (a live sweep showed all masses
-        # >= 0.9949), so it would have silently done nothing until the day it
-        # mattered. Low mass is a real property of the response and is reported
-        # as `informed`/`letter_mass`; it is not a scoring penalty.
-        out.append({
-            "id": t["id"], "rep": rep, "category": t.get("category", "mc"),
-            "lang": t.get("lang"), "subject": t.get("subject"),
-            "question": t["question"], "choices": t["choices"],
-            "test": t["question"],
-            "gold_index": t["answer"],
-            "chosen_index": idx, "chosen_letter": letter,
-            "correct": ok,
-            "pick_correct": ok,
-            # low-information: the model committed little total mass to any letter.
-            # Reported, not penalised. A gate on this field, rather than on the
-            # pick, is the correct use of it.
-            "letter_mass": round(letter_mass, 4),
-            "informed": bool(letter_mass >= 0.15),
-            "confidence": round(letter_mass, 4),
-            "distribution": {k: round(v, 6) for k, v in sorted(dist.items())},
-            "scoring_mode": mode,
-            "tokens": {"prompt": meta["prompt_tokens"], "eval": meta["eval_tokens"]},
-            "speed": {"gen_tps": None, "ttft_s": meta["ttft_s"],
-                      "wall_s": meta["wall_s"]},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if ok else 'X  '} "
-            f"picked={letter} gold={chr(65 + t['answer'])} "
-            f"mass={letter_mass:.3f} ({meta['wall_s']}s)")
+        try:
+            _mc = b.mc_logprobs(t["question"], t["choices"], system=SYSTEM_MC)
+            if len(_mc) == 5:           # older signature, no letter_mass
+                idx, letter, dist, meta, mode = _mc
+                letter_mass = max(dist.values()) if dist else 0.0
+            else:
+                idx, letter, dist, meta, mode, letter_mass = _mc
+            ok = (idx == t["answer"])
+            # `correct` is the argmax pick, full stop. It used to be
+            # `ok and letter_mass >= 0.15`, which recorded a model that picked the
+            # gold letter as INCORRECT whenever its total mass on the letter set
+            # fell below 15%. That is a systematic under-report: it penalises exactly
+            # the uncertain-but-right models the suite is trying to characterise,
+            # and it was inert on confident models (a live sweep showed all masses
+            # >= 0.9949), so it would have silently done nothing until the day it
+            # mattered. Low mass is a real property of the response and is reported
+            # as `informed`/`letter_mass`; it is not a scoring penalty.
+            out.append({
+                "id": t["id"], "rep": rep, "category": t.get("category", "mc"),
+                "lang": t.get("lang"), "subject": t.get("subject"),
+                "question": t["question"], "choices": t["choices"],
+                "test": t["question"],
+                "gold_index": t["answer"],
+                "chosen_index": idx, "chosen_letter": letter,
+                "correct": ok,
+                "pick_correct": ok,
+                # low-information: the model committed little total mass to any letter.
+                # Reported, not penalised. A gate on this field, rather than on the
+                # pick, is the correct use of it.
+                "letter_mass": round(letter_mass, 4),
+                "informed": bool(letter_mass >= 0.15),
+                "confidence": round(letter_mass, 4),
+                "distribution": {k: round(v, 6) for k, v in sorted(dist.items())},
+                "scoring_mode": mode,
+                "tokens": {"prompt": meta["prompt_tokens"], "eval": meta["eval_tokens"]},
+                "speed": {"gen_tps": None, "ttft_s": meta["ttft_s"],
+                          "wall_s": meta["wall_s"]},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if ok else 'X  '} "
+                f"picked={letter} gold={chr(65 + t['answer'])} "
+                f"mass={letter_mass:.3f} ({meta['wall_s']}s)")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, t.get("category", "mc"), e))
     return out
 
 
@@ -238,30 +291,35 @@ def run_netdiag(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        msgs = [{"role": "system", "content":
-                 "You are a network engineer. Given the topology, the configuration and "
-                 "the reported symptom, diagnose the problem. If the evidence shows "
-                 "everything is actually healthy, say so plainly. Be concise."},
-                {"role": "user", "content":
-                    f"Topology: {t['topology']}\n\nConfiguration:\n{t['config']}\n\n"
-                    f"Reported symptom: {t['symptom']}\n\nObservations:\n{t['observed']}\n\n"
-                    f"Is there an actual fault? If yes, which device and what is the root "
-                    f"cause? If no, say the network is healthy and no action is needed."}]
-        r = b.generate(msgs, max_tokens=256, temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        s = score_netdiag(r["content"], t)
-        out.append({
-            "id": t["id"], "rep": rep, "category": "net_diag",
-            "prompt": msgs[-1]["content"], "completion_raw": r["content"],
-            "is_anomaly": t["is_anomaly"], "root_cause": t["root_cause"],
-            "score": s["score"], "verdict_ok": s["verdict_ok"],
-            "device_ok": s["device_ok"], "cause_ok": s["cause_ok"], "detail": s["detail"],
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<28} score={s['score']:.2f} "
-            f"{'(false premise)' if not t['is_anomaly'] else t['root_cause']:<14} {r['gen_tps']}tok/s")
+        try:
+            msgs = [{"role": "system", "content":
+                     "You are a network engineer. Given the topology, the configuration and "
+                     "the reported symptom, diagnose the problem. If the evidence shows "
+                     "everything is actually healthy, say so plainly. Be concise."},
+                    {"role": "user", "content":
+                        f"Topology: {t['topology']}\n\nConfiguration:\n{t['config']}\n\n"
+                        f"Reported symptom: {t['symptom']}\n\nObservations:\n{t['observed']}\n\n"
+                        f"Is there an actual fault? If yes, which device and what is the root "
+                        f"cause? If no, say the network is healthy and no action is needed."}]
+            r = b.generate(msgs, max_tokens=256, temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            s = score_netdiag(r["content"], t)
+            out.append({
+                "id": t["id"], "rep": rep, "category": "net_diag",
+                "prompt": msgs[-1]["content"], "completion_raw": r["content"],
+                "is_anomaly": t["is_anomaly"], "root_cause": t["root_cause"],
+                "score": s["score"], "verdict_ok": s["verdict_ok"],
+                "device_ok": s["device_ok"], "cause_ok": s["cause_ok"], "detail": s["detail"],
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<28} score={s['score']:.2f} "
+                f"{'(false premise)' if not t['is_anomaly'] else t['root_cause']:<14} {r['gen_tps']}tok/s")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "net_diag", e))
     return out
 
 
@@ -269,24 +327,29 @@ def run_devops(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        r = b.generate([{"role": "system", "content": SYSTEM_CODER},
-                        {"role": "user", "content": t["prompt"]}],
-                       max_tokens=FROZEN["gen_max_tokens"],
-                       temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        c = check_devops(r["content"], t["checks"])
-        out.append({
-            "id": t["id"], "rep": rep, "category": "devops",
-            "prompt": t["prompt"], "completion_raw": r["content"],
-            "score": c["score"], "passed": c["passed"],
-            "must_hit": f"{c['must_hit']}/{c['must_total']}", "missed": c["missed"],
-            "violations": c["violations"], "empty": c["empty"],
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {c['must_hit']}/{c['must_total']} "
-            f"score={c['score']:.2f} miss={','.join(c['missed']) or '-'}")
+        try:
+            r = b.generate([{"role": "system", "content": SYSTEM_CODER},
+                            {"role": "user", "content": t["prompt"]}],
+                           max_tokens=FROZEN["gen_max_tokens"],
+                           temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            c = check_devops(r["content"], t["checks"])
+            out.append({
+                "id": t["id"], "rep": rep, "category": "devops",
+                "prompt": t["prompt"], "completion_raw": r["content"],
+                "score": c["score"], "passed": c["passed"],
+                "must_hit": f"{c['must_hit']}/{c['must_total']}", "missed": c["missed"],
+                "violations": c["violations"], "empty": c["empty"],
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {c['must_hit']}/{c['must_total']} "
+                f"score={c['score']:.2f} miss={','.join(c['missed']) or '-'}")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "devops", e))
     return out
 
 
@@ -295,47 +358,53 @@ def run_lint(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        lang = t["lang"]
-        sysmsg = SYSTEM_CODER
-        r = b.generate([{"role": "system", "content": sysmsg},
-                        {"role": "user", "content": t["prompt"]}],
-                       max_tokens=FROZEN["gen_max_tokens"],
-                       temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        code = extract_code(r["content"], lang)
-        if lang == "python":
-            # An empty extraction is a total failure (refusal, prose-only reply),
-            # not a style success. It used to record n_diagnostics=0/clean=True
-            # and count toward the clean_rate numerator.
-            lint = lint_python(code) if code.strip() else {"available": False, "empty": True,
-                                                            "n_diagnostics": None, "clean": False,
-                                                            "noqa_gaming": False}
-            fmt = _ruff_format(code)
-            detail = {"ruff": lint, "format": fmt}
-            primary = lint.get("n_diagnostics")
-        else:
-            sets = ("correctness", "style", "complexity", "perf", "pedantic", "nursery")
-            clip = lint_rust(code, sets=sets) if code.strip() else {"available": False, "empty": True,
-                                                                   "n_diagnostics": None, "clean": False,
-                                                                   "noqa_gaming": False}
-            fmt = rustfmt_check(code) if code.strip() else {"available": False}
-            detail = {"clippy": clip, "format": fmt}
-            primary = clip.get("n_diagnostics")
-        out.append({
-            "id": t["id"], "rep": rep, "category": "lint", "group": t["group"],
-            "lang": lang, "prompt": t["prompt"], "completion_raw": r["content"],
-            "code_extracted": code, "n_diagnostics": primary,
-            "empty": not code.strip(),
-            "noqa_gaming": (lint.get("noqa_gaming") if lang == "python"
-                            else clip.get("noqa_gaming")) if code.strip() else False,
-            "detail": detail,
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} diags={primary:>3} "
-            f"gaming={out[-1]['noqa_gaming']} fmt={fmt.get('already_formatted', '?')} "
-            f"{r['gen_tps']}tok/s")
+        try:
+            lang = t["lang"]
+            sysmsg = SYSTEM_CODER
+            r = b.generate([{"role": "system", "content": sysmsg},
+                            {"role": "user", "content": t["prompt"]}],
+                           max_tokens=FROZEN["gen_max_tokens"],
+                           temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            code = extract_code(r["content"], lang)
+            if lang == "python":
+                # An empty extraction is a total failure (refusal, prose-only reply),
+                # not a style success. It used to record n_diagnostics=0/clean=True
+                # and count toward the clean_rate numerator.
+                lint = lint_python(code) if code.strip() else {"available": False, "empty": True,
+                                                                "n_diagnostics": None, "clean": False,
+                                                                "noqa_gaming": False}
+                fmt = _ruff_format(code)
+                detail = {"ruff": lint, "format": fmt}
+                primary = lint.get("n_diagnostics")
+            else:
+                sets = ("correctness", "style", "complexity", "perf", "pedantic", "nursery")
+                clip = lint_rust(code, sets=sets) if code.strip() else {"available": False, "empty": True,
+                                                                       "n_diagnostics": None, "clean": False,
+                                                                       "noqa_gaming": False}
+                fmt = rustfmt_check(code) if code.strip() else {"available": False}
+                detail = {"clippy": clip, "format": fmt}
+                primary = clip.get("n_diagnostics")
+            out.append({
+                "id": t["id"], "rep": rep, "category": "lint", "group": t["group"],
+                "lang": lang, "prompt": t["prompt"], "completion_raw": r["content"],
+                "code_extracted": code, "n_diagnostics": primary,
+                "empty": not code.strip(),
+                "noqa_gaming": (lint.get("noqa_gaming") if lang == "python"
+                                else clip.get("noqa_gaming")) if code.strip() else False,
+                "detail": detail,
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} "
+                f"diags={(f'{primary:>3}' if isinstance(primary, int) else '  -')} "
+                f"gaming={out[-1]['noqa_gaming']} fmt={fmt.get('already_formatted', '?')} "
+                f"{r['gen_tps']}tok/s")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "lint", e))
     return out
 
 
@@ -365,16 +434,21 @@ def run_agentic(b, tasks, args, rep):
     chains = [c for c in agentic.CHAINS if wanted is None or c["id"] in wanted]
     n_tasks = len(chains)
     for i, c in enumerate(chains):
-        r = agentic.run_chain(b, c, max_tokens=FROZEN["agent_max_tokens"],
-                              temperature=FROZEN["gen_temperature"],
-                              seed=FROZEN["seed_base"] + rep)
-        r["rep"] = rep
-        r["category"] = "agentic"
-        r["prompt"] = c["prompt"]
-        out.append(r)
-        log(f"    [{i+1}/{n_tasks}] {c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
-            f"outcome={'OK' if r['outcome_ok'] else 'X'} "
-            f"calls={r['n_tool_calls']} stop={r['stopped']}")
+        try:
+            r = agentic.run_chain(b, c, max_tokens=FROZEN["agent_max_tokens"],
+                                  temperature=FROZEN["gen_temperature"],
+                                  seed=FROZEN["seed_base"] + rep)
+            r["rep"] = rep
+            r["category"] = "agentic"
+            r["prompt"] = c["prompt"]
+            out.append(r)
+            log(f"    [{i+1}/{n_tasks}] {c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
+                f"outcome={'OK' if r['outcome_ok'] else 'X'} "
+                f"calls={r['n_tool_calls']} stop={r['stopped']}")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(c, rep, "agentic", e))
     return out
 
 
@@ -389,32 +463,37 @@ def run_cpp(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        r = b.generate([{"role": "system", "content": SYSTEM_CODER},
-                        {"role": "user", "content": t["prompt"]}],
-                       max_tokens=FROZEN["gen_max_tokens"],
-                       temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        raw = r["content"]
-        code = extract_code(raw, "cpp")
-        if not code.strip():
-            res = {"passed": False, "error": "empty_output", "stage": "extract",
-                   "n_warnings": None}
-        else:
-            res = S.run_cpp(code, t["test"], t["header"])
-        out.append({
-            "id": t["id"], "rep": rep, "category": "embedded_cpp",
-            "prompt": t["prompt"], "completion_raw": raw, "code_extracted": code,
-            "passed": bool(res.get("passed")), "exec_error": res.get("error"),
-            "exec_stage": res.get("stage"),
-            "stderr_tail": (res.get("stderr_tail") or "")[:600],
-            "n_warnings": res.get("n_warnings"),
-            "test_source": t["test"],
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
-            f"warn={res.get('n_warnings')} {r['gen_tps']}tok/s")
+        try:
+            r = b.generate([{"role": "system", "content": SYSTEM_CODER},
+                            {"role": "user", "content": t["prompt"]}],
+                           max_tokens=FROZEN["gen_max_tokens"],
+                           temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            raw = r["content"]
+            code = extract_code(raw, "cpp")
+            if not code.strip():
+                res = {"passed": False, "error": "empty_output", "stage": "extract",
+                       "n_warnings": None}
+            else:
+                res = S.run_cpp(code, t["test"], t["header"])
+            out.append({
+                "id": t["id"], "rep": rep, "category": "embedded_cpp",
+                "prompt": t["prompt"], "completion_raw": raw, "code_extracted": code,
+                "passed": bool(res.get("passed")), "exec_error": res.get("error"),
+                "exec_stage": res.get("stage"),
+                "stderr_tail": (res.get("stderr_tail") or "")[:600],
+                "n_warnings": res.get("n_warnings"),
+                "test_source": t["test"],
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{": " + (res.get("stderr_tail") or "").strip().splitlines()[-1][:100] if ((res.get("stderr_tail") or "").strip() and not res.get("passed")) else ""} "
+                f"warn={res.get('n_warnings')} {r['gen_tps']}tok/s")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "embedded_cpp", e))
     return out
 
 
@@ -429,30 +508,35 @@ def run_gsm8k(b, tasks, args, rep):
     out = []
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
-        msgs = [{"role": "system", "content":
-                 "You are a careful math assistant. Reason step by step, "
-                 "then write the final numeric answer after ####."},
-                {"role": "user", "content":
-                 f"{t['question']}\n\nReason step by step, then finish with "
-                 f"the final number as #### <number>."}]
-        r = b.generate(msgs, max_tokens=FROZEN["gen_max_tokens"],
-                       temperature=FROZEN["gen_temperature"],
-                       seed=FROZEN["seed_base"] + rep)
-        s = S.score_gsm8k(r["content"], t["gold"])
-        out.append({
-            "id": t["id"], "rep": rep, "category": "gsm8k",
-            "prompt": msgs[-1]["content"], "completion_raw": r["content"],
-            "test": t["question"], "gold": t["gold"],
-            "correct": bool(s["correct"]), "passed": bool(s["correct"]),
-            "pred": s["pred"], "extracted": s["extracted"],
-            "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
-            "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"],
-                      "wall_s": r["wall_s"],
-                      "load_s": r.get("load_s"),
-                      "prompt_cached_tokens": r.get("prompt_cached_tokens")},
-        })
-        log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if s['correct'] else 'X  '} "
-            f"pred={s['pred'][:16]:<16} gold={s['gold'][:16]:<16} {r['gen_tps']}tok/s")
+        try:
+            msgs = [{"role": "system", "content":
+                     "You are a careful math assistant. Reason step by step, "
+                     "then write the final numeric answer after ####."},
+                    {"role": "user", "content":
+                     f"{t['question']}\n\nReason step by step, then finish with "
+                     f"the final number as #### <number>."}]
+            r = b.generate(msgs, max_tokens=FROZEN["gen_max_tokens"],
+                           temperature=FROZEN["gen_temperature"],
+                           seed=FROZEN["seed_base"] + rep)
+            s = S.score_gsm8k(r["content"], t["gold"])
+            out.append({
+                "id": t["id"], "rep": rep, "category": "gsm8k",
+                "prompt": msgs[-1]["content"], "completion_raw": r["content"],
+                "test": t["question"], "gold": t["gold"],
+                "correct": bool(s["correct"]), "passed": bool(s["correct"]),
+                "pred": s["pred"], "extracted": s["extracted"],
+                "tokens": {"prompt": r["prompt_tokens"], "eval": r["eval_tokens"]},
+                "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"],
+                          "wall_s": r["wall_s"],
+                          "load_s": r.get("load_s"),
+                          "prompt_cached_tokens": r.get("prompt_cached_tokens")},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if s['correct'] else 'X  '} "
+                f"pred={s['pred'][:16]:<16} gold={s['gold'][:16]:<16} {r['gen_tps']}tok/s")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "gsm8k", e))
     return out
 
 

@@ -96,6 +96,36 @@ a = R.aggregate(stub)
 check("stub excluded from accuracy", a["code"]["accuracy"] == 1.0)
 check("stub counted in n_errors", a["code"]["n_errors"] == 1)
 
+# per-item bulkhead: one exploding item must not cost its rep; the server
+# going away must still propagate to the rep handler (retry/abort owner)
+from backend import BackendError
+
+
+class _Boom:
+    def generate(self, *a, **k):
+        raise ValueError("kaboom")
+    def mc_logprobs(self, *a, **k):
+        raise ValueError("kaboom")
+
+
+class _Dead:
+    def generate(self, *a, **k):
+        raise BackendError("gone")
+    def mc_logprobs(self, *a, **k):
+        raise BackendError("gone")
+
+
+_tasks = [{"id": "t1", "prompt": "def f():\n    return 1\n", "test": "assert True"},
+          {"id": "t2", "prompt": "def g():\n    return 2\n", "test": "assert True"}]
+_got = R.run_code(_Boom(), _tasks, None, 0)
+check("item errors recorded per item, rep survives",
+      len(_got) == 2 and all("#ERROR" in r["id"] for r in _got))
+try:
+    R.run_code(_Dead(), _tasks, None, 0)
+    check("BackendError propagates to rep handler", False)
+except BackendError:
+    check("BackendError propagates to rep handler", True)
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")
