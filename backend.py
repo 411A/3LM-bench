@@ -98,7 +98,7 @@ class Backend:
                             return f"unloaded via {path}"
                 except Exception:  # noqa: BLE001
                     continue
-            return "persistent (unload unsupported by this server)"
+            return "persistent/no-unload-endpoint"
         try:
             if self.kind == "ollama":
                 import shutil

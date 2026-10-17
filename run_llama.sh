@@ -33,7 +33,16 @@ KNOWN=(
   "nemotron-3-nano|nemotron-3-nano.gguf|8097"
   "minicpm5-2b|minicpm5-2b.gguf|8091"
   "k2-horizon|k2-horizon.gguf|8092"
-  "qwen35-4b|qwen4b.gguf|8093"
+  # qwen35-4b DISABLED 2026-10-17: qwen4b.gguf + llama-server b11558 picks
+  # letter A on ~everything at 0.1-0.8 mass (0/12 truthfulqa, 1/12 mmlu, two
+  # runs) while qwen3.5:4b-q4_K_M via Ollama scores 5/6 at mass 1.0 with
+  # varied letters on the same items. Same weights, different harness path =
+  # broken template/rendering pairing, not a model verdict. The GGUF's
+  # embedded template bytes are genuine upstream Qwen3.5, so the failure is
+  # in server-side rendering (b11558 predates qwen35 handling). Benchmark
+  # qwen3.5 through Ollama (see run_all.sh) until the server is upgraded.
+  # To re-enable: uncomment the line below.
+  # "qwen35-4b|qwen4b.gguf|8093"
   "qwen35-2b|qwen2b.gguf|8094"
   "granite4-3b|granite.gguf|8095"
   "medgemma-4b|medgemma.gguf|8096"
