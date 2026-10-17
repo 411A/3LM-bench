@@ -403,9 +403,9 @@ def run_rust(fn_code, tests, fn_name, timeout=25.0):
     c = subprocess.run(["rustc", "--edition", "2021", "-O", "-A", "warnings",
                         "-o", binp, path], capture_output=True, text=True, timeout=timeout)
     if c.returncode != 0:
-        err = c.stderr[-800:]
+        err = _error_first(c.stderr)
         reason = "compile_error"
-        if wrote_main and "main" in err:
+        if wrote_main and "main" in (c.stderr or ""):
             reason = "wrote_fn_main"
         return {"passed": False, "error": reason, "stage": "compile",
                 "stderr_tail": err, "wrote_main": wrote_main,
@@ -706,8 +706,30 @@ def lint_rust(code, sets=("correctness", "pedantic")):
 # the logic, which is what actually breaks. Warnings are captured separately and
 # scored as a quality signal: -Wall -Wextra on a short function is a reasonable
 # proxy for sloppy embedded C++, and unlike clippy it needs no extra toolchain.
+def _error_first(stderr, max_chars=900, max_err_lines=10, tail_lines=4):
+    """Keep the error lines, not the warning noise.
+
+    Model code under -Wall -Wextra can emit dozens of warnings that push the
+    actual error outside any fixed-size tail window (the log then shows a bare
+    span marker). Error lines are kept preferentially, plus a few trailing
+    context lines, within the same size budget.
+    """
+    lines = (stderr or "").splitlines()
+    errs = [l for l in lines if "error" in l.lower()][:max_err_lines]
+    keep = errs + [l for l in lines[-tail_lines:] if l not in set(errs)]
+    out = "\n".join(keep)
+    return out[-max_chars:] if len(out) > max_chars else out
 def run_cpp(code, test, header, timeout=40.0):
-    src = header + "\n" + code + "\n\nint main() {\n" + test + f'\n    printf("{_SENTINEL}\\n");\n    return 0;\n}}\n'
+    # The mock header's unused API stubs emit ~31 -Wunused-function warnings
+    # by themselves (measured), which buried real errors outside the stderr
+    # window AND made warning_free_rate measure the harness, not the model.
+    # The header span is wrapped in push/ignored/pop so model code stays
+    # fully warned while header noise is silenced.
+    _HDR_QUIET = ('#pragma GCC diagnostic push\n'
+                  '#pragma GCC diagnostic ignored "-Wunused-function"\n')
+    _HDR_POP = '#pragma GCC diagnostic pop\n'
+    src = (_HDR_QUIET + header + "\n" + _HDR_POP + code
+           + "\n\nint main() {\n" + test + f'\n    printf("{_SENTINEL}\\n");\n    return 0;\n}}\n')
     path = os.path.join(TMP, f"e{abs(hash(src)) % 10**11}.cpp")
     exe = path[:-4]
     with open(path, "w") as f:
@@ -734,7 +756,7 @@ def run_cpp(code, test, header, timeout=40.0):
     n_warn = len(re.findall(r"(?m)^\S+:\d+:\d+: warning:", stderr))
     if c.returncode != 0:
         return {"passed": False, "error": "compile_error", "stage": "compile",
-                "stderr_tail": stderr[-900:], "n_warnings": n_warn}
+                "stderr_tail": _error_first(stderr), "n_warnings": n_warn}
     try:
         r = subprocess.run([exe], capture_output=True, text=True, timeout=10,
                            preexec_fn=limit)

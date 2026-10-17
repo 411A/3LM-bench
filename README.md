@@ -221,6 +221,9 @@ assertion that cannot distinguish right from wrong is not a test. This caught
 five genuine harness bugs during construction — a wrong expected CRC, a
 contradictory clamp case, a member/function name collision, an ill-specified
 state machine, and four assertions too weak to catch the obvious mistake.
+Warning counts before 2026-10-17 are inflated by ~31 header-stub warnings and
+must be disregarded; the header span is now pragma-silenced so warnings measure
+model code only.
 
 ## What this benchmark does not measure
 
