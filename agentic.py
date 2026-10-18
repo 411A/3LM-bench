@@ -185,6 +185,47 @@ CHAINS = [
      "steps": [("lookup_customer", {"customer_id": "CUST-1"})],
      "answer_regex": r"gold",
      "max_turns": 5},
+    # --- deep chains (3 steps): each argument after the first is observable
+    # only from a previous tool result, so guessing compounds across steps.
+    {"id": "chain/refund-with-total",
+     "prompt": ("Order ORD-1002 costs a known amount. Look it up, apply a 10 percent "
+                "discount, then check whether a refund is allowed for that order's "
+                "status. Report the discounted total and the refund verdict. Use the tools."),
+     "steps": [("get_order", {"order_id": "ORD-1002"}),
+               ("apply_discount", {"amount": 89.50, "percent": 10}),
+               ("check_policy", {"action": "refund", "order_status": "shipped"})],
+     "answer_regex": r"80\.55",
+     "max_turns": 7},
+    {"id": "chain/restock-and-refund",
+     "prompt": ("Order ORD-1001 includes 2 units of its SKU. Check inventory for that "
+                "SKU at warehouse WH-EAST, then check whether a refund is allowed "
+                "for that order's status. Report the stock count and the refund "
+                "verdict. Use the tools."),
+     "steps": [("get_order", {"order_id": "ORD-1001"}),
+               ("check_inventory", {"sku": "SKU-77", "warehouse": "WH-EAST"}),
+               ("check_policy", {"action": "refund", "order_status": "delivered"})],
+     "answer_regex": r"\b12\b",
+     "max_turns": 7},
+    {"id": "chain/tier-shipping",
+     "prompt": ("Customer CUST-1 needs a parcel shipped. Look up their region first, "
+                "then get the shipping estimate for that region. Report the cost "
+                "and transit days. Use the tools - the region is only in the "
+                "customer record."),
+     "steps": [("lookup_customer", {"customer_id": "CUST-1"}),
+               ("get_shipping_estimate", {"region": "EU"})],
+     "answer_regex": r"12(\.0)?\b",
+     "max_turns": 6},
+    # --- error recovery: the first call fails; the model must read the error,
+    # follow the instructed fallback, and still complete the chain.
+    {"id": "chain/recover-wrong-order",
+     "prompt": ("First check order ORD-9999. If it is not found, use order ORD-1002 "
+                "instead: look it up, apply a 10 percent discount, and report the "
+                "discounted total. Use the tools - do not guess any amounts."),
+     "steps": [("get_order", {"order_id": "ORD-9999"}),
+               ("get_order", {"order_id": "ORD-1002"}),
+               ("apply_discount", {"amount": 89.50, "percent": 10})],
+     "answer_regex": r"80\.55",
+     "max_turns": 7},
     # --- policy refusals: the tools COULD serve the request, policy forbids it.
     # Same dependency structure as the positive chains (step-2 args observable
     # only from step-1 results), polarity flipped. Fit the current harness:

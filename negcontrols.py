@@ -193,6 +193,10 @@ GOLD = {
     "chain/eu-shipping": "Shipping to EU costs $12.00 and takes 4 days.",
     "chain/cancel-then-check": "Yes, cancellation is allowed for a processing order.",
     "chain/tier-aware": "Customer CUST-1 is gold tier.",
+    "chain/refund-with-total": "The discounted total is $80.55 and a refund is allowed for shipped order ORD-1002.",
+    "chain/restock-and-refund": "WH-EAST has 12 units of SKU-77, enough for 2, and a refund is allowed for delivered order ORD-1001.",
+    "chain/tier-shipping": "Customer CUST-1 is in the EU region; shipping costs $12.00 and takes 4 days.",
+    "chain/recover-wrong-order": "Order ORD-9999 was not found; using ORD-1002 instead, the discounted total is $80.55.",
     "neg/policy-cancel-delivered": "No, cancellation is not allowed for delivered order ORD-1001.",
     "neg/policy-refund-cancelled": "No, a refund is not allowed for cancelled order ORD-1004.",
 }
@@ -230,6 +234,38 @@ check("no-tool cheater: headline outcome rate == 0.0",
       f"got {agg['per_trial_outcome_rate']}")
 check("no-tool cheater: final-answer-only accuracy still 1.0 (reported separately)",
       agg["final_answer_accuracy_no_tools_required"] == 1.0, True)
+
+print()
+print("=== agentic: a cooperative agent solves EVERY positive chain ===")
+# Guards against impossible expectations (wrong regex, unmatchable args):
+# an exact-args tool caller reciting the GOLD final must score chain_ok.
+coop_fails = []
+for c in POS_CHAINS:
+    script = [{"id": f"t{i}", "function": {"name": n, "arguments": dict(a)}}
+              for i, (n, a) in enumerate(c["steps"])]
+    script.append({"content": GOLD[c["id"]], "tool_calls": [],
+                   "prompt_tokens": 0, "eval_tokens": 0, "ttft_s": 0.0,
+                   "wall_s": 0.0, "gen_tps": None, "first_token_top": []})
+
+    def gen(msgs, _s=list(script), **kw):
+        if _s:
+            nxt = _s.pop(0)
+            if "function" in nxt:
+                return {"content": "", "tool_calls": [nxt],
+                        "prompt_tokens": 0, "eval_tokens": 0, "ttft_s": 0.0,
+                        "wall_s": 0.0, "gen_tps": None, "first_token_top": []}
+            return dict(nxt)
+        return {"content": "Done.", "tool_calls": [], "prompt_tokens": 0,
+                "eval_tokens": 0, "ttft_s": 0.0, "wall_s": 0.0,
+                "gen_tps": None, "first_token_top": []}
+
+    b = types.SimpleNamespace(generate=gen, alive=lambda: True)
+    r = A.run_chain(b, c, max_tokens=200, temperature=0.0, seed=1)
+    if not (r.get("outcome_ok") and r.get("chain_ok")
+            and r.get("trace_ok") == r.get("trace_total")):
+        coop_fails.append((c["id"], r.get("trace_detail")))
+check("cooperative agent solves all positive chains",
+      not coop_fails, True, f"{coop_fails}")
 
 print()
 print("=== agentic: order and dependency are enforced ===")
