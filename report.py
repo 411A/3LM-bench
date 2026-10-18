@@ -26,7 +26,7 @@ CATS = ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp", "science",
         "std_truthfulqa", "std_belebele_fa", "std_mmlu", "std_gsm8k",
         "std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
         "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_belebele_fa_s30",
-        "std_mmlu_s30", "std_gsm8k_s30"]
+        "std_mmlu_s30", "std_gsm8k_s30", "std_mmlu_cs"]
 
 HEAD = {
     "code": "HumanEval+MBPP", "bugfix": "BugFix", "algo": "Algo",
@@ -45,6 +45,7 @@ HEAD = {
     "std_truthfulqa_mc_s30": "TruthfulQA (s30)",
     "std_belebele_fa_s30": "Belebele-fa (s30)",
     "std_mmlu_s30": "MMLU-6 (s30)", "std_gsm8k_s30": "GSM8K (s30)",
+    "std_mmlu_cs": "MMLU-CS (100)",
 }
 
 # What "higher is better" means per category, so the composite can be signed.
@@ -62,6 +63,7 @@ HIGHER_BETTER = {
     "std_hellaswag_s30": "accuracy", "std_winogrande_s30": "accuracy",
     "std_truthfulqa_mc_s30": "accuracy", "std_belebele_fa_s30": "accuracy",
     "std_mmlu_s30": "accuracy", "std_gsm8k_s30": "accuracy",
+    "std_mmlu_cs": "accuracy",
 }
 
 
@@ -232,7 +234,7 @@ def main():
                      "std_arc_challenge_s30", "std_arc_easy_s30",
                      "std_hellaswag_s30", "std_winogrande_s30",
                      "std_truthfulqa_mc_s30", "std_belebele_fa_s30",
-                     "std_mmlu_s30"):
+                     "std_mmlu_s30", "std_mmlu_cs"):
                 extra.append(f"conf {s.get('mean_confidence')}")
                 extra.append(f"{s.get('tokens_per_item')} tok/item")
             print(f"| {n} | {fmt(v)} | {('[' + ', '.join(fmt(x,3) for x in i) + ']') if i else '-'} "

@@ -590,6 +590,9 @@ RUNNERS = {
     "std_belebele_fa_s30": (run_mc, "std_belebele_fa_s30"),
     "std_mmlu_s30": (run_mc, "std_mmlu_s30"),
     "std_gsm8k_s30": (run_gsm8k, "std_gsm8k_s30"),
+    # Full official high-school CS subject (100 items): deep-dive instrument
+    # for CS gaps the s30 (n=5) can only suggest, never prove.
+    "std_mmlu_cs": (run_mc, "std_mmlu_cs"),
 }
 ALL_TASKS = list(RUNNERS)
 CUSTOM_TASKS = ["code_humaneval", "code_mbpp", "bugfix", "algo", "refactor",
@@ -604,7 +607,7 @@ MC_CATS = {"science", "electronics", "persian", "english",
            "std_truthfulqa", "std_belebele_fa", "std_mmlu",
            "std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
            "std_winogrande_s30", "std_truthfulqa_mc_s30",
-           "std_belebele_fa_s30", "std_mmlu_s30"}
+           "std_belebele_fa_s30", "std_mmlu_s30", "std_mmlu_cs"}
 GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
 

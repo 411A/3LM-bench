@@ -465,6 +465,16 @@
    "status": "verified",
    "verified_date": "2026-10-16",
    "protocol_deviation": "30-item stratified screening instance; q-vs-q/s30-vs-s30 only, never vs full splits"
+  },
+  {
+   "id": "std_mmlu_cs",
+   "source_suite": "mmlu_6",
+   "kind": "subject100",
+   "n": 100,
+   "license": "MIT",
+   "status": "verified",
+   "verified_date": "2026-10-18",
+   "protocol_deviation": "single official subject; comparable across models, not a full-MMLU score"
   }
  ],
  "research_only": [

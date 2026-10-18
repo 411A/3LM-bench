@@ -38,7 +38,7 @@ CUSTOM_CATS = ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp",
                "netdiag", "devops", "lint", "agentic"]
 STD_CATS = ["std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
             "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_belebele_fa_s30",
-            "std_mmlu_s30", "std_gsm8k_s30"]
+            "std_mmlu_s30", "std_gsm8k_s30", "std_mmlu_cs"]
 SHORT = {"code": "Code", "bugfix": "BugFix", "algo": "Algo", "refactor": "Refactor",
          "rust": "Rust", "embedded_cpp": "Embed-C++", "science": "Science",
          "electronics": "Electronics", "persian": "Persian", "english": "English",
@@ -46,7 +46,8 @@ SHORT = {"code": "Code", "bugfix": "BugFix", "algo": "Algo", "refactor": "Refact
          "std_arc_challenge_s30": "ARC-C", "std_arc_easy_s30": "ARC-E",
          "std_hellaswag_s30": "HellaSwag", "std_winogrande_s30": "WinoGrande",
          "std_truthfulqa_mc_s30": "TruthfulQA", "std_belebele_fa_s30": "Belebele-fa",
-         "std_mmlu_s30": "MMLU-6", "std_gsm8k_s30": "GSM8K"}
+         "std_mmlu_s30": "MMLU-6", "std_gsm8k_s30": "GSM8K",
+         "std_mmlu_cs": "MMLU-CS (100)"}
 COLORS = ["#5470C6", "#91CC75", "#FAC858", "#EE6666", "#73C0DE", "#3BA272"]
 
 

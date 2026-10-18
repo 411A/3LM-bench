@@ -196,7 +196,7 @@ model_out() { # sets OUT DIAG
         OUT="/tmp/diag/llamacpp-$LABEL-custom.json"; DIAG=1
       fi;;
   esac
-  [ -n "${OUT_OVERRIDE:-}" ] && OUT="$OUT_OVERRIDE" && DIAG=0
+  [ -n "${OUT_OVERRIDE:-}" ] && OUT="${OUT_OVERRIDE//\{label\}/$LABEL}" && DIAG=0
 }
 
 server_up() {

@@ -272,5 +272,14 @@
   ],
   "order": "round-robin",
   "sha16": "c1c65d25915461b1"
+ },
+ "std_mmlu_cs": {
+  "source": "std_mmlu",
+  "kind": "subject100",
+  "n_items": 100,
+  "license": "MIT",
+  "paper": "Hendrycks et al. 2021, arXiv:2009.03300",
+  "url": "https://huggingface.co/datasets/cais/mmlu",
+  "note": "full official high_school_computer_science test split; deep-dive for s30 CS gaps"
  }
 }
