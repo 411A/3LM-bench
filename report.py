@@ -70,8 +70,13 @@ def val(s, key):
 
 
 def ci(s, key, default=None):
+    # Mean partial-credit scores (netdiag/devops) have NO Wilson interval:
+    # ci95_wilson_perfect is a CI on the *perfect-rate*, pairing it with the
+    # mean once put a point estimate outside its own bracket. Show nothing
+    # rather than something misleading.
+    if key == "mean_score":
+        return default
     for k in (key.replace("accuracy", "ci95_wilson"),
-              key.replace("mean_score", "ci95_wilson_perfect"),
               key.replace("clean_rate", "ci95_wilson_clean"),
               key.replace("pass_hat_k_reliability", "ci95_wilson")):
         if k in s:

@@ -27,8 +27,11 @@ HEADLINE = {"code": "accuracy", "bugfix": "accuracy", "algo": "accuracy",
 CIKEY = {"code": "ci95_wilson", "bugfix": "ci95_wilson", "algo": "ci95_wilson",
          "refactor": "ci95_wilson", "rust": "ci95_wilson", "embedded_cpp": "ci95_wilson",
          "science": "ci95_wilson", "electronics": "ci95_wilson", "persian": "ci95_wilson",
-         "english": "ci95_wilson", "netdiag": "ci95_wilson_perfect",
-         "devops": "ci95_wilson", "lint": "ci95_wilson_clean",
+         "english": "ci95_wilson",
+         # netdiag/devops deliberately absent: their mean partial-credit scores
+         # have no Wilson interval (ci95_wilson_perfect belongs to the perfect
+         # rate, and pairing them once put a point outside its own bracket).
+         "lint": "ci95_wilson_clean",
          "agentic": "ci95_wilson"}
 CUSTOM_CATS = ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp",
                "science", "electronics", "persian", "english",
@@ -52,7 +55,9 @@ def cell(summary, cat):
     if not s:
         return None
     v = s.get(HEADLINE.get(cat, "accuracy"))
-    ci = s.get(CIKEY.get(cat, "ci95_wilson"), [None, None])
+    # Mean partial-credit scores carry no interval (see report.py ci()).
+    ci = None if cat in ("netdiag", "devops") \
+        else s.get(CIKEY.get(cat, "ci95_wilson"), [None, None])
     n = s.get("n_items") or s.get("n") or s.get("n_chains")
     return {"v": v, "lo": ci[0] if ci else None, "hi": ci[1] if ci else None,
             "n": n, "chance": s.get("chance_baseline")}
