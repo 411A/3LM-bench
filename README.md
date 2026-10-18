@@ -40,6 +40,7 @@ bash run_all.sh --all       # whole queue, strictly sequential
 
 python3 report.py            # cross-model comparison table
 python3 compare.py results/A.json results/B.json --holm   # only sanctioned A>B claim
+python3 charts.py              # self-contained ECharts report -> reports/screening.html
 python3 rescore.py           # re-aggregate after changing scoring code
 ```
 
@@ -276,6 +277,7 @@ agentic.py          tool specs, simulated world, dependent chains
 run.py              the harness (custom + standard runners)
 report.py           cross-model comparison (PRIMARY-STD + PRIMARY-CUSTOM)
 compare.py          paired McNemar/Holm A-vs-B
+charts.py           self-contained HTML charts (radar, CIs, heatmap, efficiency)
 rescore.py          re-aggregate existing results offline
 speed.py            controlled throughput measurement
 run_all.sh          sequential driver across all models
