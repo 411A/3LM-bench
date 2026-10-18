@@ -71,7 +71,7 @@ def main():
     args = ap.parse_args()
 
     files = sorted(f for f in glob.glob(os.path.join(RESULTS, "*.json"))
-                   if not f.endswith("-q.json"))
+                   if not f.endswith("-q.json") and not f.endswith("-cs.json"))
     if not files:
         raise SystemExit(f"no screening runs in {RESULTS}")
     models = []
