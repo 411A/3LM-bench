@@ -71,14 +71,30 @@ def main():
     args = ap.parse_args()
 
     files = sorted(f for f in glob.glob(os.path.join(RESULTS, "*.json"))
-                   if not f.endswith("-q.json") and not f.endswith("-cs.json"))
+                   if not f.endswith("-q.json") and not f.endswith("-cs.json")
+                   and not f.endswith("-agentic.json")
+                   and not f.endswith("-medical.json")
+                   and not f.endswith("-coder.json")
+                   and not f.endswith("-embedded.json"))
     if not files:
         raise SystemExit(f"no screening runs in {RESULTS}")
     models = []
     for i, f in enumerate(files):
         d = json.load(open(f))
         s = d.get("summary", {})
-        cats = {c: cell(s, c) for c in CUSTOM_CATS + STD_CATS}
+        # Deepest-available agentic sample: a dedicated <label>-agentic.json
+        # (full 19-chain runs) supersedes the screening subset for the
+        # agentic cell only. Chain counts stay visible in tooltips and the
+        # table so depths are never silently mixed.
+        ag_sum = s
+        ag_file = os.path.join(RESULTS, os.path.basename(f)[:-5] + "-agentic.json")
+        if os.path.exists(ag_file):
+            try:
+                ag_sum = json.load(open(ag_file)).get("summary", s)
+            except Exception:
+                pass
+        cats = {c: cell(ag_sum if c == "agentic" else s, c)
+                for c in CUSTOM_CATS + STD_CATS}
         vals_c = [cats[c]["v"] for c in CUSTOM_CATS
                   if cats[c] and isinstance(cats[c]["v"], (int, float))]
         vals_s = [cats[c]["v"] for c in STD_CATS
@@ -151,7 +167,7 @@ code{background:#1d2630;padding:1px 6px;border-radius:6px}
 <div class="chart"><h2>MMLU-6 by subject (n=5 each)</h2>
 <p class="note">Tiny-n: ±35pp intervals. Read rankings, not gaps.</p><div id="c-mmlu" style="height:380px"></div></div>
 <div class="chart"><h2>Agentic: reliability, trace, answer-only</h2>
-<p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools".</p><div id="c-agent" style="height:360px"></div></div>
+<p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div></div>
 <div class="chart"><h2>Throughput: mean decode tok/s</h2>
 <p class="note">Server-side counters on identical prompts per model; wall-clock cross-checked. MC suites excluded (1 token each). Cross-era caution: runs began on different server builds — re-running all finalists on one build before publishing.</p><div id="c-tps" style="height:340px"></div></div>
 <h2 style="margin-top:26px">Full data table</h2>
