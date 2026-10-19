@@ -111,7 +111,7 @@ def main():
             "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
             "cats": cats,
             "mmlu": (s.get("std_mmlu_s30") or {}).get("by_subject", {}),
-            "agentic": {k: s.get("agentic", {}).get(k) for k in
+            "agentic": {k: ag_sum.get("agentic", {}).get(k) for k in
                         ("pass_hat_k_reliability", "per_trial_trace_rate",
                          "final_answer_accuracy_no_tools_required",
                          "mean_tool_calls", "fabrication_rate", "n_chains")},
