@@ -49,6 +49,30 @@ SHORT = {"code": "Code", "bugfix": "BugFix", "algo": "Algo", "refactor": "Refact
          "std_mmlu_s30": "MMLU-6", "std_gsm8k_s30": "GSM8K",
          "std_mmlu_cs": "MMLU-CS (100)"}
 COLORS = ["#5470C6", "#91CC75", "#FAC858", "#EE6666", "#73C0DE", "#3BA272"]
+# Stable per-family colors: the same model keeps its color in every section
+# (file-order colors made granite change identity between renders).
+FAMILY_COLORS = {
+    "nemotron-3-nano": "#91CC75",
+    "qwen35-2b": "#FAC858",
+    "granite4-3b": "#5470C6",
+    "minicpm5-2b": "#B57EDC",
+    "k2-horizon": "#3BA272",
+    "medgemma-4b": "#EE6666",
+    "qwen35-4b": "#9aa4b2",
+}
+FAMILIES = ["nemotron-3-nano", "qwen35-2b", "granite4-3b", "minicpm5-2b",
+            "k2-horizon", "medgemma-4b", "qwen35-4b"]
+
+
+def famkey(label):
+    for fam in FAMILIES:
+        if label.startswith(fam):
+            return fam
+    return label
+
+
+def famcolor(label):
+    return FAMILY_COLORS.get(famkey(label), "#8b96a3")
 
 
 def cell(summary, cat):
@@ -84,20 +108,18 @@ def main():
     if not files:
         raise SystemExit(f"no screening runs in {RESULTS}")
     models = []
-    for i, f in enumerate(files):
+
+    def build_row(f, label=None, agentic_pref=True):
         d = json.load(open(f))
         s = d.get("summary", {})
-        # Deepest-available agentic sample: a dedicated <label>-agentic.json
-        # (full 19-chain runs) supersedes the screening subset for the
-        # agentic cell only. Chain counts stay visible in tooltips and the
-        # table so depths are never silently mixed.
         ag_sum = s
-        ag_file = os.path.join(RESULTS, os.path.basename(f)[:-5] + "-agentic.json")
-        if os.path.exists(ag_file):
-            try:
-                ag_sum = json.load(open(ag_file)).get("summary", s)
-            except Exception:
-                pass
+        if agentic_pref:
+            ag_file = os.path.join(RESULTS, os.path.basename(f)[:-5] + "-agentic.json")
+            if os.path.exists(ag_file):
+                try:
+                    ag_sum = json.load(open(ag_file)).get("summary", s)
+                except Exception:
+                    pass
         cats = {c: cell(ag_sum if c == "agentic" else s, c)
                 for c in CUSTOM_CATS + STD_CATS}
         vals_c = [cats[c]["v"] for c in CUSTOM_CATS
@@ -105,15 +127,17 @@ def main():
         vals_s = [cats[c]["v"] for c in STD_CATS
                   if cats[c] and isinstance(cats[c]["v"], (int, float))]
         dg = d.get("provenance", {}).get("model_digest", {}) or {}
-        models.append({
-            "label": os.path.basename(f)[:-5],
-            "color": COLORS[i % len(COLORS)],
+        lab = label or os.path.basename(f)[:-5]
+        return {
+            "label": lab,
+            "color": famcolor(lab),
             "fileGB": round((dg.get("size_bytes") or 0) / 1e9, 2),
             "digest": str(dg.get("digest", ""))[-12:],
             "macro_custom": round(sum(vals_c) / len(vals_c), 4) if vals_c else None,
             "macro_std": round(sum(vals_s) / len(vals_s), 4) if vals_s else None,
             "mean_tps": (d.get("backend_totals") or {}).get("mean_gen_tps"),
             "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
+            "n_recs": len(d.get("records", [])),
             "cats": cats,
             "mmlu": (s.get("std_mmlu_s30") or {}).get("by_subject", {}),
             "agentic": {k: ag_sum.get("agentic", {}).get(k) for k in
@@ -121,8 +145,13 @@ def main():
                          "final_answer_accuracy_no_tools_required",
                          "mean_tool_calls", "fabrication_rate", "n_chains")},
             "tps": {c: (s.get(c) or {}).get("gen_tps_mean")
-                    for c in ("code", "std_gsm8k")},
-        })
+                    for c in ("code", "std_gsm8k_s30")},
+        }
+
+    for f in files:
+        models.append(build_row(f))
+    # Cross-backend rows are collected here for the deep-dive section only.
+    deep = []
     for f in extra:
         try:
             d = json.load(open(f))
@@ -133,24 +162,116 @@ def main():
         if not a:
             continue
         dg = d.get("provenance", {}).get("model_digest", {}) or {}
-        models.append({
-            "label": os.path.basename(f)[:-5] + " (ollama)",
-            "color": COLORS[len(models) % len(COLORS)],
-            "fileGB": round((dg.get("size_bytes") or 0) / 1e9, 2),
-            "digest": str(dg.get("digest", ""))[-12:],
-            "macro_custom": None, "macro_std": None,
-            "mean_tps": (d.get("backend_totals") or {}).get("mean_gen_tps"),
-            "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
-            "cats": {"agentic": cell(s, "agentic")},
-            "mmlu": {},
+        lab = os.path.basename(f)[:-5] + " (ollama)"
+        deep.append({
+            "label": lab, "color": famcolor(lab),
+            "n_chains": a.get("n_chains"), "n_trials": None,
             "agentic": {k: a.get(k) for k in
                         ("pass_hat_k_reliability", "per_trial_trace_rate",
                          "final_answer_accuracy_no_tools_required",
                          "mean_tool_calls", "fabrication_rate", "n_chains")},
-            "tps": {},
         })
+    # ---- qualifier section: identical s30-era subsets for all six models ----
+    qcats = ["science", "electronics", "persian", "english",
+             "std_arc_easy_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30",
+             "std_hellaswag_s30", "std_belebele_fa_s30", "std_mmlu_s30",
+             "code", "std_gsm8k_s30", "agentic"]
+    qualifier = []
+    for f in sorted(glob.glob(os.path.join(RESULTS, "*-q.json"))):
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        s = d.get("summary", {})
+        lab = os.path.basename(f)[:-5]
+        qualifier.append({
+            "label": lab, "color": famcolor(lab),
+            "cats": {c: cell(s, c) for c in qcats},
+            "n_recs": len(d.get("records", [])),
+        })
+    # ---- agentic deep-dive: dedicated 19-chain files (both backends) plus
+    # screening subsets for models without one. The ollama rows live ONLY
+    # here — never in the screening charts (they would flatten every axis).
+    for f in sorted(glob.glob(os.path.join(RESULTS, "*-agentic.json"))):
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        a = (d.get("summary", {}) or {}).get("agentic")
+        if not a:
+            continue
+        lab = os.path.basename(f)[:-5]
+        if "ollama" in f:
+            lab += " (ollama)"
+        deep.append({
+            "label": lab, "color": famcolor(lab),
+            "n_chains": a.get("n_chains"), "n_trials": a.get("n_trials"),
+            "agentic": {
+                "pass_hat_k_reliability": a.get("pass_hat_k_reliability"),
+                "per_trial_trace_rate": a.get("per_trial_trace_rate"),
+                "final_answer_accuracy_no_tools_required":
+                    a.get("final_answer_accuracy_no_tools_required"),
+                "mean_tool_calls": a.get("mean_tool_calls"),
+                "fabrication_rate": None,
+                "n_chains": a.get("n_chains"),
+                "neg_refusal_rate": a.get("neg_refusal_rate")},
+        })
+    # screening agentic subsets, for depth contrast (chain counts shown)
+    for m in models:
+        if not any(r["label"].startswith(m["label"]) for r in deep):
+            deep.append({
+                "label": m["label"] + " (screen-subset)", "color": m["color"],
+                "n_chains": m["agentic"].get("n_chains"),
+                "n_trials": None,
+                "agentic": dict(m["agentic"]),
+            })
+    deep.sort(key=lambda r: (r["label"].endswith("(screen-subset)"),
+                             r["label"]))
+    # ---- CS-100 decider ----
+    cs100 = []
+    for f in sorted(glob.glob(os.path.join(RESULTS, "*-cs.json"))):
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        s = (d.get("summary", {}) or {}).get("std_mmlu_cs") or {}
+        if s.get("accuracy") is None:
+            continue
+        lab = os.path.basename(f)[:-5]
+        ci = s.get("ci95_wilson") or [None, None]
+        cs100.append({"label": lab, "color": famcolor(lab),
+                      "cats": {"std_mmlu_cs": {
+                          "v": s.get("accuracy"), "lo": ci[0], "hi": ci[1],
+                          "n": s.get("n_items") or s.get("n"),
+                          "chance": s.get("chance_baseline")}},
+                      "n_recs": len(d.get("records", []))})
+    # ---- coverage matrix: who ran what (plan vs reality) ----
+    cov_cells = []
+    for fam in FAMILIES:
+        row = {"model": fam, "color": famcolor(fam), "cells": []}
+        scr = [f for f in files if famkey(os.path.basename(f)[:-5]) == fam]
+        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
+                                for f in scr) or None)
+        qf = [f for f in glob.glob(os.path.join(RESULTS, "*-q.json"))
+              if famkey(os.path.basename(f)[:-5]) == fam]
+        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
+                                for f in qf) or None)
+        ag = [f for f in (glob.glob(os.path.join(RESULTS, "*-agentic.json"))
+                          + glob.glob(os.path.join(HERE, "results", "ollama",
+                                                   "*-agentic.json")))
+              if famkey(os.path.basename(f)[:-5]) == fam]
+        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
+                                for f in ag) or None)
+        cs = [f for f in glob.glob(os.path.join(RESULTS, "*-cs.json"))
+              if famkey(os.path.basename(f)[:-5]) == fam]
+        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
+                                for f in cs) or None)
+        if any(row["cells"]):
+            cov_cells.append(row)
     payload = {"models": models,
                "custom": CUSTOM_CATS, "std": STD_CATS, "short": SHORT,
+               "q": qualifier, "q_cats": qcats,
+               "deep": deep, "cs": cs100, "coverage": cov_cells,
                "meta": {"title": args.title, "runs": len(models)}}
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     html = PAGE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
@@ -181,6 +302,9 @@ tr:nth-child(even) td{background:#131922}
 code{background:#1d2630;padding:1px 6px;border-radius:6px}
 </style></head><body><div class="wrap">
 <h1 id="t"></h1><div class="sub" id="chips"></div>
+<h2 style="margin-top:20px">Coverage: who ran what</h2>
+<p class="note" style="font-size:12px;color:#8b96a3">Record counts per instrument. Every section below compares only within one instrument — cross-section ranks are never computed.</p>
+<div style="overflow-x:auto"><table id="cov"></table></div>
 <div class="chart"><h2>Capability radar (headline metric per suite, higher is better)</h2>
 <p class="note">One axis per suite. Lint = clean rate, NetDiag/DevOps = mean score, Agentic = pass^k reliability, rest = accuracy.</p><div id="c-radar"></div></div>
 <div class="chart"><h2>Custom suites — accuracy with 95% Wilson intervals</h2>
@@ -201,6 +325,14 @@ code{background:#1d2630;padding:1px 6px;border-radius:6px}
 <p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div></div>
 <div class="chart"><h2>Throughput: mean decode tok/s</h2>
 <p class="note">Server-side counters on identical prompts per model; wall-clock cross-checked. MC suites excluded (1 token each). Cross-era caution: runs began on different server builds — re-running all finalists on one build before publishing.</p><div id="c-tps" style="height:340px"></div></div>
+<div class="chart"><h2>Qualifier: identical fast subsets, all models</h2>
+<p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div></div>
+<div style="overflow-x:auto"><table id="tbl-q"></table></div>
+<div class="chart"><h2>Agentic deep-dive: every model with 19-chain evidence</h2>
+<p class="note">Deep files (19 chains) plus screening subsets (8 chains, chain count shown) for models without one. pass^k requires tool use; compare within equal chain counts.</p><div id="c-deep" style="height:380px"></div></div>
+<div class="chart"><h2>CS-100 decider: full official CS subject</h2>
+<p class="note">100 items, ±10pp — the instrument that acquitted qwen's s30 gap (all pairs TIE). Whiskers are Wilson intervals.</p><div id="c-cs" style="height:360px"></div></div>
+<div style="overflow-x:auto"><table id="tbl-cs"></table></div>
 <h2 style="margin-top:26px">Full data table</h2>
 <div style="overflow-x:auto"><table id="tbl"></table></div>
 <div class="foot" id="foot"></div>
@@ -245,17 +377,18 @@ function tipOf(m, c, cell){
       data:[{value:axes.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:0;}),name:m.label}]}))});
 })();
 /* shared grouped-bar builder with CI whiskers (custom series) */
-function barsWithCI(id, cats, title){
-  const ch = mk(id), M = D.models.length;
+function barsWithCI(id, cats, models, rotate, fs){
+  rotate = rotate==null?28:rotate; fs = fs==null?11:fs;
+  const ch = mk(id), M = models.length;
   const series = [];
-  D.models.forEach((m,mi)=>{
+  models.forEach((m,mi)=>{
     series.push({name:m.label,type:'bar',itemStyle:{color:m.color},
       data:cats.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:'-';}),
       barGap:'18%', barCategoryGap:'32%'});
   });
   // whisker data: [catIndex, modelIndex, lo, hi]
   const wd = [];
-  D.models.forEach((m,mi)=>cats.forEach((c,ci)=>{
+  models.forEach((m,mi)=>cats.forEach((c,ci)=>{
     const x=m.cats[c];
     if(x&&x.v!=null&&x.lo!=null) wd.push([ci,mi,x.lo,x.hi]);
   }));
@@ -281,14 +414,14 @@ function barsWithCI(id, cats, title){
   ch.setOption({legend:{textStyle:{color:'#cfd6de'},top:0},
     tooltip:{trigger:'item',formatter:p=>{
       if(p.seriesName==='95% CI') return p.data&&p.data.tooltip||'';
-      const m=D.models.find(x=>x.label===p.seriesName);
+      const m=models.find(x=>x.label===p.seriesName);
       return tipOf(m,cats[p.dataIndex],m.cats[cats[p.dataIndex]]);}},
     grid:{bottom:70,top:40}, xAxis:{type:'category',data:cats.map(c=>D.short[c]),
-      axisLabel:{color:'#9aa4b2',rotate:28,fontSize:11},axisLine:{lineStyle:{color:'#3a4756'}}},
+      axisLabel:{color:'#9aa4b2',rotate:rotate,fontSize:fs},axisLine:{lineStyle:{color:'#3a4756'}}},
     yAxis:{type:'value',max:1,...AX}, series});
 }
 /* wire whisker tooltip via data */
-barsWithCI('c-custom', D.custom); barsWithCI('c-std', D.std);
+barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models);
 /* 3. heatmap */
 (function(){
   const cats=[...D.custom,...D.std], data=[];
@@ -353,17 +486,18 @@ barsWithCI('c-custom', D.custom); barsWithCI('c-std', D.std);
       data:subs.map(s=>{const x=m.mmlu[s];return x?x.acc:'-';})}))});
 })();
 /* 8. agentic */
-(function(){
+function agenticChart(id, models){
   const rows=[['pass_hat_k_reliability','pass^k (tools required)'],
     ['per_trial_trace_rate','trace rate'],
     ['final_answer_accuracy_no_tools_required','answer-only']];
-  mk('c-agent').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>{const m=D.models.find(x=>x.label===p.seriesName);
+  mk(id).setOption({legend:{textStyle:{color:'#cfd6de'}},
+    tooltip:{trigger:'item',formatter:p=>{const m=models.find(x=>x.label===p.seriesName);
       return `${m.label}<br/>${rows[p.dataIndex][1]}: <b>${p.value}</b><br/>calls ${m.agentic.mean_tool_calls} · chains ${m.agentic.n_chains}`;}},
     xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'}},yAxis:{max:1,...AX},
-    series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
+    series:models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
       data:rows.map(r=>m.agentic[r[0]]!=null?m.agentic[r[0]]:'-')}))});
-})();
+}
+agenticChart('c-agent', D.models);
 /* 9. throughput */
 (function(){
   const rows=[['code','Code tok/s'],['std_gsm8k','GSM8K tok/s']];
@@ -389,6 +523,41 @@ barsWithCI('c-custom', D.custom); barsWithCI('c-std', D.std);
       return `<td>${s}</td>`;}).join('')+'</tr>';
   });
   document.getElementById('tbl').innerHTML=h;
+})();
+/* coverage matrix */
+(function(){
+  let h='<tr><th>model</th><th>screening recs</th><th>qualifier recs</th><th>agentic-deep recs</th><th>CS-100 recs</th></tr>';
+  D.coverage.forEach(r=>{
+    h+='<tr><td><b style="color:'+r.color+'">●</b> '+r.model+'</td>'+
+      r.cells.map(c=>'<td>'+(c==null?'—':c)+'</td>').join('')+'</tr>';
+  });
+  document.getElementById('cov').innerHTML=h;
+})();
+/* qualifier section */
+(function(){
+  const QC=['science','electronics','persian','english','std_arc_easy_s30','std_winogrande_s30','std_truthfulqa_mc_s30','std_hellaswag_s30','std_belebele_fa_s30','std_mmlu_s30','code','std_gsm8k_s30','agentic'];
+  barsWithCI('c-qual', QC, D.q, 42, 10);
+  let h='<tr><th>model</th><th>qual macro</th><th>code</th><th>agentic rel</th></tr>';
+  D.q.forEach(m=>{
+    const vals=QC.map(c=>m.cats[c]).filter(x=>x&&x.v!=null).map(x=>x.v);
+    const macro=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'—';
+    const code=m.cats.code, ag=m.cats.agentic;
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td>${macro}</td>`+
+      `<td>${code&&code.v!=null?code.v:'—'}</td><td>${ag&&ag.v!=null?ag.v:'—'}</td></tr>`;
+  });
+  document.getElementById('tbl-q').innerHTML=h;
+})();
+agenticChart('c-deep', D.deep);
+/* cs100 section */
+(function(){
+  barsWithCI('c-cs', ['std_mmlu_cs'], D.cs);
+  let h='<tr><th>model</th><th>CS-100</th><th>95% CI</th></tr>';
+  D.cs.forEach(m=>{
+    const x=m.cats.std_mmlu_cs;
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td>${x.v}</td><td>[${x.lo}, ${x.hi}] n=${x.n}</td></tr>`;
+  });
+  h+='<tr><td colspan="3" style="text-align:left;color:#8b96a3">Paired McNemar on shared items, all three pairs: TIE (closest p=0.053). The s30 gap did not replicate.</td></tr>';
+  document.getElementById('tbl-cs').innerHTML=h;
 })();
 window.addEventListener('resize',()=>{CHARTS.forEach(c=>c.resize());});
 </script></body></html>
