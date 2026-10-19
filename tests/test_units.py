@@ -99,6 +99,11 @@ check("stub counted in n_errors", a["code"]["n_errors"] == 1)
 # per-item bulkhead: one exploding item must not cost its rep; the server
 # going away must still propagate to the rep handler (retry/abort owner)
 from backend import BackendError
+from backend import Backend
+check("rss watchdog None for ollama",
+      Backend("ollama", "x").server_rss_mb() is None)
+check("rss watchdog None when server absent",
+      Backend("llamacpp", "x", port=59998).server_rss_mb() is None)
 
 
 class _Boom:

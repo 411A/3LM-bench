@@ -439,7 +439,7 @@ def _ruff_format(code):
                                if x.startswith(("+", "-")) and not x.startswith(("+++", "---"))])}
 
 
-def run_agentic(b, tasks, args, rep):
+def run_agentic(b, tasks, args, rep, progress=None):
     out = []
     # Honour the caller's selection: ignoring `tasks` meant --limit and
     # --per-task-cap silently had no effect on this suite.
@@ -454,7 +454,10 @@ def run_agentic(b, tasks, args, rep):
             r["rep"] = rep
             r["category"] = "agentic"
             r["prompt"] = c["prompt"]
-            out.append(r)
+            if progress is not None:
+                progress(r)  # persisted immediately; see main loop
+            else:
+                out.append(r)
             log(f"    [{i+1}/{n_tasks}] {c['id']:<28} trace={r['trace_ok']}/{r['trace_total']} "
                 f"outcome={'OK' if r['outcome_ok'] else 'X'} "
                 f"calls={r['n_tool_calls']} stop={r['stopped']}")
@@ -911,6 +914,13 @@ def main():
     ap.add_argument("--timeout", type=int, default=900,
                     help="per-request seconds (default 900; qualifier uses 300: "
                          "a hung generation must not cost 30 min twice)")
+    ap.add_argument("--server-mem-budget", type=int, default=5500, metavar="MIB",
+                    help="abort the run (keeping checkpoints) when our llama-server "
+                         "exceeds this RSS in MiB. 0 disables. RSS includes mmap'd "
+                         "weights, so size it for weights + headroom: 5500 fits a "
+                         "2.7GB model on a 7.6GB box with margin before OOM. "
+                         "Deliberately NOT part of config_hash: it changes abort "
+                         "behavior, never scores.")
     ap.add_argument("--resume", default=None, metavar="RESULTS_JSON",
                     help="resume this file: rerun only missing/stubbed "
                          "(task, rep) pairs using the file's own config. "
@@ -1053,17 +1063,18 @@ def main():
     # Resume: a dead run restarts mid-model instead of from zero. Completed
     # (task, rep) pairs are read back from the existing output file - but ONLY
     # if its config_hash matches, so a config change never silently inherits
-    # another config's records. A rep that recorded fewer items than the task
-    # holds (e.g. a BackendError stub standing in for 50 items) is re-run.
-    done_counts = {}
+    # another config's records. Resume is ITEM-level: completed item ids are
+    # skipped individually, so a kill mid-rep loses nothing already recorded
+    # (a BackendError stub never marks its items done - its id differs).
+    done_ids = set()
     if os.path.exists(out_path):
         try:
             prev = json.load(open(out_path))
             if prev.get("config_hash") == cfg_hash:
                 records = prev.get("records", [])
                 for r in records:
-                    done_counts[(r.get("task"), r.get("rep"))] = \
-                        done_counts.get((r.get("task"), r.get("rep")), 0) + 1
+                    done_ids.add((r.get("task"), r.get("rep"),
+                                  r.get("id") or r.get("chain_id")))
                 log(f"resume: {len(records)} records from matching config {cfg_hash}")
             else:
                 log(f"config changed ({prev.get('config_hash')} -> {cfg_hash}); "
@@ -1101,18 +1112,34 @@ def main():
 
         t0 = time.monotonic()
         for rep in range(reps_here):
-            if done_counts.get((name, rep), 0) >= len(tasks):
+            pending = [t for t in tasks
+                       if (name, rep, t.get("id")) not in done_ids]
+            if not pending:
                 log(f"  rep {rep + 1}/{reps_here} already complete; skipping")
                 continue
-            # Drop any partial records for this (task, rep) before re-running
-            # it: a stub or a fragment must not sit alongside fresh records.
-            records = [r for r in records
-                       if not (r.get("task") == name and r.get("rep") == rep)]
-            log(f"  rep {rep + 1}/{reps_here}")
+            # Completed items are KEPT (not dropped): resume is item-level, so
+            # a kill mid-rep loses nothing already recorded. Stubs never match
+            # pending (their ids differ), so failed items always re-run.
+            log(f"  rep {rep + 1}/{reps_here} "
+                f"({len(pending)}/{len(tasks)} pending)")
+            # Agentic reports chain-by-chain with per-chain checkpoints: a
+            # 19-chain rep must not hold 40 minutes of evidence in memory.
+            prog = None
+            if name == "agentic":
+                def prog(r, _cat=cat, _name=name, _rep=rep):
+                    r["task_category"] = r.get("category")
+                    r["category"] = _cat
+                    r["task"] = _name
+                    r["rep"] = _rep
+                    r.setdefault("id", r.get("chain_id"))
+                    records.append(r)
+                    done_ids.add((_name, _rep, r.get("id")))
+                    checkpoint()
             attempt = 0
             while True:
                 try:
-                    got = fn(b, tasks, args, rep)
+                    got = fn(b, pending, args, rep, progress=prog) \
+                        if prog is not None else fn(b, pending, args, rep)
                     break
                 except BackendError as e:
                     # One retry after evicting the runner and cooling down: last
@@ -1193,6 +1220,15 @@ def main():
         # Bound runner memory growth between tasks (measured 2.8GB -> 6.8GB
         # across one sweep, ending in an OOM kill). Reload is ~10s of mmap.
         log(f"  evicting runner between tasks ({b.evict()})")
+        rss = b.server_rss_mb()
+        if rss:
+            log(f"  server RSS: {rss} MiB")
+            if 0 < args.server_mem_budget < rss:
+                log(f"  !! server RSS {rss} MiB over budget "
+                    f"{args.server_mem_budget} MiB — aborting remaining tasks, "
+                    f"restart the server and resume")
+                server_dead = True
+                break
         time.sleep(15)
 
     mi = meminfo()

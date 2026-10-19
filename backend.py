@@ -401,6 +401,32 @@ class Backend:
         letter_mass = min(1.0, tot)
         return (letters.index(best), best, norm, r, "logprob", letter_mass)
 
+    def server_rss_mb(self):
+        """RSS of OUR llama-server in MiB, found by `--port <port>` in its
+        cmdline. Local-only introspection, no server cooperation needed.
+        Returns None for non-llamacpp backends or when the process is gone.
+        NOTE: RSS includes mmap'd weight pages, so compare against a budget
+        sized for weights + headroom, not against zero."""
+        if self.kind != "llamacpp":
+            return None
+        try:
+            import os as _os
+            needle = f"--port {self.port}"
+            for pid in filter(str.isdigit, _os.listdir("/proc")):
+                try:
+                    with open(f"/proc/{pid}/cmdline", "rb") as f:
+                        cmd = f.read().replace(b"\0", b" ").decode("utf-8", "replace")
+                except Exception:  # noqa: BLE001
+                    continue
+                if "llama-server" in cmd and needle in cmd:
+                    with open(f"/proc/{pid}/status") as f:
+                        for ln in f:
+                            if ln.startswith("VmRSS:"):
+                                return int(ln.split()[1]) // 1024
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
     def summary(self):
         return {
             "calls": self.n_calls,
