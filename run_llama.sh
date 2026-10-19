@@ -30,6 +30,11 @@ APIKEY="local-llama"
 
 # label | gguf file | default port
 KNOWN=(
+  # nemotron-3-nano:tool calls DO NOT WORK via this blob on llama-server
+  # (56 trials, 0 calls, model narrates instead — needs Ollama's tool
+  # renderer, same stripped-metadata class as the qwen35 rebuilds). Use the
+  # ollama tag for anything agentic (verified 2/2 full-trace solves there).
+  # MC/code/generation via this blob are unaffected and valid.
   "nemotron-3-nano|nemotron-3-nano.gguf|8097"
   "minicpm5-2b|minicpm5-2b.gguf|8091"
   "k2-horizon|k2-horizon.gguf|8092"
