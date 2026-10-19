@@ -39,6 +39,7 @@ class Backend:
         self.prompt_tokens = 0
         self.eval_tokens = 0
         self.wall = 0.0
+        self.server_version = None  # captured from system_fingerprint
 
     # ------------------------------------------------------------------ utils
     def model_digest(self):
@@ -123,6 +124,10 @@ class Backend:
                         f"http://{self.host}:{self.port}/api/version",
                         timeout=10) as r:
                     out["ollama"] = json.loads(r.read()).get("version")
+            elif self.kind == "llamacpp" and getattr(self, "server_version", None):
+                # Captured from system_fingerprint on first generate call:
+                # the /health endpoint carries no version.
+                out["llama_server"] = self.server_version
         except Exception:  # noqa: BLE001
             out["ollama"] = None
         import shutil
@@ -271,6 +276,8 @@ class Backend:
             payload["top_logprobs"] = top_logprobs
         hdrs = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         j, wall = self._post("/v1/chat/completions", payload, hdrs)
+        if not self.server_version:
+            self.server_version = j.get("system_fingerprint")
         ch = (j.get("choices") or [{}])[0]
         msg = ch.get("message") or {}
         usage = j.get("usage") or {}

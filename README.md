@@ -245,8 +245,26 @@ model code only.
   IoT-SkillsBench HIL needs real boards, and a 4B MedQA score measures recall,
   not clinical safety. See `benchmarks/catalog.json` research_only entries.
 
-## Offline use
+## Backend qualification (trust the pairing, not the logo)
 
+Weights are not the product: the same GGUF can score 5/6 through one backend
+and 0/12 through another (measured: qwen4b letter-choice; nemotron tool calls
+at 0/56). Every run therefore probes its three I/O mechanisms first
+(`probes.py`, ~2 min) and records the verdicts in provenance:
+
+- `generation`: is anything emitted at all?
+- `mc_logprob`: do answer letters carry mass (floor 0.5)? Mass proves the
+  letters are scored; correctness stays the model's business.
+- `tools`: does a forced call come back parsed? Parsing proves the
+  renderer+parser round-trip; wisdom is the agentic suite's job.
+
+A broken mechanism **skips its task families explicitly** (recorded under
+`skipped`, missing-never-zero) instead of printing zeros. `python3 run.py ...
+--probe-only` checks a pairing without running anything; `--no-probe`
+disables it and marks results unprobed. On `--resume`, probes are advisory:
+the file's task list never changes.
+
+## Offline use
 ```bash
 python3 standard_fetch.py --fetch-all   # online, once; fills data/raw + tasks/std_*.json
 python3 standard_fetch.py --check       # offline verification of the cache

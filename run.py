@@ -923,9 +923,13 @@ def main():
     ap.add_argument("--offline", action="store_true",
                     help="refuse network-dependent paths: standard task files "
                          "must already exist (see standard_fetch.py --check)")
-    ap.add_argument("--timeout", type=int, default=900,
-                    help="per-request seconds (default 900; qualifier uses 300: "
+    ap.add_argument("--timeout", type=int, default=900,                    help="per-request seconds (default 900; qualifier uses 300: "
                          "a hung generation must not cost 30 min twice)")
+    ap.add_argument("--probe-only", action="store_true",
+                    help="run backend self-qualification and exit (no tasks)")
+    ap.add_argument("--no-probe", action="store_true",
+                    help="skip backend self-qualification (you accept unmeasured "
+                         "pairing risk; results are marked unprobed)")
     ap.add_argument("--server-mem-budget", type=int, default=5500, metavar="MIB",
                     help="abort the run (keeping checkpoints) when our llama-server "
                          "exceeds this RSS in MiB. 0 disables. RSS includes mmap'd "
@@ -1014,6 +1018,55 @@ def main():
         provenance["kernel"] = __import__("platform").release()
     except Exception:  # noqa: BLE001
         pass
+
+    # Backend self-qualification: prove each I/O mechanism works BEFORE hours
+    # of inference. Broken MC scoring or tool parsing would otherwise produce
+    # zeros that look exactly like model failures (seen live, twice).
+    import probes as _P  # noqa: E402
+    skipped = []
+    if args.probe_only or not args.no_probe:
+        log("probing backend mechanisms (generation, logprob, tools)...")
+        probes = _P.qualify(b)
+        for k, (ok, detail) in probes.items():
+            log(f"  probe {k:<11} {'OK  ' if ok else 'BROKEN'} "
+                f"{json.dumps(detail)[:140]}")
+        provenance["backend_probes"] = {
+            k: {"ok": ok, **detail} for k, (ok, detail) in probes.items()}
+        # server version surfaces on first generate (system_fingerprint)
+        provenance["versions"] = b.server_versions()
+    else:
+        probes = {}
+        provenance["backend_probes"] = {"skipped": True}
+    if args.probe_only:
+        log("probe-only: exiting before tasks")
+        return
+    if resumed_cfg:
+        if probes:
+            log("resume mode: probes are advisory only, task list unchanged")
+    elif not args.no_probe:
+        gen_ok = probes.get("generation", (False,))[0]
+        if not gen_ok:
+            raise SystemExit("probe FAILED: backend cannot generate — aborting, "
+                             "no scores to collect")
+        skipped = []
+        if not probes.get("mc_logprob", (False,))[0]:
+            dropped = [n for n in names if RUNNERS[n][1] in MC_CATS]
+            if dropped:
+                skipped += [(n, "mc_logprob probe failed: letters carry no mass") for n in dropped]
+                names = [n for n in names if n not in dropped]
+        if not probes.get("tools", (False,))[0]:
+            dropped = [n for n in names if RUNNERS[n][1] == "agentic"]
+            if dropped:
+                skipped += [(n, "tools probe failed: no parsed tool call") for n in dropped]
+                names = [n for n in names if n not in dropped]
+        for n, reason in skipped:
+            log(f"  SKIP {n}: {reason} (missing, never zero)")
+        if not names:
+            raise SystemExit("probe FAILED every requested family — nothing "
+                             "measurable, aborting")
+    else:
+        # --no-probe: pairing risk unmeasured (logged below via provenance flag)
+        log("WARNING: --no-probe, pairing risk unmeasured")
     log(f"digest   : {provenance['model_digest']}")
     log(f"versions : {provenance['versions']}")
 
@@ -1260,6 +1313,8 @@ def main():
         "partial": bool(server_dead) or any(
             "ERROR" in str(r.get("id", "")) for r in records),
         "server_dead": bool(server_dead),
+        # Skipped-by-probe suites: explicitly unmeasured, never zero.
+        "skipped": [{"task": n, "reason": reason} for n, reason in skipped],
     }
     if result["partial"]:
         log("WARNING: PARTIAL run — stubbed/unrun tasks present; "

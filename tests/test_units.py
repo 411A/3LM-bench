@@ -131,6 +131,56 @@ try:
 except BackendError:
     check("BackendError propagates to rep handler", True)
 
+
+# backend self-qualification probes (mock backends: mechanism, not models)
+import probes as _PB
+
+
+class _HealthyBackend:
+    def generate(self, messages, **kw):
+        if kw.get("tools"):
+            return {"content": "", "tool_calls": [
+                {"function": {"name": "echo_word",
+                              "arguments": '{"word": "hello"}'}}]}
+        return {"content": "OK", "tool_calls": []}
+
+    def mc_logprobs(self, q, choices, system=None, prefill=""):
+        return (0, "A", {"A": 0.97, "B": 0.03}, {}, "logprob", 0.97)
+
+
+class _BrokenBackend:
+    def generate(self, messages, **kw):
+        return {"content": "let me think about that", "tool_calls": []}
+
+    def mc_logprobs(self, q, choices, system=None, prefill=""):
+        return (-1, "?", {"A": 0.02}, {}, "generated")
+
+
+class _ExplodingBackend:
+    def generate(self, *a, **k):
+        raise RuntimeError("down")
+
+    def mc_logprobs(self, *a, **k):
+        raise RuntimeError("down")
+
+
+_ok, _d = _PB.probe_mc(_HealthyBackend())
+check("probe_mc passes healthy backend", _ok and _d["mean_mass"] >= 0.9)
+_ok, _d = _PB.probe_mc(_BrokenBackend())
+check("probe_mc fails zero-mass backend", not _ok)
+_ok, _d = _PB.probe_tools(_HealthyBackend())
+check("probe_tools passes parsed calls", _ok and _d.get("name") == "echo_word")
+_ok, _d = _PB.probe_tools(_BrokenBackend())
+check("probe_tools fails narration-only backend", not _ok)
+_ok, _ = _PB.probe_generation(_HealthyBackend())
+check("probe_generation passes non-empty", _ok)
+_ok, _ = _PB.probe_generation(_BrokenBackend())
+check("probe_generation passes any text (even narration)", _ok)
+_q = _PB.qualify(_ExplodingBackend())
+check("qualify never raises, all broken",
+      set(_q) == {"generation", "mc_logprob", "tools"}
+      and not any(ok for ok, _ in _q.values()))
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")
