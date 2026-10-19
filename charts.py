@@ -76,6 +76,11 @@ def main():
                    and not f.endswith("-medical.json")
                    and not f.endswith("-coder.json")
                    and not f.endswith("-embedded.json"))
+    # Cross-backend agentic evidence (e.g. nemotron via Ollama, whose blob
+    # cannot call tools): dedicated rows with ONLY agentic populated. Every
+    # other cell renders missing, so these rows compare on exactly one suite.
+    oll_dir = os.path.join(HERE, "results", "ollama")
+    extra = sorted(glob.glob(os.path.join(oll_dir, "*-agentic.json")))
     if not files:
         raise SystemExit(f"no screening runs in {RESULTS}")
     models = []
@@ -117,6 +122,32 @@ def main():
                          "mean_tool_calls", "fabrication_rate", "n_chains")},
             "tps": {c: (s.get(c) or {}).get("gen_tps_mean")
                     for c in ("code", "std_gsm8k")},
+        })
+    for f in extra:
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        s = d.get("summary", {})
+        a = s.get("agentic")
+        if not a:
+            continue
+        dg = d.get("provenance", {}).get("model_digest", {}) or {}
+        models.append({
+            "label": os.path.basename(f)[:-5] + " (ollama)",
+            "color": COLORS[len(models) % len(COLORS)],
+            "fileGB": round((dg.get("size_bytes") or 0) / 1e9, 2),
+            "digest": str(dg.get("digest", ""))[-12:],
+            "macro_custom": None, "macro_std": None,
+            "mean_tps": (d.get("backend_totals") or {}).get("mean_gen_tps"),
+            "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
+            "cats": {"agentic": cell(s, "agentic")},
+            "mmlu": {},
+            "agentic": {k: a.get(k) for k in
+                        ("pass_hat_k_reliability", "per_trial_trace_rate",
+                         "final_answer_accuracy_no_tools_required",
+                         "mean_tool_calls", "fabrication_rate", "n_chains")},
+            "tps": {},
         })
     payload = {"models": models,
                "custom": CUSTOM_CATS, "std": STD_CATS, "short": SHORT,
