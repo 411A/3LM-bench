@@ -446,7 +446,19 @@ def run_agentic(b, tasks, args, rep, progress=None):
     wanted = {t["id"] for t in tasks} if tasks else None
     chains = [c for c in agentic.CHAINS if wanted is None or c["id"] in wanted]
     n_tasks = len(chains)
+    rss_budget = getattr(args, "server_mem_budget", 0) or 0
+    rss_of = getattr(b, "server_rss_mb", lambda: None)
     for i, c in enumerate(chains):
+        # Memory guard INSIDE the long rep: agentic holds dozens of trials in
+        # one rep with no task boundary between them. A ballooning server
+        # (measured: 6.8GB anon in 15 min, then OOM-killed) must stop the rep
+        # early — completed chains are already checkpointed, resume fills gaps.
+        if rss_budget:
+            rss = rss_of() if callable(rss_of) else None
+            if rss and rss > rss_budget:
+                log(f"    !! server RSS {rss} MiB over budget {rss_budget} — "
+                    f"stopping rep at chain {i + 1}/{n_tasks}, resume continues")
+                break
         try:
             r = agentic.run_chain(b, c, max_tokens=FROZEN["agent_max_tokens"],
                                   temperature=FROZEN["gen_temperature"],
