@@ -227,6 +227,31 @@ _proc = subprocess.run([sys.executable, "-c", _sig], capture_output=True,
 check("SIGTERM exits 143 (clean, not a crash)", _proc.returncode == 143)
 check("SIGTERM path is reachable (handler installed)", "NOT REACHED" not in _proc.stdout)
 
+# ---- superseded stubs must not be reported as errors of a complete cell --
+_live, _sup = R.split_superseded([
+    {"task": "t", "rep": 0, "category": "t", "id": "a", "correct": True},
+    {"task": "t", "rep": 0, "category": "t", "id": "b", "correct": False},
+    {"task": "t", "rep": 0, "category": "t", "id": "t#ERROR", "stopped": "error"},
+])
+check("a replaced rep-level stub is superseded, not an error",
+      len(_live) == 2 and len(_sup) == 1)
+_live2, _sup2 = R.split_superseded([
+    {"task": "t", "rep": 0, "category": "t", "id": "a", "correct": True},
+    {"task": "t", "rep": 0, "category": "t", "id": "b", "correct": True},
+    {"task": "t", "rep": 0, "category": "t", "id": "b#ERROR", "stopped": "error"},
+])
+check("a per-item stub whose item later succeeded is superseded",
+      len(_live2) == 2 and len(_sup2) == 1)
+_live3, _sup3 = R.split_superseded([
+    {"task": "t", "rep": 0, "category": "t", "id": "a", "correct": True},
+    {"task": "t", "rep": 0, "category": "t", "id": "b#ERROR", "stopped": "error"},
+    {"task": "u", "rep": 0, "category": "u", "id": "u#ERROR", "stopped": "error"},
+])
+check("a stub for an item that never succeeded stays live",
+      len(_live3) == 3 and len(_sup3) == 0)
+check("a complete cell reports no errors after separation",
+      R.aggregate(_live).get("t", {}).get("n_errors", 0) == 0)
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")

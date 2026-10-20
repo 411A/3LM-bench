@@ -709,6 +709,43 @@ GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
 
 
+def _is_stub(r):
+    return ("ERROR" in str(r.get("id", ""))
+            or r.get("stopped") in ("error", "exception"))
+
+
+def split_superseded(records):
+    """Separate stubs that a later successful attempt replaced.
+
+    A stub means "this attempt failed". A rep-level stub (id "<task>#ERROR")
+    marks a whole failed round; a per-item stub (id "<item>#ERROR") marks one
+    failed item. When the same (task, rep) later produced valid records, the
+    stub is historical evidence of the failed round, not a failure of the
+    final result - counting it would print "14 errors" on a cell that is
+    complete. Live stubs (items that never succeeded) stay in the records
+    and are still reported as errors.
+    """
+    valid_by_key = {}
+    for r in records:
+        if _is_stub(r):
+            continue
+        valid_by_key.setdefault((r.get("task"), r.get("rep")), set()).add(r.get("id"))
+    live, superseded = [], []
+    for r in records:
+        if not _is_stub(r):
+            live.append(r)
+            continue
+        key = (r.get("task"), r.get("rep"))
+        raw = str(r.get("id", ""))
+        item = raw[:-6] if raw.endswith("#ERROR") else raw
+        if item == r.get("task"):
+            covered = bool(valid_by_key.get(key))          # rep-level stub
+        else:
+            covered = item in valid_by_key.get(key, ())     # per-item stub
+        (superseded if covered else live).append(r)
+    return live, superseded
+
+
 def coverage_report(records, expected):
     """Which (task, rep) pairs lack full valid-record coverage.
 
@@ -1244,7 +1281,8 @@ def main():
         try:
             prev = json.load(open(out_path))
             if prev.get("config_hash") == cfg_hash:
-                records = prev.get("records", [])
+                records = list(prev.get("records", [])) \
+                    + list(prev.get("superseded_stubs", []))
                 for r in records:
                     done_ids.add((r.get("task"), r.get("rep"),
                                   r.get("id") or r.get("chain_id")))
@@ -1276,16 +1314,18 @@ def main():
         log(f"--- [{ti+1}/{len(names)}] {name} ({len(tasks)}/{total_available} items x {reps_here} reps) ---")
 
         def checkpoint():
-            agg = aggregate(records)
+            live, superseded = split_superseded(records)
+            agg = aggregate(live)
             # The checkpoint MUST carry the partial flag: a checkpoint is what
             # a killed run leaves behind, and the resume loop decides whether
             # to keep going by reading exactly this file.
-            gaps = coverage_report(records, expected)
+            gaps = coverage_report(live, expected)
             with open(out_path, "w") as f:
                 json.dump({"schema": "llmbench/1", "config": cfg, "config_hash": cfg_hash,
                            "started": t_start, "elapsed_s": round(time.monotonic() - t_start, 1),
                            "provenance": provenance,
-                           "summary": agg, "records": records,
+                           "summary": agg, "records": live,
+                           "superseded_stubs": superseded,
                            "coverage_gaps": gaps,
                            "partial": bool(gaps) or bool(server_dead),
                            "backend_totals": b.summary()}, f, ensure_ascii=False, indent=1)
@@ -1423,7 +1463,8 @@ def main():
                 break
         time.sleep(15)
 
-    coverage_gaps = coverage_report(records, expected)
+    live_records, superseded_stubs = split_superseded(records)
+    coverage_gaps = coverage_report(live_records, expected)
     if coverage_gaps:
         log(f"  coverage gaps (file is PARTIAL): {'; '.join(coverage_gaps)}")
 
@@ -1437,8 +1478,11 @@ def main():
                  "mem_available_end_mib": mi["MemAvailable"] // 1024,
                  "swap_free_end_mib": mi.get("SwapFree", 0) // 1024},
         "backend_totals": b.summary(),
-        "summary": aggregate(records),
-        "records": records,
+        "summary": aggregate(live_records),
+        "records": live_records,
+        # Stubs from attempts that a later run replaced: kept as evidence of
+        # the failed rounds, never counted against the final result.
+        "superseded_stubs": superseded_stubs,
         # partial = the file does not cover the requested work. Decided by
         # COVERAGE (valid records per task/rep vs items expected), not by the
         # mere presence of an old stub: a stub that a later attempt replaced

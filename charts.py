@@ -113,6 +113,7 @@ def main():
         d = json.load(open(f))
         s = d.get("summary", {})
         deep_src = {}
+        deep_data = {}
         # Deepest-available samples: dedicated <label>-agentic.json /
         # <label>-gsm8k.json runs supersede the screening subset for those
         # cells only (chain/item counts stay visible, never silently mixed).
@@ -120,7 +121,9 @@ def main():
             fp = os.path.join(RESULTS, os.path.basename(f)[:-5] + suffix)
             if os.path.exists(fp):
                 try:
-                    deep_src[suffix] = json.load(open(fp)).get("summary", s)
+                    dd = json.load(open(fp))
+                    deep_data[suffix] = dd
+                    deep_src[suffix] = dd.get("summary", s)
                 except Exception:
                     pass
         ag_sum = deep_src.get("-agentic.json", s) if agentic_pref else s
@@ -134,6 +137,15 @@ def main():
                   if cats[c] and isinstance(cats[c]["v"], (int, float))]
         dg = d.get("provenance", {}).get("model_digest", {}) or {}
         lab = label or os.path.basename(f)[:-5]
+        # Coverage gaps of every file that feeds this row: an incomplete run
+        # must be visible on the page, not hidden behind a missing cell.
+        gaps = []
+        for src_name, dd in [(os.path.basename(f), d)] + list(deep_data.items()):
+            g = dd.get("coverage_gaps")
+            if g:
+                gaps += [f"{src_name}: {x}" for x in g]
+            elif dd.get("partial"):
+                gaps.append(f"{src_name}: incomplete run (stubs or unrun tasks)")
         return {
             "label": lab,
             "color": famcolor(lab),
@@ -145,6 +157,7 @@ def main():
             "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
             "n_recs": len(d.get("records", [])),
             "cats": cats,
+            "gaps": gaps,
             "mmlu": (s.get("std_mmlu_s30") or {}).get("by_subject", {}),
             "agentic": {k: ag_sum.get("agentic", {}).get(k) for k in
                         ("pass_hat_k_reliability", "per_trial_trace_rate",
@@ -305,6 +318,7 @@ th{background:#1d2630;color:#cfd6de}
 tr:nth-child(even) td{background:#131922}
 .foot{color:#8b96a3;font-size:12px;margin-top:18px;line-height:1.6}
 code{background:#1d2630;padding:1px 6px;border-radius:6px}
+.warn{background:#3a2a12;border:1px solid #7a5a1e;color:#f0c674;border-radius:9px;padding:0 7px;font-size:11px;cursor:help}
 </style></head><body><div class="wrap">
 <h1 id="t"></h1><div class="sub" id="chips"></div>
 <h2 style="margin-top:20px">Coverage: who ran what</h2>
@@ -347,7 +361,7 @@ const D = __DATA__;
 document.title = D.meta.title;
 document.getElementById('t').textContent = D.meta.title;
 document.getElementById('chips').innerHTML =
-  D.models.map(m=>`<span class="chip"><b style="color:${m.color}">●</b> ${m.label} · ${m.fileGB} GB · <code>…${m.digest}</code> · ${m.elapsed_h} h</span>`).join('');
+  D.models.map(m=>`<span class="chip"><b style="color:${m.color}">●</b> ${m.label} · ${m.fileGB} GB · <code>…${m.digest}</code> · ${m.elapsed_h} h${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠ incomplete</span>':''}</span>`).join('');
 document.getElementById('foot').innerHTML =
   `Scores: per-suite headline with 95% Wilson intervals; MC figures carry chance baselines and exact binomial p-values in the JSON. ` +
   `PRIMARY-STD and PRIMARY-CUSTOM macro-means are shown as ★ AVG in the table. ` +
@@ -366,6 +380,7 @@ if (ONLY) {
 function pct(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
 function tipOf(m, c, cell){
   if(!cell || cell.v==null) return `${m.label}<br/>${D.short[c]}: — (not run)`;
+  if(m.gaps&&m.gaps.length) { /* gap badge shown next to the model name */ }
   let t = `${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b>`;
   if(cell.lo!=null) t += `<br/>95% CI ${pct(cell.lo)} – ${pct(cell.hi)} · n=${cell.n}`;
   else if(cell.n!=null) t += `<br/>n=${cell.n}`;
@@ -553,7 +568,7 @@ agenticChart('c-agent', D.models);
     const macro=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'—';
     const code=m.cats.code, ag=m.cats.agentic;
     const ci=x=>x&&x.lo!=null?` [${x.lo},${x.hi}]`:'';
-    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td><b>${macro}</b></td>`+
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠</span>':''}</td><td><b>${macro}</b></td>`+
       `<td>${code&&code.v!=null?pct(code.v)+ci(code):'—'}</td><td>${ag&&ag.v!=null?pct(ag.v)+ci(ag):'—'}</td></tr>`;
   });
   document.getElementById('tbl-q').innerHTML=h;
