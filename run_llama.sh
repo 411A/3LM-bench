@@ -239,6 +239,60 @@ trap 'exit 130' INT TERM
 
 free_mib() { awk '/MemAvailable/{printf "%d", $2/1024}' /proc/meminfo; }
 
+# ---- quiet-machine preflight -------------------------------------------
+# A benchmark number is only worth what the machine it was taken on was
+# doing at the time. The protocol is ONE model resident, nothing else
+# running, and enough free memory to hold it. This check enforces that
+# BEFORE the model is loaded, and refuses to start on a busy box rather
+# than quietly publishing a number measured at 60% power.
+# % of the WHOLE box's CPU used by everything, sampled live over 1s.
+# The load average is a lagging indicator (it stayed above 2 for minutes
+# after the box went idle) and it hides a single runaway thread - which is
+# exactly what happened here: a thumbnailer sat at 100% of one core for
+# 28 hours, so every throughput number taken before it died was measured
+# at half power.
+cpu_busy_pct() {
+  local a b
+  a=$(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8+$9, $5+$6}' /proc/stat)
+  sleep 1
+  b=$(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8+$9, $5+$6}' /proc/stat)
+  awk -v a="$a" -v b="$b" 'BEGIN{
+    split(a,x," "); split(b,y," ");
+    t=y[1]-x[1]; i=y[2]-x[2];
+    if (t<=0) {print "0.0"} else {printf "%.1f", 100*(t-i)/t}
+  }'
+}
+
+preflight_quiet() {
+  local tries=0 busy="" pct
+  while : ; do
+    busy=""
+    # another model resident?
+    if pgrep -f "[l]lama-server --model" >/dev/null 2>&1; then
+      busy="another llama-server is resident"
+    fi
+    # another benchmark runner?
+    if pgrep -f "^python3 -u run\.py" >/dev/null 2>&1; then
+      busy="another benchmark runner is active"
+    fi
+    # foreign CPU load (everything except our own server, which is not up yet)
+    pct=$(cpu_busy_pct)
+    if [ -z "$busy" ] && awk "BEGIN{exit !($pct > 30.0)}"; then
+      busy="$pct% of the box's CPU is busy before the model is even loaded"
+    fi
+    [ -z "$busy" ] && break
+    tries=$((tries + 1))
+    if [ "$tries" -gt 36 ]; then
+      say "WARNING: box still busy after 3 min ($busy); starting anyway"
+      say "  (throughput numbers from this run are marked as measured under load)"
+      return 0
+    fi
+    [ "$tries" = 1 ] && say "waiting for a quiet box: $busy"
+    sleep 5
+  done
+  say "quiet box confirmed: 1 model, foreign CPU ${pct}%, $(free_mib) MiB free"
+}
+
 wait_for_mem() {
   local tries=0
   while [ "$(free_mib)" -lt 900 ]; do
@@ -266,6 +320,7 @@ run_one() { # $1=label, $2=k/n for banner
   if [ "$DRYRUN" = 1 ]; then say "(dry run — nothing started)"; return 0; fi
 
   wait_for_mem
+  preflight_quiet
 
   # A partial file means the last run died or aborted mid-way: its server is
   # either dead or fat. Never reuse it — restart for a fresh memory window.

@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
+"""speed.py — the dedicated throughput instrument.
+
+Why this exists: a throughput number taken as a by-product of a long,
+possibly-chopped benchmark run is not a throughput measurement. The model
+may have been sharing the box, running against a memory-fragmented heap, or
+measured on the very first token of a cold server. This script measures
+speed the way a speed test should be measured:
+
+  * ONE model resident, nothing else running (the caller runs this with the
+    benchmark slot free; the preflight in run_llama.sh enforces the same
+    rule for benchmark runs).
+  * A fresh server, warmed up with a discarded prompt, then N measured
+    prompts of identical shape.
+  * The MEDIAN of the per-item decode rate is the headline (robust to the
+    odd slow item); min/max/p25/p75 are kept so the spread is visible.
+  * Everything is written to results/llamacpp/<label>-speed.json with the
+    server build, the prompt hash and the exact conditions.
+
+Usage:
+  python3 speed.py <model> [<model> ...]      # one model at a time
+  python3 speed.py --all                      # every model, sequentially
+  python3 speed.py --serve-only <model>       # start the server and stop
 """
-Controlled throughput measurement, separate from the accuracy suite.
-
-Why separate: gen_tps inside the accuracy run is confounded. Token speed varies
-with context length (attention over a 4096-token KV cache is slower than over
-300), with batch contents, and with whatever else the box was doing. A speed
-number taken from a mixed workload is not comparable across models.
-
-This fixes the conditions - identical prompt, identical target token count,
-identical context length - and repeats, so the reported value is a median of
-like-for-like measurements rather than an average over heterogeneous work.
-
-Two methods, because the two runtimes measure differently:
-  * llama.cpp models -> llama-bench, which reports prompt-processing and token-
-    generation rates separately from the same run. That is the cleanest number
-    available and it needs no server.
-  * Ollama models -> N fixed-length completions through /api/generate, using the
-    server's own eval_count and eval_duration, plus a wall-clock cross-check.
-
-Reports median and IQR rather than mean, because decode throughput on a shared
-2-core box has a long right tail when the scheduler preempts it.
-"""
-import argparse
 import json
 import os
 import statistics as st
@@ -31,156 +31,171 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from backend import Backend  # noqa: E402
+from backend import Backend, BackendError  # noqa: E402
 
-LLAMA_BENCH = os.path.expanduser("~/llama/llama-b11558/llama-bench")
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "speed.json")
+HERE = os.path.dirname(os.path.abspath(__file__))
+DL = os.path.join(os.path.expanduser("~"), "ollama-dl")
+RESULTS = os.path.join(HERE, "results", "llamacpp")
+APIKEY = "local-llama"
+CTX = 4096
+N_PROMPTS = 12
+WARMUP = 2
+MAX_TOKENS = 128
 
-# Identical prompt for every model. Long enough to force a realistic context,
-# short enough not to dominate the run.
-PROMPT = ("Below is a Python module. Explain, in detail, what each function does, "
-          "what invariants it maintains, and what would break if it were called "
-          "concurrently.\n\n"
-          "def compute_totals(records, rate_table, currency):\n"
-          "    totals = {}\n"
-          "    for rec in records:\n"
-          "        key = (rec['customer'], rec['period'])\n"
-          "        amount = rec['amount'] * rate_table[rec['currency']]\n"
-          "        totals[key] = totals.get(key, 0.0) + amount\n"
-          "    return {k: round(v, 2) for k, v in totals.items()}\n\n"
-          "def reconcile(ledger, computed):\n"
-          "    diffs = []\n"
-          "    for key, amount in computed.items():\n"
-          "        actual = ledger.get(key, 0.0)\n"
-          "        if abs(actual - amount) > 0.01:\n"
-          "            diffs.append((key, actual, amount))\n"
-          "    return diffs\n\n")
+# Same table the queue uses (model|file|port).
+KNOWN = [
+    ("nemotron-3-nano", "nemotron-3-nano.gguf", 8097),
+    ("minicpm5-2b", "minicpm5-2b.gguf", 8091),
+    ("k2-horizon", "k2-horizon.gguf", 8092),
+    ("qwen35-2b", "qwen2b.gguf", 8094),
+    ("granite4-3b", "granite.gguf", 8095),
+    ("medgemma-4b", "medgemma.gguf", 8096),
+]
 
-
-def stats(xs):
-    if not xs:
-        return {}
-    xs = sorted(xs)
-    q1 = st.quantiles(xs, n=4)[0] if len(xs) > 3 else xs[0]
-    q3 = st.quantiles(xs, n=4)[2] if len(xs) > 3 else xs[-1]
-    return {"n": len(xs), "median": round(st.median(xs), 3),
-            "mean": round(st.mean(xs), 3), "min": round(min(xs), 3),
-            "max": round(max(xs), 3), "q1": round(q1, 3), "q3": round(q3, 3),
-            "stdev": round(st.stdev(xs), 3) if len(xs) > 1 else 0.0}
+# One fixed prompt, hashed into the output so the measurement is auditable.
+PROMPT = ("Explain, in one short paragraph, why a benchmark harness must "
+          "record the exact decoder settings it used. Keep it under 120 words.")
 
 
-def bench_llamacpp(gguf, ctx, n_predict, threads, reps):
-    cmd = [LLAMA_BENCH, "-m", gguf, "-p", "512", "-n", str(n_predict),
-           "-c", str(ctx), "-t", str(threads), "-r", str(reps), "-q"]
-    env = dict(os.environ)
-    env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "")
+def say(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def server_up(port):
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=3600, env=env)
-    except subprocess.TimeoutExpired:
-        return {"available": False, "error": "llama-bench timeout"}
-    out = (p.stdout or "").strip().splitlines()
-    if not out:
-        return {"available": False, "error": (p.stderr or "")[-300:]}
-    hdr = out[0].split("|")
-    row = out[-1].split("|")
-    d = {h.strip(): v.strip() for h, v in zip(hdr, row) if h.strip()}
-    pp = tg = None
-    for k, v in d.items():
-        if "pp512" in k:
-            pp = float(v)
-        if f"tg{n_predict}" in k or k.startswith("tg"):
-            tg = float(v)
-    return {"available": True, "model": d.get("model"), "test": d.get("test"),
-            "threads": d.get("threads"), "pp512_tps": pp, "tg_tps": tg,
-            "raw_header": hdr, "raw_row": row}
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=3) as r:
+            return r.status == 200
+    except Exception:
+        return False
 
 
-def bench_ollama(b, n_predict, reps):
-    """Fixed-length generation, repeated. Server-side counters are primary;
-    wall clock is the cross-check that catches a server lying about its own rate."""
-    gen_tps, wall_tps, prompt_tps, ttfts = [], [], [], []
-    for i in range(reps):
-        req = urllib.request.Request(
-            f"http://{b.host}:{b.port}/api/generate",
-            data=json.dumps({"model": b.name, "prompt": PROMPT, "stream": False,
-                             "think": False,
-                             "options": {"num_ctx": b.num_ctx, "num_predict": n_predict,
-                                         "temperature": 0.7, "num_gpu_layers": 0}}).encode(),
-            method="POST")
-        req.add_header("Content-Type", "application/json")
-        t0 = time.monotonic()
-        with urllib.request.urlopen(req, timeout=1800) as r:
-            d = json.loads(r.read())
-        wall = time.monotonic() - t0
-        ec = d.get("eval_count") or 0
-        pc = d.get("prompt_eval_count") or 0
-        ed = (d.get("eval_duration") or 0) / 1e9
-        pd = (d.get("prompt_eval_duration") or 0) / 1e9
-        if ed and ec:
-            gen_tps.append(ec / ed)
-        if wall and ec:
-            wall_tps.append(ec / wall)
-        if pd and pc:
-            prompt_tps.append(pc / pd)
-        ttfts.append(pd)
-        print(f"    rep {i+1}/{reps}: {ec} tok in {wall:.1f}s wall "
-              f"-> {ec/wall:.2f} tok/s (server {ec/ed if ed else 0:.2f})", flush=True)
-    return {"available": True, "gen_tps": stats(gen_tps),
-            "wall_tps": stats(wall_tps), "prompt_tps": stats(prompt_tps),
-            "ttft_s": stats(ttfts), "n_predict": n_predict,
-            "prompt_chars": len(PROMPT)}
+def start_server(label, path, port):
+    if server_up(port):
+        say(f"server already up on :{port} — reusing it")
+        return False
+    log = os.path.join(HERE, "logs", f"speed-{label}.log")
+    os.makedirs(os.path.dirname(log), exist_ok=True)
+    launcher = os.path.join(os.path.expanduser("~"), "ollama-work", "run-llama.sh")
+    with open(log, "ab") as fh:
+        subprocess.Popen(["bash", launcher, path, str(port), str(CTX)],
+                         stdout=fh, stderr=fh, start_new_session=True)
+    for _ in range(120):
+        time.sleep(5)
+        if server_up(port):
+            say(f"server up on :{port}")
+            return True
+    raise SystemExit(f"server never became healthy on :{port} (see {log})")
+
+
+def stop_server(port, started):
+    if not started:
+        return
+    subprocess.run(["pkill", "-f", f"llama-server.*{port}"],
+                   capture_output=True)
+    time.sleep(3)
+
+
+def cpu_busy_pct():
+    """% of the whole box's CPU used by everything (sampled live over 1s)."""
+    def sample():
+        f = open("/proc/stat").readline().split()
+        vals = [int(x) for x in f[1:9]]
+        return sum(vals), vals[3] + vals[4]     # total, idle+iowait
+    t1, i1 = sample()
+    time.sleep(1)
+    t2, i2 = sample()
+    if t2 <= t1:
+        return 0.0
+    return 100.0 * (t2 - t1 - (i2 - i1)) / (t2 - t1)
+
+
+def wait_quiet(max_tries=60, budget_pct=30.0):
+    """The measurement is only valid on an idle box: 2 cores, one model.
+
+    The standing desktop stack (Xorg + terminal + this agent) costs about a
+    quarter of the box; the runaway thumbnailer that used to sit here cost
+    half of it. The number actually observed is recorded with the result.
+    """
+    for i in range(max_tries):
+        pct = cpu_busy_pct()
+        if pct <= budget_pct:
+            say(f"box is quiet enough (foreign CPU {pct:.1f}%)")
+            return pct
+        say(f"waiting for a quiet box (foreign CPU {pct:.1f}%, budget {budget_pct:.0f}%)")
+        time.sleep(5)
+    say("WARNING: box still busy; measuring anyway and recording the load")
+    return cpu_busy_pct()
+
+
+def measure(label, path, port):
+    foreign_pct = wait_quiet()
+    started = start_server(label, path, port)
+    try:
+        b = Backend("llamacpp", label, port=port, api_key=APIKEY, timeout=600)
+        for i in range(WARMUP):
+            b.generate([{"role": "user", "content": PROMPT}],
+                       max_tokens=MAX_TOKENS, temperature=0.7)
+        tps, wall = [], []
+        for i in range(N_PROMPTS):
+            r = b.generate([{"role": "user", "content": PROMPT}],
+                           max_tokens=MAX_TOKENS, temperature=0.7)
+            tps.append(r["gen_tps"])
+            wall.append(r["wall_s"])
+            say(f"  [{i+1}/{N_PROMPTS}] {r['gen_tps']} tok/s  wall {r['wall_s']}s")
+        summary = {
+            "model": label,
+            "n_prompts": N_PROMPTS,
+            "warmup_prompts": WARMUP,
+            "max_tokens": MAX_TOKENS,
+            "ctx": CTX,
+            "prompt_sha_prefix": __import__("hashlib").sha256(
+                PROMPT.encode()).hexdigest()[:16],
+            "tps_median": round(st.median(tps), 3),
+            "tps_mean": round(sum(tps) / len(tps), 3),
+            "tps_min": round(min(tps), 3),
+            "tps_max": round(max(tps), 3),
+            "tps_p25": round(sorted(tps)[len(tps) // 4], 3),
+            "tps_p75": round(sorted(tps)[(3 * len(tps)) // 4], 3),
+            "wall_s_median": round(st.median(wall), 2),
+            "per_prompt_tps": [round(t, 3) for t in tps],
+            "measured_unix": time.time(),
+            "load_avg_at_start": open("/proc/loadavg").read().split()[0],
+            "foreign_cpu_pct_at_start": round(foreign_pct, 1),
+            "server_version": b.server_versions().get("llama_server")
+                              or "see logs/speed-%s.log" % label,
+        }
+        out = os.path.join(RESULTS, f"{label}-speed.json")
+        os.makedirs(RESULTS, exist_ok=True)
+        with open(out, "w") as fh:
+            json.dump(summary, fh, indent=1)
+        say(f"{label}: median {summary['tps_median']} tok/s "
+            f"(p25 {summary['tps_p25']} – p75 {summary['tps_p75']}, "
+            f"min {summary['tps_min']} – max {summary['tps_max']}) -> {out}")
+        return summary
+    finally:
+        stop_server(port, started)
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--backend", choices=["ollama", "llamacpp"], default="ollama")
-    ap.add_argument("--model", default="nemotron-3-nano:4b")
-    ap.add_argument("--gguf", default=None)
-    ap.add_argument("--port", type=int, default=None)
-    ap.add_argument("--reps", type=int, default=3)
-    ap.add_argument("--n-predict", type=int, default=128)
-    ap.add_argument("--ctx", type=int, default=4096)
-    ap.add_argument("--threads", type=int, default=2)
-    args = ap.parse_args()
-
-    port = args.port or (11434 if args.backend == "ollama" else 8090)
-    label = args.model.replace("/", "_").replace(":", "_")
-
-    def meminfo():
-        return {k: int(v.split()[0]) // 1024
-                for k, _, v in (l.partition(":") for l in open("/proc/meminfo"))}
-
-    print(f"=== speed bench: {args.model} via {args.backend}:{port} ===")
-    mi = meminfo()
-    print(f"mem available: {mi['MemAvailable']} MiB | swap free: {mi['SwapFree']} MiB")
-
-    if args.backend == "llamacpp":
-        res = bench_llamacpp(args.gguf, args.ctx, args.n_predict, args.threads, args.reps)
-        if res.get("available"):
-            print(f"  llama-bench pp512: {res['pp512_tps']} tok/s")
-            print(f"  llama-bench tg{args.n_predict}: {res['tg_tps']} tok/s")
-    else:
-        b = Backend("ollama", args.model, port=port, num_ctx=args.ctx)
-        if not b.alive():
-            raise SystemExit(f"no ollama on {port}")
-        res = bench_ollama(b, args.n_predict, args.reps)
-        g = res.get("gen_tps", {})
-        print(f"  gen  tok/s: median {g.get('median')}  IQR [{g.get('q1')}, {g.get('q3')}]")
-        print(f"  prompt tps: {res.get('prompt_tps', {}).get('median')}")
-        print(f"  ttft  ms  : {res.get('ttft_s', {}).get('median')}")
-
-    mi = meminfo()
-    payload = {"model": args.model, "backend": args.backend, "port": port,
-               "ctx": args.ctx, "n_predict": args.n_predict, "reps": args.reps,
-               "threads": args.threads, "label": label, "result": res,
-               "mem_available_mib": mi["MemAvailable"],
-               "swap_free_mib": mi["SwapFree"]}
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    allr = json.load(open(OUT)) if os.path.exists(OUT) else {}
-    allr[label] = payload
-    with open(OUT, "w") as f:
-        json.dump(allr, f, indent=1)
-    print(f"written -> {OUT}")
+    args = sys.argv[1:]
+    if not args:
+        raise SystemExit(__doc__)
+    if args[0] == "--all":
+        args = [m for m, _, _ in KNOWN]
+    table = {m: (f, p) for m, f, p in KNOWN}
+    for label in args:
+        if label not in table:
+            raise SystemExit(f"unknown model {label}")
+        fname, port = table[label]
+        path = os.path.join(DL, fname)
+        if not os.path.exists(path):
+            say(f"{label}: GGUF missing ({path}) — skipped")
+            continue
+        say(f"=== {label} : isolated throughput ===")
+        try:
+            measure(label, path, port)
+        except (BackendError, SystemExit) as e:
+            say(f"{label}: FAILED — {e}")
 
 
 if __name__ == "__main__":

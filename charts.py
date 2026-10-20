@@ -107,6 +107,7 @@ def main():
                    if not f.endswith("-q.json") and not f.endswith("-cs.json")
                    and not f.endswith("-agentic.json")
                    and not f.endswith("-gsm8k.json")
+                   and not f.endswith("-speed.json")
                    and not f.endswith("-medical.json")
                    and not f.endswith("-coder.json")
                    and not f.endswith("-embedded.json"))
@@ -118,6 +119,24 @@ def main():
     if not files:
         raise SystemExit(f"no screening runs in {RESULTS}")
     models = []
+
+    # Isolated throughput for EVERY model that has it, so the report treats
+    # all six models equally even when one has no screening row.
+    speed_rows = []
+    for sp in sorted(glob.glob(os.path.join(RESULTS, "*-speed.json"))):
+        try:
+            sd = json.load(open(sp))
+        except Exception:
+            continue
+        speed_rows.append({
+            "label": sd.get("model", os.path.basename(sp)[:-10]),
+            "tps": sd.get("tps_median"),
+            "p25": sd.get("tps_p25"), "p75": sd.get("tps_p75"),
+            "min": sd.get("tps_min"), "max": sd.get("tps_max"),
+            "n": sd.get("n_prompts"),
+            "foreign_cpu": sd.get("foreign_cpu_pct_at_start"),
+            "server": sd.get("server_version"),
+        })
 
     def build_row(f, label=None, agentic_pref=True):
         d = json.load(open(f))
@@ -178,6 +197,17 @@ def main():
         # b11714. Instruments are never compared across eras.
         ver = (d.get("provenance", {}) or {}).get("versions", {}) or {}
         server = ver.get("llama_server")
+        # Dedicated isolated throughput pass (speed.py): one model on a quiet
+        # box, fresh server, warmed up, median of 12 identical prompts. This
+        # is the number the efficiency chart publishes - a tok/s taken as a
+        # by-product of a long benchmark run is not a speed measurement.
+        speed = None
+        sp = os.path.join(RESULTS, f"{os.path.basename(f)[:-5]}-speed.json")
+        if os.path.exists(sp):
+            try:
+                speed = json.load(open(sp))
+            except Exception:
+                speed = None
         if not server:
             server = ("b11558 (inferred)" if os.path.getmtime(f) < UPGRADE_TS
                       else "b11714 (inferred)")
@@ -210,7 +240,10 @@ def main():
             "server": server,
             "macro_custom": round(sum(vals_c) / len(vals_c), 4) if vals_c else None,
             "macro_std": round(sum(vals_s) / len(vals_s), 4) if vals_s else None,
-            "mean_tps": (d.get("backend_totals") or {}).get("mean_gen_tps"),
+            "mean_tps": (speed or {}).get("tps_median"),
+            "tps_source": "isolated" if speed else "in-run",
+            "speed": speed,
+            "mean_tps_inrun": (d.get("backend_totals") or {}).get("mean_gen_tps"),
             "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
             "n_recs": len(d.get("records", [])),
             "cats": cats,
@@ -351,6 +384,7 @@ def main():
             cov_cells.append(row)
     payload = {"models": models,
                "custom": CUSTOM_CATS, "std": STD_CATS, "short": SHORT,
+               "speeds": speed_rows,
                "q": qualifier, "q_cats": qcats,
                "deep": deep, "cs": cs100, "coverage": cov_cells,
                "meta": {"title": args.title, "runs": len(models)}}
@@ -400,7 +434,7 @@ every bar is an accuracy with an exact 95% Wilson interval, and every comparison
 <div class="chart"><h2>Capability heatmap</h2>
 <p class="note">Darker = stronger. Missing = suite absent for that model.</p><div id="c-heat" style="height:380px"></div></div>
 <div class="chart"><h2>Efficiency: capability vs decode speed</h2>
-<p class="note">Bubble area = model file GB. Faster + higher is better; top-right wins.</p><div id="c-eff" style="height:400px"></div></div>
+<p class="note">Bubble area = model file GB. Faster + higher is better; top-right wins. Speed here is the DEDICATED isolated pass: one model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median decode rate of 12 identical prompts - not a by-product of a long benchmark run. Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714; no comparison on this page spans two builds.</p><div id="c-eff" style="height:400px"></div></div>
 <div class="chart"><h2>English vs Persian (custom + Belebele-fa standard)</h2>
 <p class="note">Gap = English accuracy − Persian accuracy, in percentage points.</p><div id="c-lang" style="height:380px"></div></div>
 <div class="chart"><h2>Multiple-choice vs chance baseline</h2>
@@ -409,8 +443,10 @@ every bar is an accuracy with an exact 95% Wilson interval, and every comparison
 <p class="note">Tiny-n: ±35pp intervals. Read rankings, not gaps.</p><div id="c-mmlu" style="height:380px"></div></div>
 <div class="chart"><h2>Agentic: reliability, trace, answer-only</h2>
 <p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div></div>
-<div class="chart"><h2>Throughput: mean decode tok/s</h2>
-<p class="note">Server-side counters on identical prompts per model; wall-clock cross-checked. MC suites excluded (1 token each). Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714. Every comparison on this page is within one instrument, so no comparison ever spans two builds.</p><div id="c-tps" style="height:340px"></div></div>
+<div class="chart"><h2>In-run decode rate (historical, under background load)</h2>
+<p class="note">Kept for the record: these per-suite rates were taken as a by-product of long benchmark runs while a runaway desktop thumbnailer held half the CPU (REVIEW5), so they UNDERSTATE true speed. Any speed claim on this page uses the isolated pass instead.</p><div id="c-tps" style="height:340px"></div></div>
+<div class="chart"><h2>Isolated throughput, every model</h2>
+<p class="note">One model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median of 12 identical prompts. The spread (p25-p75, min-max) is in the tooltip; the foreign-CPU column is what the desktop was using at measurement time. These replace the in-run rates above, which were taken while a runaway thumbnailer held half the CPU.</p><div id="c-speed" style="height:300px"></div></div>
 <div class="chart"><h2>Qualifier: identical fast subsets, all models</h2>
 <p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. All six qualifier runs share ONE server build (b11558, 2026-10-17) so the ranking is internally consistent; the screening instrument was measured on b11714. The two are never compared with each other. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div></div>
 <div style="overflow-x:auto"><table id="tbl-q"></table></div>
@@ -542,11 +578,11 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
 (function(){
   mk('c-eff').setOption({legend:{textStyle:{color:'#cfd6de'}},
     tooltip:{formatter:p=>`${p.seriesName} · ${p.data[3]}<br/>macro ${pct(p.data[1])} · ${p.data[0]} tok/s · ${p.data[2]} GB`},
-    xAxis:{name:'mean tok/s',...AX}, yAxis:{name:'macro-mean',max:1,...AX},
+    xAxis:{name:'decode tok/s (isolated pass)',...AX}, yAxis:{name:'macro-mean',max:1,...AX},
     series:['macro_custom','macro_std'].map((k,ki)=>({name:ki?'PRIMARY-STD':'PRIMARY-CUSTOM',
       type:'scatter',symbolSize:d=>18+Math.sqrt(d[2])*14,
       itemStyle:{color:ki?'#EE6666':'#5470C6',opacity:0.9},
-      data:D.models.filter(m=>m[k]!=null&&m.mean_tps!=null)
+      data:D.models.filter(m=>m[k]!=null&&m.mean_tps!=null&&m.tps_source==='isolated')
         .map(m=>[m.mean_tps,m[k],m.fileGB,m.label])}))});
 })();
 /* 5. bilingual */
@@ -597,6 +633,20 @@ function agenticChart(id, models){
       data:rows.map(r=>m.agentic[r[0]]!=null?m.agentic[r[0]]:'-')}))});
 }
 agenticChart('c-agent', D.models);
+/* 8b. isolated throughput table */
+(function(){
+  const rows=D.speeds||[];
+  if(!rows.length){mk('c-speed').setOption({title:{show:true,text:'no isolated measurements yet'}});return;}
+  mk('c-speed').setOption({
+    tooltip:{trigger:'item',formatter:p=>{const r=rows[p.dataIndex];
+      return `<b>${r.label}</b><br/>median ${r.tps} tok/s<br/>p25 ${r.p25} - p75 ${r.p75}<br/>min ${r.min} - max ${r.max}<br/>${r.n} prompts · foreign CPU ${r.foreign_cpu}%`;}},
+    grid:{left:120,right:40,top:20,bottom:30},
+    xAxis:{type:'value',name:'decode tok/s (median)',nameTextStyle:{color:'#8b96a3'},...AX},
+    yAxis:{type:'category',data:rows.map(r=>r.label),axisLabel:{color:'#cfd6de'},...AX},
+    series:[{type:'bar',itemStyle:{color:'#5470C6'},
+      data:rows.map(r=>({value:r.tps,itemStyle:{color:r.tps>=8?'#91CC75':r.tps>=5?'#5470C6':'#FAC858'}})),
+      label:{show:true,position:'right',color:'#e6e8eb',formatter:p=>p.value+' tok/s'}}]});
+})();
 /* 9. throughput */
 (function(){
   const rows=[['code','Code tok/s'],['std_gsm8k','GSM8K tok/s']];
