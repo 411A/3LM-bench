@@ -571,6 +571,46 @@ CI                   : <Wilson 95%>
 
 ---
 
+## 7. DURABILITY PROTOCOL (2026-10-20, after REVIEW4)
+
+A benchmark that loses data to the machine it runs on is not a benchmark. The
+protocol below is what makes "no missed data" a property of the harness
+rather than a hope. Full incident write-up: `REVIEW4.md`.
+
+### 7.1 Three invariants
+1. **Nothing scored is ever lost.** Every finished item is written to disk in
+   the second it is scored (`_ProgressList` → per-item checkpoint). A kill
+   can cost the item *in flight*, never the rep.
+2. **Nothing broken is ever presented as a score.** A backend failure
+   produces a stub, which is excluded from every denominator and reported as
+   missing. Missing is never zero.
+3. **Nothing incomplete is ever presented as complete.** A result file is
+   `partial` when coverage is short: for every (task, rep) pair the file
+   must hold as many valid records as there are items to run. A stub that a
+   later attempt replaced no longer keeps the file partial; a task that never
+   ran is always a gap.
+
+### 7.2 The failure modes this defends against
+| Threat | Mechanism | Defence |
+|--------|-----------|---------|
+| Laptop idle-suspend | logind SIGTERMs user processes | `systemd-inhibit --what=sleep:idle` held for the whole run; SIGTERM handler checkpoints and exits 143 |
+| Server OOM | kernel OOM-killer takes `llama-server` | per-item RSS guard (clean abort) + fresh server + item-level resume |
+| Long rep killed | results in RAM until rep end | per-item checkpoint |
+| Stubs counted as progress | resume loop sees "records" | progress counted from valid records only |
+| Checkpoint written without `partial` | resume loop thinks it is done | checkpoint carries `partial` + `coverage_gaps` |
+
+### 7.3 Rules of engagement on this box
+- One model resident at a time; one run at a time (enforced by a lock).
+- Never reuse a server whose previous run was partial — it is holding the
+  memory that caused the abort. Restart for a fresh window.
+- `--until-complete N` grinds a task through as many server lifetimes as it
+  needs, stopping on completion **or** on a round that banks nothing
+  (BLOCKED ≠ slow).
+- Resume adopts the previous file's config verbatim, so a resumed cell is
+  bit-identical in configuration to the cell it completes.
+
+---
+
 ## WHAT I COULD NOT VERIFY
 
 1. **"rust-eval", "CrateEval", "RustBench"** — no such canonical suite found. Treat as non-existent or
