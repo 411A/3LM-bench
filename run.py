@@ -114,6 +114,20 @@ def _err1(stderr, width=100):
     return ": " + lines[-1].strip()[:width]
 
 
+def _mem_guard(b, args, where):
+    """Per-item OOM guard for long generation loops (the between-tasks check
+    never fires inside a 30-item GSM8K rep). Raises BackendError tagged
+    OOM-GUARD so the rep handler skips its doomed retry and stubs at once:
+    retrying against a fat server burns a full timeout for nothing."""
+    budget = getattr(args, "server_mem_budget", 0) or 0
+    if not budget:
+        return
+    rss = b.server_rss_mb() if hasattr(b, "server_rss_mb") else None
+    if rss and rss > budget:
+        raise BackendError(
+            f"OOM-GUARD: server RSS {rss} MiB over budget {budget} at {where}")
+
+
 def _item_error(t, rep, cat, e, extra=None):
     """Per-item last resort: one bad item must never cost its whole rep.
 
@@ -157,6 +171,7 @@ def run_code(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_code-item-%d" % (i + 1))
             r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                             {"role": "user", "content": t["prompt"]}],
                            max_tokens=FROZEN["gen_max_tokens"],
@@ -208,6 +223,7 @@ def run_rust(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_rust-item-%d" % (i + 1))
             r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                             {"role": "user", "content": t["prompt"]}],
                            max_tokens=FROZEN["gen_max_tokens"],
@@ -305,6 +321,7 @@ def run_netdiag(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_netdiag-item-%d" % (i + 1))
             msgs = [{"role": "system", "content":
                      "You are a network engineer. Given the topology, the configuration and "
                      "the reported symptom, diagnose the problem. If the evidence shows "
@@ -341,6 +358,7 @@ def run_devops(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_devops-item-%d" % (i + 1))
             r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                             {"role": "user", "content": t["prompt"]}],
                            max_tokens=FROZEN["gen_max_tokens"],
@@ -372,6 +390,7 @@ def run_lint(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_lint-item-%d" % (i + 1))
             lang = t["lang"]
             sysmsg = SYSTEM_CODER
             r = b.generate([{"role": "system", "content": sysmsg},
@@ -492,6 +511,7 @@ def run_cpp(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_cpp-item-%d" % (i + 1))
             r = b.generate([{"role": "system", "content": SYSTEM_CODER},
                             {"role": "user", "content": t["prompt"]}],
                            max_tokens=FROZEN["gen_max_tokens"],
@@ -537,6 +557,7 @@ def run_gsm8k(b, tasks, args, rep):
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
+            _mem_guard(b, args, "run_gsm8k-item-%d" % (i + 1))
             msgs = [{"role": "system", "content":
                      "You are a careful math assistant. Reason step by step, "
                      "then write the final numeric answer after ####."},
@@ -1216,6 +1237,10 @@ def main():
                     # later task stubs identically. Probe liveness first.
                     attempt += 1
                     log(f"  !! backend error: {e}")
+                    if "OOM-GUARD" in str(e):
+                        log("  !! over-budget server: retry would burn a full "
+                            "timeout against the same fat server — stubbing now")
+                        attempt = 99
                     if attempt > 1:
                         got = [{"id": f"{name}#ERROR", "rep": rep, "category": cat,
                                 "error": str(e)[:300], "passed": False, "correct": False,
