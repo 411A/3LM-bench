@@ -181,6 +181,52 @@ check("qualify never raises, all broken",
       set(_q) == {"generation", "mc_logprob", "tools"}
       and not any(ok for ok, _ in _q.values()))
 
+# ---- durability contracts (per-item checkpointing + signal safety) ----
+# A laptop suspend makes logind SIGTERM the worker; the results of a whole
+# rep used to die with it. These contracts keep the fix from regressing.
+_got = []
+_pl = R._ProgressList(_got.append)
+_pl.append({"id": "a"})
+_pl.extend([{"id": "b"}, {"id": "c"}])
+check("progress list streams every appended record",
+      [r["id"] for r in _got] == ["a", "b", "c"])
+check("progress list keeps list semantics",
+      len(_pl) == 3 and _pl[0]["id"] == "a")
+
+_recs = [
+    {"task": "t", "rep": 0, "id": "x", "correct": True},
+    {"task": "t", "rep": 0, "id": "y", "correct": False},
+    {"task": "t", "rep": 0, "id": "t#ERROR", "correct": False},
+]
+check("coverage counts valid records only",
+      R.coverage_report(_recs, {("t", 0): 3}) == ["t/rep0: 2/3"])
+check("coverage is clean when everything is backed",
+      R.coverage_report(_recs[:2], {("t", 0): 2}) == [])
+check("a stub that was later replaced does not keep the file partial",
+      R.coverage_report(_recs, {("t", 0): 2}) == [])
+check("a task that never ran is always a gap",
+      R.coverage_report([], {("t", 0): 30}) == ["t/rep0: 0/30"])
+check("reps are counted separately",
+      R.coverage_report([{"task": "t", "rep": 0, "id": "x"}],
+                        {("t", 0): 1, ("t", 1): 1}) == ["t/rep1: 0/1"])
+
+# SIGTERM must checkpoint and exit 143 (the suspend killer).
+_sig = (
+    "import os, signal, sys, tempfile\n"
+    "sys.path.insert(0, %r)\n"
+    "import run as R\n"
+    "p = os.path.join(tempfile.mkdtemp(), 'ckpt.json')\n"
+    "R.CHECKPOINT_HOOK['fn'] = lambda: open(p, 'w').write('saved')\n"
+    "R._install_signal_handlers()\n"
+    "os.kill(os.getpid(), signal.SIGTERM)\n"
+    "print('NOT REACHED')\n"
+) % os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+import subprocess
+_proc = subprocess.run([sys.executable, "-c", _sig], capture_output=True,
+                       text=True, timeout=120)
+check("SIGTERM exits 143 (clean, not a crash)", _proc.returncode == 143)
+check("SIGTERM path is reachable (handler installed)", "NOT REACHED" not in _proc.stdout)
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")

@@ -301,8 +301,18 @@ run_one() { # $1=label, $2=k/n for banner
   say "logging live to $LOG"
   local RESUME_FLAG=()
   [ "$RESUME_MODE" = 1 ] && RESUME_FLAG=(--resume "$OUT")
+  # The laptop's power manager suspends the box on idle; logind then
+  # SIGTERMs every user process and the worker dies holding the results of
+  # the rep in memory. Hold a sleep/idle inhibitor for the whole run.
+  local INHIBIT=()
+  if command -v systemd-inhibit >/dev/null 2>&1; then
+    INHIBIT=(systemd-inhibit --what=sleep:idle --why="llmbench benchmark run")
+    say "holding sleep/idle inhibitor for the duration of the run"
+  else
+    say "WARNING: systemd-inhibit missing - a suspend would kill this run"
+  fi
   # shellcheck disable=SC2086
-  python3 -u run.py --backend llamacpp --model "$LABEL" --port "$PORT" \
+  "${INHIBIT[@]}" python3 -u run.py --backend llamacpp --model "$LABEL" --port "$PORT" \
     --api-key "$APIKEY" --model-path "$GGUF" \
     --tasks "$TASKS" --reps "$REPS" \
     ${CAPS:+--per-task-cap "$CAPS"} \
@@ -415,7 +425,21 @@ fi
 # generations on a 7.6GB box). Stops early on completion OR on a round with
 # zero new records (no progress = BLOCKED, not slow).
 DONE=(); FAILED=(); PARTIAL_DONE=()
-rec_count() { python3 -c "import json; print(len(json.load(open('$1')).get('records',[])))" 2>/dev/null || echo 0; }
+rec_count() {
+  # Valid records only: a stub (backend error) is not progress - counting it
+  # made the resume loop believe a round had succeeded while nothing usable
+  # was banked (five rounds, zero new records, "progress" every time).
+  python3 -c "
+import json,sys
+try:
+    d=json.load(open('$1'))
+except Exception:
+    print(0); raise SystemExit
+rs=d.get('records',[])
+ok=[r for r in rs if 'ERROR' not in str(r.get('id','')) and r.get('stopped') not in ('error','exception')]
+print(len(ok))
+" 2>/dev/null || echo 0
+}
 k=0
 for m in "${MODELS[@]}"; do
   k=$((k + 1))

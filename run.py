@@ -27,6 +27,7 @@ import argparse
 import hashlib
 import json
 import os
+import signal
 import sys
 import time
 
@@ -165,9 +166,9 @@ def _item_error(t, rep, cat, e, extra=None):
 
 
 # ============================================================ task runners
-def run_code(b, tasks, args, rep):
+def run_code(b, tasks, args, rep, progress=None):
     """Python generation + execution + lint."""
-    out = []
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -217,9 +218,9 @@ def run_code(b, tasks, args, rep):
     return out
 
 
-def run_rust(b, tasks, args, rep):
+def run_rust(b, tasks, args, rep, progress=None):
     """Rust generation + compile + run + clippy + rustfmt."""
-    out = []
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -258,14 +259,14 @@ def run_rust(b, tasks, args, rep):
     return out
 
 
-def run_mc(b, tasks, args, rep):
+def run_mc(b, tasks, args, rep, progress=None):
     """Multiple choice scored from one forward pass via top-k logprobs.
 
     Returns accuracy plus a confidence distribution, because accuracy alone hides
     the difference between a model that knows the answer and one that guessed
     uniformly. Mean top-1 probability on the letter set is the tell.
     """
-    out = []
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -316,8 +317,8 @@ def run_mc(b, tasks, args, rep):
     return out
 
 
-def run_netdiag(b, tasks, args, rep):
-    out = []
+def run_netdiag(b, tasks, args, rep, progress=None):
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -353,8 +354,8 @@ def run_netdiag(b, tasks, args, rep):
     return out
 
 
-def run_devops(b, tasks, args, rep):
-    out = []
+def run_devops(b, tasks, args, rep, progress=None):
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -384,9 +385,9 @@ def run_devops(b, tasks, args, rep):
     return out
 
 
-def run_lint(b, tasks, args, rep):
+def run_lint(b, tasks, args, rep, progress=None):
     """The lint-as-benchmark suite. No unit tests: the artifact is the point."""
-    out = []
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -499,7 +500,7 @@ def run_agentic(b, tasks, args, rep, progress=None):
     return out
 
 
-def run_cpp(b, tasks, args, rep):
+def run_cpp(b, tasks, args, rep, progress=None):
     """Embedded C++ that is actually compiled and executed.
 
     The mock Arduino/ESP32 header is prepended to whatever the model wrote, so
@@ -507,7 +508,7 @@ def run_cpp(b, tasks, args, rep):
     something. The task's assertions decide pass or fail - no reviewer, no LLM
     judge.
     """
-    out = []
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -545,7 +546,7 @@ def run_cpp(b, tasks, args, rep):
     return out
 
 
-def run_gsm8k(b, tasks, args, rep):
+def run_gsm8k(b, tasks, args, rep, progress=None):
     """GSM8K grade-school math via generation + normalised exact match.
 
     Official protocol (Cobbe et al.): 8-shot CoT in the paper, but for tiny
@@ -553,7 +554,7 @@ def run_gsm8k(b, tasks, args, rep):
     and score the normalised final number. Prompt and shots are recorded
     per record so the deviation is auditable.
     """
-    out = []
+    out = _ProgressList(progress)
     n_tasks = len(tasks)
     for i, t in enumerate(tasks):
         try:
@@ -587,6 +588,66 @@ def run_gsm8k(b, tasks, args, rep):
         except Exception as e:  # noqa: BLE001
             out.append(_item_error(t, rep, "gsm8k", e))
     return out
+
+
+class _ProgressList(list):
+    """A list that reports every appended record to a callback.
+
+    Durability: a 30-item rep used to live entirely in memory until the rep
+    finished, so a suspend/OOM/kill mid-rep lost every completed item of that
+    rep (observed twice: the laptop's idle-suspend made logind SIGTERM the
+    worker). With this, every finished item is checkpointed to disk the
+    moment it is scored - a kill can now only cost the item in flight.
+    """
+
+    def __init__(self, progress=None):
+        super().__init__()
+        self._progress = progress
+
+    def append(self, item):
+        super().append(item)
+        self._emit(item)
+
+    def extend(self, items):
+        for it in items:
+            self.append(it)
+
+    def _emit(self, item):
+        if not self._progress:
+            return
+        try:
+            self._progress(item)
+        except Exception as e:  # noqa: BLE001
+            log(f"  !! progress callback failed: {type(e).__name__}: {e}")
+
+
+CHECKPOINT_HOOK = {"fn": None}
+
+
+def _install_signal_handlers():
+    """Checkpoint-and-exit on SIGTERM/SIGINT.
+
+    The laptop's power manager (xfce4-power-manager) suspends the box on
+    idle; logind then SIGTERMs every user process (KillUserProcesses=yes by
+    default). Unhandled, the worker died holding the results of the whole
+    rep in memory and the item that had just been scored was lost.
+    """
+
+    def handler(signum, _frame):
+        fn = CHECKPOINT_HOOK.get("fn")
+        if fn:
+            try:
+                fn()
+                log(f"  [checkpoint written on signal {signum}]")
+            except Exception as e:  # noqa: BLE001
+                log(f"  !! checkpoint on signal failed: {type(e).__name__}: {e}")
+        os._exit(128 + signum)
+
+    for s in (signal.SIGTERM, signal.SIGINT):
+        try:
+            signal.signal(s, handler)
+        except (ValueError, OSError):
+            pass
 
 
 RUNNERS = {
@@ -646,6 +707,27 @@ MC_CATS = {"science", "electronics", "persian", "english",
            "std_belebele_fa_s30", "std_mmlu_s30", "std_mmlu_cs"}
 GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
+
+
+def coverage_report(records, expected):
+    """Which (task, rep) pairs lack full valid-record coverage.
+
+    Coverage, not stub-presence, decides whether a result file is partial:
+    a stub that a later attempt replaced with a real record must not keep
+    the file "partial" forever, and a task that never ran must always count
+    as a gap. Stubs are never coverage.
+    """
+    valid_ids = {}
+    for r in records:
+        if "ERROR" in str(r.get("id", "")) or r.get("stopped") in ("error", "exception"):
+            continue
+        valid_ids.setdefault((r.get("task"), r.get("rep")), set()).add(r.get("id"))
+    gaps = []
+    for (tname, trep), n_exp in sorted(expected.items()):
+        got_n = len(valid_ids.get((tname, trep), ()))
+        if got_n < n_exp:
+            gaps.append(f"{tname}/rep{trep}: {got_n}/{n_exp}")
+    return gaps
 
 
 def aggregate(records):
@@ -1146,6 +1228,11 @@ def main():
     records, t_start = [], time.monotonic()
     server_dead = False
     consec_err = 0
+    # Coverage ledger: expected (task, rep) -> item count, and the set of
+    # record objects already streamed to disk by the per-item progress hook.
+    expected = {}
+    appended = set()
+    _install_signal_handlers()
     # Resume: a dead run restarts mid-model instead of from zero. Completed
     # (task, rep) pairs are read back from the existing output file - but ONLY
     # if its config_hash matches, so a config change never silently inherits
@@ -1184,17 +1271,29 @@ def main():
         if args.limit:
             tasks = tasks[:args.limit]
         reps_here = rep_for.get(name, args.reps)
+        for _r in range(reps_here):
+            expected[(name, _r)] = len(tasks)
         log(f"--- [{ti+1}/{len(names)}] {name} ({len(tasks)}/{total_available} items x {reps_here} reps) ---")
 
         def checkpoint():
             agg = aggregate(records)
+            # The checkpoint MUST carry the partial flag: a checkpoint is what
+            # a killed run leaves behind, and the resume loop decides whether
+            # to keep going by reading exactly this file.
+            gaps = coverage_report(records, expected)
             with open(out_path, "w") as f:
                 json.dump({"schema": "llmbench/1", "config": cfg, "config_hash": cfg_hash,
                            "started": t_start, "elapsed_s": round(time.monotonic() - t_start, 1),
                            "provenance": provenance,
                            "summary": agg, "records": records,
+                           "coverage_gaps": gaps,
+                           "partial": bool(gaps) or bool(server_dead),
                            "backend_totals": b.summary()}, f, ensure_ascii=False, indent=1)
             log(f"  [checkpoint written: {len(records)} records]")
+
+        # A suspend/OOM kill must still leave the file with everything scored
+        # so far, so the signal handler writes the same checkpoint.
+        CHECKPOINT_HOOK["fn"] = lambda: checkpoint()
 
         t0 = time.monotonic()
         for rep in range(reps_here):
@@ -1208,24 +1307,25 @@ def main():
             # pending (their ids differ), so failed items always re-run.
             log(f"  rep {rep + 1}/{reps_here} "
                 f"({len(pending)}/{len(tasks)} pending)")
-            # Agentic reports chain-by-chain with per-chain checkpoints: a
-            # 19-chain rep must not hold 40 minutes of evidence in memory.
-            prog = None
-            if name == "agentic":
-                def prog(r, _cat=cat, _name=name, _rep=rep):
-                    r["task_category"] = r.get("category")
-                    r["category"] = _cat
-                    r["task"] = _name
-                    r["rep"] = _rep
-                    r.setdefault("id", r.get("chain_id"))
-                    records.append(r)
+            # Every task reports item-by-item: each finished item is written
+            # to disk immediately, so a suspend/OOM/kill can only cost the
+            # item in flight. A 19-chain agentic rep and a 30-item math rep
+            # are both far too much evidence to hold in memory.
+            def prog(r, _cat=cat, _name=name, _rep=rep):
+                r["task_category"] = r.get("category")
+                r["category"] = _cat
+                r["task"] = _name
+                r["rep"] = _rep
+                r.setdefault("id", r.get("chain_id"))
+                records.append(r)
+                appended.add(id(r))
+                if "ERROR" not in str(r.get("id", "")):
                     done_ids.add((_name, _rep, r.get("id")))
-                    checkpoint()
+                checkpoint()
             attempt = 0
             while True:
                 try:
-                    got = fn(b, pending, args, rep, progress=prog) \
-                        if prog is not None else fn(b, pending, args, rep)
+                    got = fn(b, pending, args, rep, progress=prog)
                     break
                 except BackendError as e:
                     # One retry after evicting the runner and cooling down: last
@@ -1294,6 +1394,8 @@ def main():
                             "tokens": {"eval": 0}, "speed": {"gen_tps": None}}]
                     break
             for r in got:
+                if id(r) in appended:
+                    continue  # already streamed to disk by the per-item hook
                 # The RUNNERS table is authoritative for the category. Letting a
                 # record keep its own `category` silently merged bugfix/algo/
                 # refactor into "code" and left science_mc/fa_mc unrecognised,
@@ -1301,7 +1403,7 @@ def main():
                 r["task_category"] = r.get("category")
                 r["category"] = cat
                 r["task"] = name
-            records.extend(got)
+                records.append(r)
             if not any("ERROR" in str(r.get("id", "")) for r in got):
                 consec_err = 0  # clean rep resets the circuit breaker
             el = time.monotonic() - t0
@@ -1321,6 +1423,10 @@ def main():
                 break
         time.sleep(15)
 
+    coverage_gaps = coverage_report(records, expected)
+    if coverage_gaps:
+        log(f"  coverage gaps (file is PARTIAL): {'; '.join(coverage_gaps)}")
+
     mi = meminfo()
     result = {
         "schema": "llmbench/1",
@@ -1333,10 +1439,12 @@ def main():
         "backend_totals": b.summary(),
         "summary": aggregate(records),
         "records": records,
-        # partial = some tasks never ran (dead server, Ctrl+C) or stubbed.
-        # A partial file is resumable evidence, never a final score.
-        "partial": bool(server_dead) or any(
-            "ERROR" in str(r.get("id", "")) for r in records),
+        # partial = the file does not cover the requested work. Decided by
+        # COVERAGE (valid records per task/rep vs items expected), not by the
+        # mere presence of an old stub: a stub that a later attempt replaced
+        # with a real record must not keep the file "partial" forever.
+        "partial": bool(server_dead) or bool(coverage_gaps),
+        "coverage_gaps": coverage_gaps,
         "server_dead": bool(server_dead),
         # Skipped-by-probe suites: explicitly unmeasured, never zero.
         "skipped": [{"task": n, "reason": reason} for n, reason in skipped],
