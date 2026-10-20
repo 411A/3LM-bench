@@ -161,7 +161,6 @@ def main():
         a = s.get("agentic")
         if not a:
             continue
-        dg = d.get("provenance", {}).get("model_digest", {}) or {}
         lab = os.path.basename(f)[:-5] + " (ollama)"
         deep.append({
             "label": lab, "color": famcolor(lab),
