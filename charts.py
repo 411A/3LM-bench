@@ -141,6 +141,30 @@ def main():
         cats = {c: cell(ag_sum if c == "agentic" else
                         gs_sum if c == "std_gsm8k_s30" else s, c)
                 for c in CUSTOM_CATS + STD_CATS}
+        # A cell can be REAL but not COMPARABLE: if the backend's tool probe
+        # failed, the agentic chains cannot call tools, so the score measures a
+        # broken pairing rather than the model. It must not sit silently next
+        # to models whose backend does call tools.
+        broken = {}
+        probes = (d.get("provenance") or {}).get("backend_probes") or {}
+        tools_ok = (probes.get("tools") or {}).get("ok")
+        if tools_ok is False:
+            alt = ""
+            oll = os.path.join(HERE, "results", "ollama",
+                               f"{os.path.basename(f)[:-5]}-agentic.json")
+            if os.path.exists(oll):
+                try:
+                    av = (json.load(open(oll)).get("summary", {})
+                          .get("agentic", {}).get("pass_hat_k_reliability"))
+                    if av is not None:
+                        alt = (f" The same weights score {av:.3f} through Ollama, "
+                               f"where the tool-calling pairing works.")
+                except Exception:
+                    pass
+            broken["agentic"] = (
+                "NOT COMPARABLE: this backend cannot emit a parseable tool call "
+                "(tools probe FAILED), so the chains scored zero by construction."
+                + alt)
         vals_c = [cats[c]["v"] for c in CUSTOM_CATS
                   if cats[c] and isinstance(cats[c]["v"], (int, float))]
         vals_s = [cats[c]["v"] for c in STD_CATS
@@ -191,6 +215,7 @@ def main():
             "n_recs": len(d.get("records", [])),
             "cats": cats,
             "gaps": gaps,
+            "broken": broken,
             "mmlu": (s.get("std_mmlu_s30") or {}).get("by_subject", {}),
             "agentic": {k: ag_sum.get("agentic", {}).get(k) for k in
                         ("pass_hat_k_reliability", "per_trial_trace_rate",
@@ -359,11 +384,15 @@ code{background:#1d2630;padding:1px 6px;border-radius:6px}
 .warn{background:#3a2a12;border:1px solid #7a5a1e;color:#f0c674;border-radius:9px;padding:0 7px;font-size:11px;cursor:help}
 </style></head><body><div class="wrap">
 <h1 id="t"></h1><div class="sub" id="chips"></div>
+<div class="sub" style="margin:2px 0 10px"><b>How to read the marks:</b>
+<span class="warn">⚠ incomplete</span> = the run behind that row is missing items (never a score) ·
+<span class="warn">⚠ n/c</span> = the cell is real but <i>not comparable</i> (broken tool-calling backend) ·
+every bar is an accuracy with an exact 95% Wilson interval, and every comparison on this page stays inside one instrument.</div>
 <h2 style="margin-top:20px">Coverage: who ran what</h2>
 <p class="note" style="font-size:12px;color:#8b96a3">Record counts per instrument. Every section below compares only within one instrument — cross-section ranks are never computed.</p>
 <div style="overflow-x:auto"><table id="cov"></table></div>
 <div class="chart"><h2>Capability radar (headline metric per suite, higher is better)</h2>
-<p class="note">One axis per suite. Lint = clean rate, NetDiag/DevOps = mean score, Agentic = pass^k reliability, rest = accuracy.</p><div id="c-radar"></div></div>
+<p class="note">One axis per suite. Lint = clean rate, NetDiag/DevOps = mean score, Agentic = pass^k reliability, rest = accuracy. One cell is a broken-backend artifact and is marked everywhere it appears: nemotron's agentic score comes from a llama.cpp build that cannot emit a parseable tool call, so its chains could not use tools (the same weights reach 0.895 through Ollama). It is drawn here as measured, but it is not a like-for-like comparison — see the ⚠ n/c marks below.</p><div id="c-radar"></div></div>
 <div class="chart"><h2>Custom suites — accuracy with 95% Wilson intervals</h2>
 <p class="note">Whiskers are exact 95% Wilson intervals (never the normal approximation). Hover for n and chance baseline.</p><div id="c-custom" style="height:460px"></div></div>
 <div class="chart"><h2>Standard s30 suites — accuracy with 95% Wilson intervals</h2>
@@ -418,6 +447,8 @@ if (ONLY) {
 function pct(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
 function tipOf(m, c, cell){
   if(!cell || cell.v==null) return `${m.label}<br/>${D.short[c]}: — (not run)`;
+  if(m.broken && m.broken[c]) return `${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b><br/>`+
+    `<span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
   if(m.gaps&&m.gaps.length) { /* gap badge shown next to the model name */ }
   let t = `${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b>`;
   if(cell.lo!=null) t += `<br/>95% CI ${pct(cell.lo)} – ${pct(cell.hi)} · n=${cell.n}`;
@@ -445,7 +476,11 @@ function barsWithCI(id, cats, models, rotate, fs){
   const series = [];
   models.forEach((m,mi)=>{
     series.push({name:m.label,type:'bar',itemStyle:{color:m.color},
-      data:cats.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:'-';}),
+      data:cats.map(c=>{const x=m.cats[c];
+        if(!x||x.v==null) return '-';
+        if(m.broken&&m.broken[c]) return {value:x.v,itemStyle:{
+          color:'#39424e',borderColor:'#f0c674',borderWidth:1.5,borderType:'dashed'}};
+        return x.v;}),
       barGap:'18%', barCategoryGap:'32%'});
   });
   // whisker data: [catIndex, modelIndex, lo, hi]
@@ -489,7 +524,8 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
   const cats=[...D.custom,...D.std], data=[];
   D.models.forEach((m,mi)=>cats.forEach((c,ci)=>{
     const x=m.cats[c];
-    data.push([ci,mi,x&&x.v!=null?Math.round(x.v*1000)/1000:null]);
+    const brk = m.broken && m.broken[c];
+    data.push([ci,mi,x&&x.v!=null?Math.round(x.v*1000)/1000:null,brk?1:0]);
   }));
   mk('c-heat').setOption({tooltip:{formatter:p=>{
       const m=D.models[p.value[1]],c=cats[p.value[0]];return tipOf(m,c,m.cats[c]);}},
@@ -499,7 +535,8 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
     visualMap:{min:0,max:1,calculable:true,orient:'vertical',right:0,top:'middle',
       textStyle:{color:'#9aa4b2'},inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
     series:[{type:'heatmap',data,label:{show:true,fontSize:9,color:'#fff',
-      formatter:p=>p.value[2]==null?'—':p.value[2]}}]});
+      formatter:p=>p.value[2]==null?'—':(p.value[3]?'⚠'+p.value[2]:p.value[2])},
+      itemStyle:{borderColor:'#11161d',borderWidth:1}}]});
 })();
 /* 4. efficiency */
 (function(){
@@ -580,7 +617,7 @@ agenticChart('c-agent', D.models);
     h+=`<tr><td>${D.short[c]}</td>`+D.models.map(m=>{
       const x=m.cats[c];
       if(!x||x.v==null) return '<td>—</td>';
-      let s=`<b>${pct(x.v)}</b>`;
+      let s=`<b>${pct(x.v)}</b>${(m.broken&&m.broken[c])?' <span class="warn" title="'+m.broken[c]+'">⚠ n/c</span>':''}`;
       if(x.lo!=null) s+=`<br/><span style="color:#8b96a3">${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</span>`;
       else if(x.n!=null) s+=`<br/><span style="color:#8b96a3">n=${x.n}</span>`;
       return `<td>${s}</td>`;}).join('')+'</tr>';
