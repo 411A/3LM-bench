@@ -251,6 +251,13 @@ check("a stub for an item that never succeeded stays live",
       len(_live3) == 3 and len(_sup3) == 0)
 check("a complete cell reports no errors after separation",
       R.aggregate(_live).get("t", {}).get("n_errors", 0) == 0)
+check("coverage counts agentic records by chain_id (no id field)",
+      R.coverage_report([{"task": "agentic", "rep": 0, "chain_id": "c1"},
+                         {"task": "agentic", "rep": 0, "chain_id": "c2"}],
+                        {("agentic", 0): 2}) == [])
+check("a missing agentic chain is still a gap",
+      R.coverage_report([{"task": "agentic", "rep": 0, "chain_id": "c1"}],
+                        {("agentic", 0): 2}) == ["agentic/rep0: 1/2"])
 
 print()
 if fails:

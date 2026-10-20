@@ -729,14 +729,15 @@ def split_superseded(records):
     for r in records:
         if _is_stub(r):
             continue
-        valid_by_key.setdefault((r.get("task"), r.get("rep")), set()).add(r.get("id"))
+        valid_by_key.setdefault((r.get("task"), r.get("rep")), set()).add(
+            r.get("id") or r.get("chain_id"))
     live, superseded = [], []
     for r in records:
         if not _is_stub(r):
             live.append(r)
             continue
         key = (r.get("task"), r.get("rep"))
-        raw = str(r.get("id", ""))
+        raw = str(r.get("id") or r.get("chain_id") or "")
         item = raw[:-6] if raw.endswith("#ERROR") else raw
         if item == r.get("task"):
             covered = bool(valid_by_key.get(key))          # rep-level stub
@@ -756,9 +757,11 @@ def coverage_report(records, expected):
     """
     valid_ids = {}
     for r in records:
-        if "ERROR" in str(r.get("id", "")) or r.get("stopped") in ("error", "exception"):
+        if _is_stub(r):
             continue
-        valid_ids.setdefault((r.get("task"), r.get("rep")), set()).add(r.get("id"))
+        # Agentic records carry `chain_id`; every other family carries `id`.
+        valid_ids.setdefault((r.get("task"), r.get("rep")), set()).add(
+            r.get("id") or r.get("chain_id"))
     gaps = []
     for (tname, trep), n_exp in sorted(expected.items()):
         got_n = len(valid_ids.get((tname, trep), ()))
