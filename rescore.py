@@ -49,6 +49,8 @@ def main():
     files = []
     for p in pats:
         files.extend(sorted(glob.glob(p, recursive=True)))
+    # Never touch retired evidence.
+    files = [f for f in files if "/attic/" not in f.replace(os.sep, "/")]
     files = [f for f in files if not f.endswith("speed.json")]
 
     for f in files:

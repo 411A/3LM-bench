@@ -100,9 +100,11 @@ def main():
     files = sorted(glob.glob(os.path.join(RESULTS, "**", "*.json"),
                                  recursive=True))
     # Backend separation is structural: results/ollama/ vs results/llamacpp/.
-    # Rows are namespaced "label (backend)" so cross-backend rows can never
-    # be mistaken for same-setup comparisons. speed.json (a dict of probes,
-    # not a run) is skipped.
+    # Rows are namespaced "file (backend)" — NOT bare labels — because one
+    # model has many files (screening, qualifier, cs, agentic) and keying by
+    # label silently dropped all but one (data loss in presentation).
+    # results/attic/ holds retired evidence and is never reported.
+    files = [f for f in files if "/attic/" not in f.replace(os.sep, "/")]
     runs = []
     for f in files:
         try:
@@ -114,16 +116,14 @@ def main():
         name = os.path.basename(f)[:-5]
         if args.filter and args.filter not in name:
             continue
-        runs.append(d)
+        runs.append((f, d))
     if not runs:
         raise SystemExit(f"no results in {RESULTS}")
-    runs.sort(key=lambda d: d["config"].get("started_unix", 0))
+    runs.sort(key=lambda fd: fd[1]["config"].get("started_unix", 0))
 
     rows = {}
-    for d in runs:
-        base = (d["config"].get("label")
-                or os.path.basename(d["config"]["model"])
-                .replace("/", "_").replace(":", "_"))
+    for f, d in runs:
+        base = os.path.basename(f)[:-5]
         be = d["config"].get("backend", "?")
         rows[f"{base} ({be})"] = d
 
