@@ -129,6 +129,18 @@ if "ollama" in found:
     assert idx == 1 and letter == "B" and mass > 0.5, \
         f"ollama probe picked {letter} mass={mass}"
     print(f"E2E OK ollama/{name}: picked B, mass={mass:.3f}")
+    # Unload again: a model left resident in Ollama holds gigabytes and
+    # makes the NEXT benchmark run share the box with it (the preflight
+    # then waits for a quiet box that never comes).
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(
+                "http://127.0.0.1:11434/api/generate",
+                data=json.dumps({"model": name, "keep_alive": 0}).encode(),
+                headers={"Content-Type": "application/json"}), timeout=60)
+        print("E2E OK: ollama model unloaded, box left clean")
+    except Exception as e:
+        print(f"E2E WARN: could not unload {name}: {e}")
 print("E2E DONE")
 PY
   [ $? -eq 0 ] && pass e2e || fail e2e
