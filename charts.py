@@ -36,9 +36,12 @@ CIKEY = {"code": "ci95_wilson", "bugfix": "ci95_wilson", "algo": "ci95_wilson",
 CUSTOM_CATS = ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp",
                "science", "electronics", "persian", "english",
                "netdiag", "devops", "lint", "agentic"]
+# The s30 instrument only. MMLU-CS-100 is a DIFFERENT instrument (a decider
+# suite with its own section and its own runs in <label>-cs.json); leaving it
+# in this axis rendered an empty column for every model.
 STD_CATS = ["std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
             "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_belebele_fa_s30",
-            "std_mmlu_s30", "std_gsm8k_s30", "std_mmlu_cs"]
+            "std_mmlu_s30", "std_gsm8k_s30"]
 SHORT = {"code": "Code", "bugfix": "BugFix", "algo": "Algo", "refactor": "Refactor",
          "rust": "Rust", "embedded_cpp": "Embed-C++", "science": "Science",
          "electronics": "Electronics", "persian": "Persian", "english": "English",
@@ -97,6 +100,7 @@ def main():
     files = sorted(f for f in glob.glob(os.path.join(RESULTS, "*.json"))
                    if not f.endswith("-q.json") and not f.endswith("-cs.json")
                    and not f.endswith("-agentic.json")
+                   and not f.endswith("-gsm8k.json")
                    and not f.endswith("-medical.json")
                    and not f.endswith("-coder.json")
                    and not f.endswith("-embedded.json"))
@@ -138,13 +142,25 @@ def main():
         dg = d.get("provenance", {}).get("model_digest", {}) or {}
         lab = label or os.path.basename(f)[:-5]
         # Coverage gaps of every file that feeds this row: an incomplete run
-        # must be visible on the page, not hidden behind a missing cell.
+        # must be visible on the page, not hidden behind a missing cell. A
+        # gap in a cell that is DISPLAYED from a deeper, complete file is not
+        # a gap of this row (the deeper file already answered it).
+        deep_by_task = {}
+        for suf, dd in deep_data.items():
+            deep_by_task["agentic" if suf == "-agentic.json" else "std_gsm8k_s30"] = dd
+        base_name = os.path.basename(f)
         gaps = []
-        for src_name, dd in [(os.path.basename(f), d)] + list(deep_data.items()):
+        for src_name, dd in [(base_name, d)] + list(deep_data.items()):
             g = dd.get("coverage_gaps")
-            if g:
-                gaps += [f"{src_name}: {x}" for x in g]
-            elif dd.get("partial"):
+            for x in (g or []):
+                task = x.split("/")[0]
+                if src_name == base_name:
+                    deep = deep_by_task.get(task)
+                    if deep is not None and not (deep.get("coverage_gaps")
+                                                 or deep.get("partial")):
+                        continue
+                gaps.append(f"{src_name}: {x}")
+            if not g and dd.get("partial"):
                 gaps.append(f"{src_name}: incomplete run (stubs or unrun tasks)")
         return {
             "label": lab,
