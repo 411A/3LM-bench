@@ -542,8 +542,9 @@ agenticChart('c-agent', D.models);
     const vals=QC.map(c=>m.cats[c]).filter(x=>x&&x.v!=null).map(x=>x.v);
     const macro=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'—';
     const code=m.cats.code, ag=m.cats.agentic;
+    const ci=x=>x&&x.lo!=null?` [${x.lo},${x.hi}]`:'';
     h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td>${macro}</td>`+
-      `<td>${code&&code.v!=null?code.v:'—'}</td><td>${ag&&ag.v!=null?ag.v:'—'}</td></tr>`;
+      `<td>${code&&code.v!=null?code.v+ci(code):'—'}</td><td>${ag&&ag.v!=null?ag.v+ci(ag):'—'}</td></tr>`;
   });
   document.getElementById('tbl-q').innerHTML=h;
 })();
