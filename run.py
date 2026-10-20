@@ -1265,7 +1265,10 @@ def main():
     log(f"mem      : {mi['MemTotal']//1024} MiB total, {mi['MemAvailable']//1024} MiB available, "
         f"swap free {mi.get('SwapFree',0)//1024} MiB")
 
-    records, t_start = [], time.monotonic()
+    # t_start is a MONOTONIC base (for elapsed); t_wall is the wall clock.
+    # They were conflated: "started_unix" held monotonic seconds, so every
+    # result file claimed to start in 1970 and no run could be dated.
+    records, t_start, t_wall = [], time.monotonic(), time.time()
     server_dead = False
     consec_err = 0
     # Coverage ledger: expected (task, rep) -> item count, and the set of
@@ -1325,7 +1328,9 @@ def main():
             gaps = coverage_report(live, expected)
             with open(out_path, "w") as f:
                 json.dump({"schema": "llmbench/1", "config": cfg, "config_hash": cfg_hash,
-                           "started": t_start, "elapsed_s": round(time.monotonic() - t_start, 1),
+                           "started_unix": t_wall,
+                           "started_monotonic": t_start,
+                           "elapsed_s": round(time.monotonic() - t_start, 1),
                            "provenance": provenance,
                            "summary": agg, "records": live,
                            "superseded_stubs": superseded,
@@ -1475,7 +1480,8 @@ def main():
     result = {
         "schema": "llmbench/1",
         "config": cfg, "config_hash": cfg_hash,
-        "started_unix": t_start, "elapsed_s": round(time.monotonic() - t_start, 1),
+        "started_unix": t_wall, "started_monotonic": t_start,
+        "elapsed_s": round(time.monotonic() - t_start, 1),
         "provenance": provenance,
         "host": {"mem_total_mib": mi["MemTotal"] // 1024,
                  "mem_available_end_mib": mi["MemAvailable"] // 1024,

@@ -11,6 +11,7 @@ Usage:
   python3 charts.py --out reports/screening-2026-10-18.html --title "llmbench screening"
 """
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -91,6 +92,11 @@ def cell(summary, cat):
             "n": n, "chance": s.get("chance_baseline")}
 
 
+# The llama-server build swap: ~/ollama-work/run-llama.sh pointed at
+# llama-b11558 until this moment, llama-b11714 afterwards.
+UPGRADE_TS = datetime.datetime(2026, 10, 17, 11, 6).timestamp()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(REPORTS, "screening.html"))
@@ -141,6 +147,16 @@ def main():
                   if cats[c] and isinstance(cats[c]["v"], (int, float))]
         dg = d.get("provenance", {}).get("model_digest", {}) or {}
         lab = label or os.path.basename(f)[:-5]
+        # Server build, per file: captured in the provenance when the run
+        # happened, otherwise inferred from the file's completion date (the
+        # launcher served b11558 until 2026-10-17 11:06, b11714 after). The
+        # qualifier instrument is entirely b11558; screening/CS-100/agentic are
+        # b11714. Instruments are never compared across eras.
+        ver = (d.get("provenance", {}) or {}).get("versions", {}) or {}
+        server = ver.get("llama_server")
+        if not server:
+            server = ("b11558 (inferred)" if os.path.getmtime(f) < UPGRADE_TS
+                      else "b11714 (inferred)")
         # Coverage gaps of every file that feeds this row: an incomplete run
         # must be visible on the page, not hidden behind a missing cell. A
         # gap in a cell that is DISPLAYED from a deeper, complete file is not
@@ -167,6 +183,7 @@ def main():
             "color": famcolor(lab),
             "fileGB": round((dg.get("size_bytes") or 0) / 1e9, 2),
             "digest": str(dg.get("digest", ""))[-12:],
+            "server": server,
             "macro_custom": round(sum(vals_c) / len(vals_c), 4) if vals_c else None,
             "macro_std": round(sum(vals_s) / len(vals_s), 4) if vals_s else None,
             "mean_tps": (d.get("backend_totals") or {}).get("mean_gen_tps"),
@@ -218,10 +235,15 @@ def main():
             continue
         s = d.get("summary", {})
         lab = os.path.basename(f)[:-5]
+        qver = (d.get("provenance", {}) or {}).get("versions", {}) or {}
+        qserver = qver.get("llama_server") or (
+            "b11558 (inferred)" if os.path.getmtime(f) < UPGRADE_TS
+            else "b11714 (inferred)")
         qualifier.append({
             "label": lab, "color": famcolor(lab),
             "cats": {c: cell(s, c) for c in qcats},
             "n_recs": len(d.get("records", [])),
+            "server": qserver,
         })
     # ---- agentic deep-dive: dedicated 19-chain files (both backends) plus
     # screening subsets for models without one. The ollama rows live ONLY
@@ -359,9 +381,9 @@ code{background:#1d2630;padding:1px 6px;border-radius:6px}
 <div class="chart"><h2>Agentic: reliability, trace, answer-only</h2>
 <p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div></div>
 <div class="chart"><h2>Throughput: mean decode tok/s</h2>
-<p class="note">Server-side counters on identical prompts per model; wall-clock cross-checked. MC suites excluded (1 token each). Cross-era caution: runs began on different server builds — re-running all finalists on one build before publishing.</p><div id="c-tps" style="height:340px"></div></div>
+<p class="note">Server-side counters on identical prompts per model; wall-clock cross-checked. MC suites excluded (1 token each). Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714. Every comparison on this page is within one instrument, so no comparison ever spans two builds.</p><div id="c-tps" style="height:340px"></div></div>
 <div class="chart"><h2>Qualifier: identical fast subsets, all models</h2>
-<p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div></div>
+<p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. All six qualifier runs share ONE server build (b11558, 2026-10-17) so the ranking is internally consistent; the screening instrument was measured on b11714. The two are never compared with each other. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div></div>
 <div style="overflow-x:auto"><table id="tbl-q"></table></div>
 <div class="chart"><h2>Agentic deep-dive: every model with 19-chain evidence</h2>
 <p class="note">Deep files (19 chains) plus screening subsets (8 chains, chain count shown) for models without one. pass^k requires tool use; compare within equal chain counts.</p><div id="c-deep" style="height:380px"></div></div>
@@ -377,7 +399,7 @@ const D = __DATA__;
 document.title = D.meta.title;
 document.getElementById('t').textContent = D.meta.title;
 document.getElementById('chips').innerHTML =
-  D.models.map(m=>`<span class="chip"><b style="color:${m.color}">●</b> ${m.label} · ${m.fileGB} GB · <code>…${m.digest}</code> · ${m.elapsed_h} h${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠ incomplete</span>':''}</span>`).join('');
+  D.models.map(m=>`<span class="chip"><b style="color:${m.color}">●</b> ${m.label} · ${m.fileGB} GB · <code>…${m.digest}</code> · ${m.elapsed_h} h · server ${m.server}${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠ incomplete</span>':''}</span>`).join('');
 document.getElementById('foot').innerHTML =
   `Scores: per-suite headline with 95% Wilson intervals; MC figures carry chance baselines and exact binomial p-values in the JSON. ` +
   `PRIMARY-STD and PRIMARY-CUSTOM macro-means are shown as ★ AVG in the table. ` +
