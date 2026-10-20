@@ -75,7 +75,7 @@ list_models() {
 [ ! -x "$BIN" ] && die "llama-server not found at $BIN"
 
 # ---- arg parsing (menus for anything not given) ----
-DRYRUN=0; LIMIT=""; OUT_OVERRIDE=""; RESUME_MODE=0
+DRYRUN=0; LIMIT=""; OUT_OVERRIDE=""; RESUME_MODE=0; UNTIL_COMPLETE=0
 WANT=""; PROFILE=""
 ARGS=("$@")
 i=0
@@ -87,7 +87,10 @@ while [ $i -lt $# ]; do
     --limit) i=$((i+1)); LIMIT="${ARGS[$i]:?--limit needs a number}";;
     --limit=*) LIMIT="${a#--limit=}";;
     --out) i=$((i+1)); OUT_OVERRIDE="${ARGS[$i]:?--out needs a path}";;
-    --resume) RESUME_MODE=1;;    pilot|screening|custom|qualifier) PROFILE="$a";;
+    --resume) RESUME_MODE=1;;
+    --until-complete) i=$((i+1)); UNTIL_COMPLETE="${ARGS[$i]:?--until-complete needs rounds}";;
+    --until-complete=*) UNTIL_COMPLETE="${a#--until-complete=}";;
+    pilot|screening|custom|qualifier) PROFILE="$a";;
     tasks=*) PROFILE="$a";;
     --*) die "unknown flag $a";;
     *) [ -z "$WANT" ] && WANT="$a" || die "extra arg $a";;
@@ -204,6 +207,14 @@ model_out() { # sets OUT DIAG
   [ -n "${OUT_OVERRIDE:-}" ] && OUT="${OUT_OVERRIDE//\{label\}/$LABEL}" && DIAG=0
 }
 
+model_out_for() { # $1=label -> prints its OUT path (for resume bookkeeping)
+  local _save="$LABEL"
+  LABEL="$1"
+  model_out
+  printf '%s' "$OUT"
+  LABEL="$_save"
+}
+
 server_up() {
   [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' \
     "http://127.0.0.1:$PORT/health")" = 200 ]
@@ -255,6 +266,15 @@ run_one() { # $1=label, $2=k/n for banner
   if [ "$DRYRUN" = 1 ]; then say "(dry run — nothing started)"; return 0; fi
 
   wait_for_mem
+
+  # A partial file means the last run died or aborted mid-way: its server is
+  # either dead or fat. Never reuse it — restart for a fresh memory window.
+  # (Reusing a 5GB server is how one OOM becomes two.)
+  if [ -s "$OUT" ] && python3 -c "import json,sys; sys.exit(0 if json.load(open('$OUT')).get('partial') else 1)" 2>/dev/null; then
+    say "previous run partial — restarting server for a fresh memory window"
+    pkill -f "llama-server.*$PORT" 2>/dev/null || true
+    sleep 5
+  fi
 
   # Stray servers from killed runs squat on GBs and corrupt every timing
   # number. Mine is identified by PORT; anything else gets named, not killed.
@@ -389,7 +409,13 @@ if ! ollama_loaded; then
 fi
 
 # ---- the queue: strictly one model at a time ----
-DONE=(); FAILED=()
+# --until-complete N: after each model, while its OUT is partial and progress
+# is being made, restart the server and resume (up to N extra rounds). This
+# grinds through tasks no single server lifetime can finish (e.g. 30 long
+# generations on a 7.6GB box). Stops early on completion OR on a round with
+# zero new records (no progress = BLOCKED, not slow).
+DONE=(); FAILED=(); PARTIAL_DONE=()
+rec_count() { python3 -c "import json; print(len(json.load(open('$1')).get('records',[])))" 2>/dev/null || echo 0; }
 k=0
 for m in "${MODELS[@]}"; do
   k=$((k + 1))
@@ -397,6 +423,22 @@ for m in "${MODELS[@]}"; do
     DONE+=("$m")
   else
     FAILED+=("$m")
+  fi
+  if [ "${UNTIL_COMPLETE:-0}" -gt 0 ] && [ "${#MODELS[@]}" -eq 1 ] && [ "$DRYRUN" != 1 ]; then
+    rounds=0
+    while [ "$rounds" -lt "$UNTIL_COMPLETE" ]; do
+      out_f=$(model_out_for "$m") || break
+      python3 -c "import json,sys; sys.exit(0 if json.load(open('$out_f')).get('partial') else 1)" 2>/dev/null || break
+      before=$(rec_count "$out_f")
+      rounds=$((rounds + 1))
+      say "---- resume round $rounds/$UNTIL_COMPLETE for $m ($before records banked) ----"
+      run_one "$m" "$k/${#MODELS[@]} round$rounds" || true
+      after=$(rec_count "$out_f")
+      if [ "$after" -le "$before" ]; then
+        say "no progress in round $rounds ($before records) — BLOCKED, stopping"
+        break
+      fi
+    done
   fi
 done
 
