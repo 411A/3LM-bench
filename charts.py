@@ -112,15 +112,21 @@ def main():
     def build_row(f, label=None, agentic_pref=True):
         d = json.load(open(f))
         s = d.get("summary", {})
-        ag_sum = s
-        if agentic_pref:
-            ag_file = os.path.join(RESULTS, os.path.basename(f)[:-5] + "-agentic.json")
-            if os.path.exists(ag_file):
+        deep_src = {}
+        # Deepest-available samples: dedicated <label>-agentic.json /
+        # <label>-gsm8k.json runs supersede the screening subset for those
+        # cells only (chain/item counts stay visible, never silently mixed).
+        for suffix in ("-agentic.json", "-gsm8k.json"):
+            fp = os.path.join(RESULTS, os.path.basename(f)[:-5] + suffix)
+            if os.path.exists(fp):
                 try:
-                    ag_sum = json.load(open(ag_file)).get("summary", s)
+                    deep_src[suffix] = json.load(open(fp)).get("summary", s)
                 except Exception:
                     pass
-        cats = {c: cell(ag_sum if c == "agentic" else s, c)
+        ag_sum = deep_src.get("-agentic.json", s) if agentic_pref else s
+        gs_sum = deep_src.get("-gsm8k.json", s)
+        cats = {c: cell(ag_sum if c == "agentic" else
+                        gs_sum if c == "std_gsm8k_s30" else s, c)
                 for c in CUSTOM_CATS + STD_CATS}
         vals_c = [cats[c]["v"] for c in CUSTOM_CATS
                   if cats[c] and isinstance(cats[c]["v"], (int, float))]
@@ -144,7 +150,7 @@ def main():
                         ("pass_hat_k_reliability", "per_trial_trace_rate",
                          "final_answer_accuracy_no_tools_required",
                          "mean_tool_calls", "fabrication_rate", "n_chains")},
-            "tps": {c: (s.get(c) or {}).get("gen_tps_mean")
+            "tps": {c: ((gs_sum if c == "std_gsm8k_s30" else s).get(c) or {}).get("gen_tps_mean")
                     for c in ("code", "std_gsm8k_s30")},
         }
 
