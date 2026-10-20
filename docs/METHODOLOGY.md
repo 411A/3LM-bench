@@ -599,7 +599,38 @@ rather than a hope. Full incident write-up: `REVIEW4.md`.
 | Stubs counted as progress | resume loop sees "records" | progress counted from valid records only |
 | Checkpoint written without `partial` | resume loop thinks it is done | checkpoint carries `partial` + `coverage_gaps` |
 
-### 7.3 Rules of engagement on this box
+### 7.3 What a power cut costs (measured, not assumed)
+
+`crashtest.py` (gate `crash`) simulates a power cut - a process that dies
+with no cleanup, no flush and no final write - in the middle of a run, and
+then resumes it. The measured result:
+
+| Question | Measured answer |
+|----------|-----------------|
+| Is the checkpoint file valid JSON afterwards? | Yes - writes are atomic (temp file + `fsync` + `os.replace`), so the file on disk is always the previous complete checkpoint or the new complete one, never a half-written one |
+| Are the items scored before the cut still there? | Yes - every item is checkpointed the moment it is scored |
+| How many items are lost? | **One** - the one in flight |
+| Does the resume re-run completed items? | No - resume is item-level: an item is skipped only if a record for it exists; a *stub* (a failed attempt) never counts as done, so failed items always re-run |
+| Are there duplicates afterwards? | No - every item is present exactly once |
+
+To continue after a power cut:
+
+```bash
+bash close_coverage.sh          # gap-based: re-checks every (model, instrument)
+                                # cell and runs only what is still missing
+bash run_llama.sh <model> screening --resume --until-complete 6   # one cell
+```
+
+The driver is idempotent: it asks "which (model, instrument) cells are
+missing or incomplete?" and works only on those, so restarting it after a
+reboot continues exactly where the queue stopped.
+
+`results/` is not in git (generated data, by policy), so the last line of
+defence is `snapshot.sh`: after every completed instrument the evidence
+(`results/`, `reports/`, `tasks/`, manifests) is archived to
+`~/llmbench-backups/llmbench-<timestamp>.tar.gz`, keeping the newest 20.
+
+### 7.4 Rules of engagement on this box
 - One model resident at a time; one run at a time (enforced by a lock).
 - Never reuse a server whose previous run was partial — it is holding the
   memory that caused the abort. Restart for a fresh window.

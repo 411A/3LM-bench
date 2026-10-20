@@ -4,13 +4,13 @@
 #   bash gates.sh              # all gates (e2e auto-skips without live servers)
 #   bash gates.sh unit policy  # only these gates
 #
-# Gates: compiler | lint | policy | plan | unit | integration | audit | e2e | perf
+# Gates: compiler | lint | policy | plan | unit | integration | crash | audit | e2e | perf
 # Any gate failure exits non-zero. Nothing here runs a model except e2e,
 # which issues exactly 2 single-token probes and skips cleanly offline.
 set -uo pipefail
 cd "$(dirname "$0")"
 
-GATES="${*:-compiler lint policy plan unit integration audit e2e perf}"
+GATES="${*:-compiler lint policy plan unit integration crash audit e2e perf}"
 FAIL=()
 say() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 pass() { say "GATE PASS: $1"; }
@@ -75,6 +75,11 @@ fi
 if want integration; then
   say "--- integration: stub backend through all 30 runners ---"
   if python3 validate.py 2>&1 | tail -1 | grep -q "VALIDATE OK"; then pass integration; else fail integration; fi
+fi
+
+if want crash; then
+  say "--- crash: a power cut must cost one item, and the resume must continue ---"
+  if python3 crashtest.py 2>&1 | tail -2; then pass crash; else fail crash; fi
 fi
 
 if want audit; then

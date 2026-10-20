@@ -709,6 +709,53 @@ GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
 
 
+def pending_items(tasks, name, rep, done_ids):
+    """Items of (task, rep) that still have to run.
+
+    Item-level resume: an item is skipped only if a record for it is ALREADY
+    in the file. A stub never matches (its id carries the #ERROR suffix), so a
+    failed item always re-runs - and a completed item is never re-run, which
+    is what makes a power cut cost one item instead of the whole run.
+    """
+    return [t for t in tasks if (name, rep, t.get("id")) not in done_ids]
+
+
+def write_atomic(path, payload):
+    """Write JSON so that a power cut can never corrupt the file.
+
+    A plain open(path, "w") truncates first: a power cut during the write
+    leaves a half-written file, and the next resume would find unparseable
+    JSON and start the whole run from zero - the exact loss the checkpoint
+    exists to prevent. Writing to a sibling temp file and renaming it is
+    atomic on POSIX: the file on disk is always either the previous
+    complete checkpoint or the new complete one.
+    """
+    tmp = f"{path}.tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=1)
+            f.flush()
+            os.fsync(f.fileno())
+    except BaseException:
+        # A failed write must not leave debris next to the real file, and
+        # must not touch the previous checkpoint.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    os.replace(tmp, path)
+    # fsync the directory so the rename itself survives a power cut.
+    try:
+        dfd = os.open(os.path.dirname(path) or ".", os.O_RDONLY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
+    except (OSError, AttributeError):
+        pass
+
+
 def _is_stub(r):
     return ("ERROR" in str(r.get("id", ""))
             or r.get("stopped") in ("error", "exception"))
@@ -1326,17 +1373,17 @@ def main():
             # a killed run leaves behind, and the resume loop decides whether
             # to keep going by reading exactly this file.
             gaps = coverage_report(live, expected)
-            with open(out_path, "w") as f:
-                json.dump({"schema": "llmbench/1", "config": cfg, "config_hash": cfg_hash,
-                           "started_unix": t_wall,
-                           "started_monotonic": t_start,
-                           "elapsed_s": round(time.monotonic() - t_start, 1),
-                           "provenance": provenance,
-                           "summary": agg, "records": live,
-                           "superseded_stubs": superseded,
-                           "coverage_gaps": gaps,
-                           "partial": bool(gaps) or bool(server_dead),
-                           "backend_totals": b.summary()}, f, ensure_ascii=False, indent=1)
+            payload = {"schema": "llmbench/1", "config": cfg, "config_hash": cfg_hash,
+                       "started_unix": t_wall,
+                       "started_monotonic": t_start,
+                       "elapsed_s": round(time.monotonic() - t_start, 1),
+                       "provenance": provenance,
+                       "summary": agg, "records": live,
+                       "superseded_stubs": superseded,
+                       "coverage_gaps": gaps,
+                       "partial": bool(gaps) or bool(server_dead),
+                       "backend_totals": b.summary()}
+            write_atomic(out_path, payload)
             log(f"  [checkpoint written: {len(records)} records]")
 
         # A suspend/OOM kill must still leave the file with everything scored
@@ -1345,8 +1392,7 @@ def main():
 
         t0 = time.monotonic()
         for rep in range(reps_here):
-            pending = [t for t in tasks
-                       if (name, rep, t.get("id")) not in done_ids]
+            pending = pending_items(tasks, name, rep, done_ids)
             if not pending:
                 log(f"  rep {rep + 1}/{reps_here} already complete; skipping")
                 continue
@@ -1505,8 +1551,7 @@ def main():
     if result["partial"]:
         log("WARNING: PARTIAL run — stubbed/unrun tasks present; "
             "resume after fixing the backend, do not quote these scores")
-    with open(out_path, "w") as f:
-        json.dump(result, f, ensure_ascii=False, indent=1)
+    write_atomic(out_path, result)
     log(f"=== done in {(time.monotonic()-t_start)/60:.1f} min -> {out_path}")
     for cat, s in result["summary"].items():
         log(f"    {cat:<16} {json.dumps({k: v for k, v in s.items() if k != 'by_subject'})[:190]}")

@@ -101,6 +101,9 @@ run_instrument() { # $1 = instrument key, $2 = model
     || say "$key: $m did not finish cleanly (see $LOG_DIR/$m-$key.log)"
   if complete "$file"; then
     say "$key: $m COMPLETE"
+    # Snapshot the evidence: a power cut cannot lose it (the checkpoint
+    # protocol), but a dead disk can.
+    bash snapshot.sh >/dev/null 2>&1 || say "snapshot failed (non-fatal)"
   else
     say "$key: $m still has gaps — left marked as incomplete (never quoted)"
   fi

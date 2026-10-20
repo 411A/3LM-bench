@@ -7,6 +7,7 @@ score_gsm8k, normalize_fa, netdiag_verdict/score_netdiag, check_devops
 (keyword echo MUST fail, genuine artifact MUST pass), mc_bundle chance math,
 stub exclusion in aggregate.
 """
+import json
 import os
 import sys
 
@@ -258,6 +259,30 @@ check("coverage counts agentic records by chain_id (no id field)",
 check("a missing agentic chain is still a gap",
       R.coverage_report([{"task": "agentic", "rep": 0, "chain_id": "c1"}],
                         {("agentic", 0): 2}) == ["agentic/rep0: 1/2"])
+
+# ---- power-cut primitives: atomic writes and item-level resume --------
+import tempfile as _tf
+_d = _tf.mkdtemp()
+_p = os.path.join(_d, "ckpt.json")
+R.write_atomic(_p, {"records": [1, 2, 3]})
+check("atomic write produces a readable file",
+      json.load(open(_p))["records"] == [1, 2, 3])
+try:
+    R.write_atomic(_p, {"records": "not-json-ok", "x": object()})
+except Exception:
+    pass
+check("a failed write leaves the previous checkpoint intact",
+      json.load(open(_p))["records"] == [1, 2, 3])
+check("a failed write leaves no temp file",
+      not os.path.exists(_p + ".tmp"))
+_t = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+check("pending_items skips only completed items",
+      [x["id"] for x in R.pending_items(_t, "t", 0, {("t", 0, "b")})] == ["a", "c"])
+check("a stub never counts as done (failed items re-run)",
+      [x["id"] for x in R.pending_items(_t, "t", 0, {("t", 0, "b#ERROR")})]
+      == ["a", "b", "c"])
+check("a different rep is a different item",
+      [x["id"] for x in R.pending_items(_t, "t", 1, {("t", 0, "a")})] == ["a", "b", "c"])
 
 print()
 if fails:
