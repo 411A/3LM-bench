@@ -77,11 +77,15 @@ if (ONLY) {
   const _mk = mk;
   mk = function(id){ if(!id.includes(ONLY)) return {setOption(){},resize(){}}; return _mk(id); };
 }
+function pct(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
 function tipOf(m, c, cell){
-  if(!cell || cell.v==null) return `${m.label}<br/>${D.short[c]}: —`;
-  let t = `${m.label}<br/><b>${D.short[c]}: ${cell.v}</b>`;
-  if(cell.lo!=null) t += `<br/>95% CI [${cell.lo}, ${cell.hi}] · n=${cell.n}`;
-  if(cell.chance!=null) t += `<br/>chance ${cell.chance}`;
+  if(!cell || cell.v==null) return `${m.label}<br/>${D.short[c]}: — (not run)`;
+  let t = `${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b>`;
+  if(cell.lo!=null) t += `<br/>95% CI ${pct(cell.lo)} – ${pct(cell.hi)} · n=${cell.n}`;
+  else if(cell.n!=null) t += `<br/>n=${cell.n}`;
+  if(cell.chance!=null) t += `<br/>chance ${pct(cell.chance)}`;
+  if(c==='agentic' && m.agentic && m.agentic.n_chains!=null)
+    t += `<br/>${m.agentic.n_chains} chains`;
   return t;
 }
 /* 1. radar */
@@ -91,7 +95,7 @@ function tipOf(m, c, cell){
   mk('c-radar').setOption({radar:{indicator:axes.map(c=>({name:D.short[c],max:1})),
     axisName:{color:'#9aa4b2',fontSize:11},splitArea:{areaStyle:{color:['#161d26','#141a22']}}},
     legend:{textStyle:{color:'#cfd6de'},bottom:0},
-    tooltip:{}, series:D.models.map(m=>({name:m.label,type:'radar',
+    tooltip:{formatter:p=>`${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b>`}, series:D.models.map(m=>({name:m.label,type:'radar',
       itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
       data:[{value:axes.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:0;}),name:m.label}]}))});
 })();
@@ -161,7 +165,7 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
 /* 4. efficiency */
 (function(){
   mk('c-eff').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{formatter:p=>`${p.seriesName} · ${p.data[3]}<br/>macro ${p.data[1]} · ${p.data[0]} tok/s · ${p.data[2]} GB`},
+    tooltip:{formatter:p=>`${p.seriesName} · ${p.data[3]}<br/>macro ${pct(p.data[1])} · ${p.data[0]} tok/s · ${p.data[2]} GB`},
     xAxis:{name:'mean tok/s',...AX}, yAxis:{name:'macro-mean',max:1,...AX},
     series:['macro_custom','macro_std'].map((k,ki)=>({name:ki?'PRIMARY-STD':'PRIMARY-CUSTOM',
       type:'scatter',symbolSize:d=>18+Math.sqrt(d[2])*14,
@@ -198,7 +202,7 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
 (function(){
   const subs=[...new Set(D.models.flatMap(m=>Object.keys(m.mmlu)))].sort();
   mk('c-mmlu').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>`${p.seriesName}<br/>${p.name}: <b>${p.value}</b> (n=5)`},
+    tooltip:{trigger:'item',formatter:p=>`${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b> (n=5)`},
     xAxis:{type:'category',data:subs.map(s=>s.split('/')[1]||s),
       axisLabel:{color:'#9aa4b2',rotate:22,fontSize:10}},yAxis:{max:1,...AX},
     series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
@@ -211,7 +215,7 @@ function agenticChart(id, models){
     ['final_answer_accuracy_no_tools_required','answer-only']];
   mk(id).setOption({legend:{textStyle:{color:'#cfd6de'}},
     tooltip:{trigger:'item',formatter:p=>{const m=models.find(x=>x.label===p.seriesName);
-      return `${m.label}<br/>${rows[p.dataIndex][1]}: <b>${p.value}</b><br/>calls ${m.agentic.mean_tool_calls} · chains ${m.agentic.n_chains}`;}},
+      return `${m.label}<br/>${rows[p.dataIndex][1]}: <b>${pct(p.value)}</b><br/>${m.agentic.mean_tool_calls} calls/trial · ${m.agentic.n_chains} chains`;}},
     xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'}},yAxis:{max:1,...AX},
     series:models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
       data:rows.map(r=>m.agentic[r[0]]!=null?m.agentic[r[0]]:'-')}))});
@@ -231,14 +235,15 @@ agenticChart('c-agent', D.models);
   const cats=[...D.custom,...D.std];
   let h='<tr><th>suite</th>'+D.models.map(m=>`<th>${m.label}</th>`).join('')+'</tr>';
   const macC=D.models.map(m=>m.macro_custom), macS=D.models.map(m=>m.macro_std);
-  h+=`<tr><td>★ PRIMARY-CUSTOM</td>${macC.map(v=>`<td>${v!=null?v:'—'}</td>`).join('')}</tr>`;
-  h+=`<tr><td>★ PRIMARY-STD</td>${macS.map(v=>`<td>${v!=null?v:'—'}</td>`).join('')}</tr>`;
+  h+=`<tr><td>★ PRIMARY-CUSTOM</td>${macC.map(v=>`<td><b>${v!=null?pct(v):'—'}</b></td>`).join('')}</tr>`;
+  h+=`<tr><td>★ PRIMARY-STD</td>${macS.map(v=>`<td><b>${pct(v)}</b></td>`).join('')}</tr>`;
   cats.forEach(c=>{
     h+=`<tr><td>${D.short[c]}</td>`+D.models.map(m=>{
       const x=m.cats[c];
       if(!x||x.v==null) return '<td>—</td>';
-      let s=`${x.v}`;
-      if(x.lo!=null) s+=`<br/><span style="color:#8b96a3">[${x.lo}, ${x.hi}] n=${x.n}</span>`;
+      let s=`<b>${pct(x.v)}</b>`;
+      if(x.lo!=null) s+=`<br/><span style="color:#8b96a3">${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</span>`;
+      else if(x.n!=null) s+=`<br/><span style="color:#8b96a3">n=${x.n}</span>`;
       return `<td>${s}</td>`;}).join('')+'</tr>';
   });
   document.getElementById('tbl').innerHTML=h;
@@ -262,8 +267,8 @@ agenticChart('c-agent', D.models);
     const macro=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'—';
     const code=m.cats.code, ag=m.cats.agentic;
     const ci=x=>x&&x.lo!=null?` [${x.lo},${x.hi}]`:'';
-    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td>${macro}</td>`+
-      `<td>${code&&code.v!=null?code.v+ci(code):'—'}</td><td>${ag&&ag.v!=null?ag.v+ci(ag):'—'}</td></tr>`;
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td><b>${macro}</b></td>`+
+      `<td>${code&&code.v!=null?pct(code.v)+ci(code):'—'}</td><td>${ag&&ag.v!=null?pct(ag.v)+ci(ag):'—'}</td></tr>`;
   });
   document.getElementById('tbl-q').innerHTML=h;
 })();
@@ -274,7 +279,7 @@ agenticChart('c-deep', D.deep);
   let h='<tr><th>model</th><th>CS-100</th><th>95% CI</th></tr>';
   D.cs.forEach(m=>{
     const x=m.cats.std_mmlu_cs;
-    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td>${x.v}</td><td>[${x.lo}, ${x.hi}] n=${x.n}</td></tr>`;
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td><b>${pct(x.v)}</b></td><td>${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</td></tr>`;
   });
   h+='<tr><td colspan="3" style="text-align:left;color:#8b96a3">Paired McNemar on shared items, all three pairs: TIE (closest p=0.053). The s30 gap did not replicate.</td></tr>';
   document.getElementById('tbl-cs').innerHTML=h;
