@@ -72,7 +72,10 @@ def score_mc_text(answer, choices):
         return None, "none"
 
     def norm(s):
-        return _re.sub(r"[^a-z0-9 ]+", " ", s.lower()).strip()
+        # Unicode-aware: the Persian suite answers in Persian, and an
+        # ASCII-only normaliser turned every Persian answer into an empty
+        # string (so every Persian item was "unparsed").
+        return _re.sub(r"[^\w\s]+", " ", s.lower(), flags=_re.UNICODE).strip()
 
     def _letter_only(txt):
         m = _re.match(r"^\**\s*\(?([A-Z])\)?\s*\**[\s\.\):,-]*$", txt.upper())

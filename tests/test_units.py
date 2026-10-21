@@ -343,6 +343,11 @@ check("text MC: an echoed list is not scored as its own first option",
 check("text MC: an answer matching two options is NOT guessed",
       S.score_mc_text("the block", ["the block's mass", "the block's colour"])[0]
       is None)
+check("text MC: non-Latin scripts match (the Persian suite)",
+      S.score_mc_text("خانه بزرگ", ["خانه بزرگ", "ماشین کوچک"])[0] == 0)
+check("text MC: a non-Latin answer inside a sentence matches",
+      S.score_mc_text("پاسخ درست خانه بزرگ است",
+                      ["خانه بزرگ", "ماشین کوچک"])[0] == 0)
 
 print()
 if fails:
