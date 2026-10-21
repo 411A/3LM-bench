@@ -1071,8 +1071,14 @@ def aggregate(records):
             if cat in MC_CATS_TXT:
                 # Letter-mass confidence is a letter-logprob concept; the text
                 # mechanism reports its own failure mode instead.
-                entry["unparsed_rate"] = round(
-                    sum(1 for r in rs if r.get("unparsed")) / n, 4)
+                unparsed = sum(1 for r in rs if r.get("unparsed"))
+                entry["unparsed_rate"] = round(unparsed / n, 4)
+                # The honest range: an unparsed answer is counted WRONG, but
+                # it might have been right. The interval is what the
+                # mechanism cannot resolve - it is not a confidence band.
+                entry["accuracy_range"] = [
+                    round(entry["accuracy"], 4),
+                    round((entry["correct"] + unparsed) / n, 4)]
                 entry["match_kinds"] = {
                     k: sum(1 for r in rs if r.get("match_kind") == k)
                     for k in ("letter", "text", "text_in_sentence")}

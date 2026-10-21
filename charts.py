@@ -89,7 +89,8 @@ def cell(summary, cat):
         else s.get(CIKEY.get(cat, "ci95_wilson"), [None, None])
     n = s.get("n_items") or s.get("n") or s.get("n_chains")
     return {"v": v, "lo": ci[0] if ci else None, "hi": ci[1] if ci else None,
-            "n": n, "chance": s.get("chance_baseline")}
+            "n": n, "chance": s.get("chance_baseline"),
+            "range": s.get("accuracy_range")}
 
 
 # The llama-server build swap: ~/ollama-work/run-llama.sh pointed at
@@ -410,6 +411,10 @@ def main():
               if famkey(os.path.basename(f)[:-5]) == fam]
         row["cells"].append(sum(len(json.load(open(f)).get("records", []))
                                 for f in cs) or None)
+        tx = [f for f in glob.glob(os.path.join(RESULTS, "*-txt.json"))
+              if famkey(os.path.basename(f)[:-len("-txt.json")]) == fam]
+        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
+                                for f in tx) or None)
         if any(row["cells"]):
             cov_cells.append(row)
     payload = {"models": models,
@@ -726,7 +731,7 @@ agenticChart('c-agent', D.models);
 })();
 /* coverage matrix */
 (function(){
-  let h='<tr><th>model</th><th>screening recs</th><th>qualifier recs</th><th>agentic-deep recs</th><th>CS-100 recs</th></tr>';
+  let h='<tr><th>model</th><th>screening recs</th><th>qualifier recs</th><th>agentic-deep recs</th><th>CS-100 recs</th><th>text-MC recs</th></tr>';
   D.coverage.forEach(r=>{
     h+='<tr><td><b style="color:'+r.color+'">●</b> '+r.model+'</td>'+
       r.cells.map(c=>'<td>'+(c==null?'—':c)+'</td>').join('')+'</tr>';

@@ -40,6 +40,9 @@ MC = {"science", "electronics", "persian", "english",
       "std_winogrande_s30", "std_truthfulqa", "std_truthfulqa_mc_s30",
       "std_belebele_fa", "std_belebele_fa_s30", "std_mmlu", "std_mmlu_s30",
       "std_mmlu_cs"}
+# The second MC mechanism (text match): the same metric on the same items,
+# so the audit checks it exactly like the letter families.
+MC |= {c + "_txt" for c in MC}
 
 
 def is_stub(r):
