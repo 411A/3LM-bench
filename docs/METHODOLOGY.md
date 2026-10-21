@@ -697,7 +697,22 @@ mechanism measures "can this model answer the question". A model that scores
 well under one and is unmeasurable under the other is a real finding, not a
 harness failure - and it is reported as exactly that.
 
-### 7.7 Rules of engagement on this box
+### 7.7 The sandbox is on disk, and it is empty when it is done
+
+The code sandbox compiles candidate programs and runs them. On this box
+`/tmp` is a 3.8 GB **tmpfs** - RAM, not disk - and the sandbox used to write
+its build artifacts there and never delete them: ~4.3 MB per compiled
+program, 629 leftover directories after a week, **3.2 GB of RAM** the kernel
+had to swap out to accommodate. That was the source of the "high swap on an
+idle box" and of a large part of the memory pressure behind the OOM kills.
+
+The rules now: the sandbox lives on disk (`~/.llmbench-tmp`, override with
+`LLMBENCH_TMP`), every artifact is deleted after it has run (success,
+compile-error and timeout paths), stale directories are swept at start-up,
+and two unit contracts assert that the sandbox is off `/tmp` and empty
+afterwards. See `REVIEW6.md`.
+
+### 7.8 Rules of engagement on this box
 - One model resident at a time; one run at a time (enforced by a lock).
 - Never reuse a server whose previous run was partial — it is holding the
   memory that caused the abort. Restart for a fresh window.

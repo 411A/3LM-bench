@@ -35,7 +35,54 @@ import sys
 import tempfile
 import unicodedata
 
-TMP = tempfile.mkdtemp(prefix="llmbench-")
+# --------------------------------------------------------------------- sandbox
+# The sandbox lives on DISK, never in /tmp. On this box /tmp is a 3.8 GB
+# tmpfs - i.e. RAM - and the code paths below leave a compiled binary per
+# item (4.3 MB each). Nothing ever deleted them: after a week of runs there
+# were 629 leftover directories holding 3.2 GB of RAM that the kernel had
+# to swap out to accommodate. That is where the "high swap on an idle box"
+# and a large part of the memory pressure came from.
+#
+# LLMBENCH_TMP overrides the location; ~/.llmbench-tmp is the default.
+TMP_ROOT = os.environ.get("LLMBENCH_TMP") or os.path.join(
+    os.path.expanduser("~"), ".llmbench-tmp")
+try:
+    os.makedirs(TMP_ROOT, exist_ok=True)
+except OSError:
+    TMP_ROOT = tempfile.gettempdir()
+TMP = tempfile.mkdtemp(prefix="llmbench-", dir=TMP_ROOT)
+
+
+def _sweep_stale(root, max_age_s=6 * 3600):
+    """Remove sandbox directories left behind by crashed runs."""
+    import shutil
+    import time
+    now = time.time()
+    for name in os.listdir(root):
+        if not name.startswith("llmbench-"):
+            continue
+        path = os.path.join(root, name)
+        try:
+            if now - os.path.getmtime(path) > max_age_s:
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:
+            pass
+
+
+def _cleanup(*paths):
+    """Delete a compiled artifact / source file after it has been run."""
+    for p in paths:
+        try:
+            if p and os.path.exists(p):
+                os.remove(p)
+        except OSError:
+            pass
+
+
+try:
+    _sweep_stale(TMP_ROOT)
+except OSError:
+    pass
 RUFF_BIN = os.path.expanduser("~/.local/bin/ruff")
 
 # Appended after the test body. Without it, model code that exits early (or a
@@ -411,11 +458,15 @@ def run_python(code, test, timeout=8.0, mem_mb=512):
                            text=True, timeout=timeout, preexec_fn=limit,
                            env={"PATH": "/usr/bin:/bin", "HOME": TMP})
     except subprocess.TimeoutExpired:
+        _cleanup(path)
         return {"passed": False, "error": "timeout", "stage": "exec",
                 "stderr_tail": f"exceeded {timeout}s"}
     except Exception as e:  # noqa: BLE001
+        _cleanup(path)
         return {"passed": False, "error": f"harness:{type(e).__name__}",
                 "stage": "exec", "stderr_tail": str(e)[:300]}
+    finally:
+        _cleanup(path)
 
     out = (p.stderr or "")[-600:]
     # A model that calls sys.exit(0) / os._exit(0) would otherwise terminate the
@@ -500,6 +551,7 @@ def run_rust(fn_code, tests, fn_name, timeout=25.0):
     c = subprocess.run(["rustc", "--edition", "2021", "-O", "-A", "warnings",
                         "-o", binp, path], capture_output=True, text=True, timeout=timeout)
     if c.returncode != 0:
+        _cleanup(path, binp)
         err = _error_first(c.stderr)
         reason = "compile_error"
         if wrote_main and "main" in (c.stderr or ""):
@@ -513,9 +565,14 @@ def run_rust(fn_code, tests, fn_name, timeout=25.0):
                            preexec_fn=lambda: __import__("resource").setrlimit(
                                __import__("resource").RLIMIT_AS, (1024 * 1024 * 1024,) * 2))
     except subprocess.TimeoutExpired:
+        _cleanup(path, binp)
         return {"passed": False, "error": "timeout", "stage": "exec",
                 "stderr_tail": "binary timed out", "wrote_main": wrote_main,
                 "uses_test_attr": uses_test_attr}
+    finally:
+        # The compiled binary is 4-9 MB. Leaving one per item in the
+        # sandbox is what filled 3.2 GB of RAM on this box.
+        _cleanup(path, binp)
     return {"passed": r.returncode == 0 and _SENTINEL in (r.stdout or ""),
             "error": ("" if r.returncode == 0 and _SENTINEL in (r.stdout or "")
                       else ("early_exit" if r.returncode == 0 else "assertion_failed")),
@@ -852,14 +909,20 @@ def run_cpp(code, test, header, timeout=40.0):
                   if l.strip().startswith(("warning:", "note:")) and l.strip().endswith("]")])
     n_warn = len(re.findall(r"(?m)^\S+:\d+:\d+: warning:", stderr))
     if c.returncode != 0:
+        _cleanup(path)
         return {"passed": False, "error": "compile_error", "stage": "compile",
                 "stderr_tail": _error_first(stderr), "n_warnings": n_warn}
     try:
         r = subprocess.run([exe], capture_output=True, text=True, timeout=10,
                            preexec_fn=limit)
     except subprocess.TimeoutExpired:
+        _cleanup(path, exe)
         return {"passed": False, "error": "timeout", "stage": "exec",
                 "stderr_tail": "binary timed out (likely an infinite loop)", "n_warnings": n_warn}
+    finally:
+        # The compiled binary is ~4 MB. Leaving one per item in the sandbox
+        # is what filled 3.2 GB of RAM on this box.
+        _cleanup(path, exe)
     return {"passed": r.returncode == 0 and _SENTINEL in (r.stdout or ""),
             "error": ("" if r.returncode == 0 and _SENTINEL in (r.stdout or "")
                       else ("early_exit" if r.returncode == 0 else "assertion_failed")),

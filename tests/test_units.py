@@ -349,6 +349,24 @@ check("text MC: a non-Latin answer inside a sentence matches",
       S.score_mc_text("پاسخ درست خانه بزرگ است",
                       ["خانه بزرگ", "ماشین کوچک"])[0] == 0)
 
+# ---- the sandbox must not accumulate ------------------------------------
+# The code sandbox used to live in /tmp - a 3.8 GB tmpfs on this box, i.e.
+# RAM - and every compiled artifact stayed there forever: 629 leftover
+# directories, 3.2 GB of RAM, which is what filled the swap and starved the
+# benchmark. These contracts keep it on disk and keep it empty.
+check("the sandbox is on disk, not in /tmp",
+      os.path.realpath(S.TMP).startswith(
+          os.path.realpath(os.environ.get("LLMBENCH_TMP")
+                           or os.path.join(os.path.expanduser("~"), ".llmbench-tmp"))),
+      )
+_snap_before = set(os.listdir(S.TMP))
+S.run_python("def f():\n    return 1\n", "assert f() == 1\n")
+S.run_python("def g():\n    return 2\n", "assert g() == 2\n")
+_left = set(os.listdir(S.TMP)) - _snap_before
+check("the sandbox does not accumulate files after a run", not _left)
+if _left:
+    print(f"       (leftovers: {sorted(_left)[:4]})")
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")
