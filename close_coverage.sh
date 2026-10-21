@@ -100,8 +100,8 @@ run_instrument() { # $1 = instrument key, $2 = model
   # read offset and the running job dies with a syntax error (it did, at
   # 05:17 today, right after a completed run). A per-job copy makes that
   # class of accident impossible.
-  local runner="/tmp/opencode/run_llama.$$.sh"
-  mkdir -p /tmp/opencode
+  local runner
+  runner="$(mktemp "${TMPDIR:-/tmp}/llmbench-runner-XXXXXX.sh")"
   cp run_llama.sh "$runner"
   # shellcheck disable=SC2086
   bash "$runner" "$m" "$prof" --out "$out" $extra --until-complete 6 \
