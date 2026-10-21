@@ -310,6 +310,9 @@ def main():
             "n_recs": len(d.get("records", [])),
             "unparsed": {c: (s.get(c) or {}).get("unparsed_rate")
                          for c in TXT_CATS},
+            "gaps": list(d.get("coverage_gaps") or [])
+                    + (["incomplete run (stubs or unrun tasks)"]
+                       if d.get("partial") and not d.get("coverage_gaps") else []),
         })
     # ---- qualifier section: identical s30-era subsets for all six models ----
     qcats = ["science", "electronics", "persian", "english",
@@ -692,14 +695,17 @@ agenticChart('c-agent', D.models);
     left:'center',top:'middle',textStyle:{color:'#8b96a3',fontSize:13}}});return;}
   const cats=D.txt_cats;
   mk('c-txt').setOption({legend:{textStyle:{color:'#cfd6de'},top:0},
-    tooltip:{trigger:'item',formatter:p=>{const r=rows.find(x=>x.label===p.seriesName);
+    tooltip:{trigger:'item',formatter:p=>{const r=rows.find(x=>x.label===p.seriesName||x.label+' ⚠'===p.seriesName);
       const c=cats[p.dataIndex];const cell=r.cats[c];
       const un=r.unparsed&&r.unparsed[c]!=null?`<br/>unparsed ${(r.unparsed[c]*100).toFixed(1)}%`:'';
-      return `${r.label}<br/><b>${D.short[c]||c}: ${pct(cell&&cell.v)}</b><br/>n=${cell&&cell.n}${un}`;}},
+      const rng=cell&&cell.range?`<br/>range ${pct(cell.range[0])}-${pct(cell.range[1])} (an unparsed answer could have been right)`:'';
+      const gap=r.gaps&&r.gaps.length?`<br/><span style="color:#f0c674">⚠ ${r.gaps.join('; ')}</span>`:'';
+      return `${r.label}<br/><b>${D.short[c]||c}: ${pct(cell&&cell.v)}</b>${rng}<br/>n=${cell&&cell.n}${un}${gap}`;}},
     grid:{bottom:110,top:40},xAxis:{type:'category',data:cats.map(c=>(D.short[c]||c).replace('_txt','')),
       axisLabel:{color:'#9aa4b2',rotate:30,fontSize:10},axisLine:{lineStyle:{color:'#3a4756'}}},
     yAxis:{max:1,...AX},
-    series:rows.map(r=>({name:r.label,type:'bar',itemStyle:{color:r.color},
+    series:rows.map(r=>({name:r.label+(r.gaps&&r.gaps.length?' ⚠':''),
+      type:'bar',itemStyle:{color:r.color},
       data:cats.map(c=>{const x=r.cats[c];return x&&x.v!=null?x.v:'-';})}))});
 })();
 /* 9. throughput */
