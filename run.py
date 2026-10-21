@@ -709,6 +709,28 @@ GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
 
 
+_CLOCK_OFFSET = [time.time() - time.monotonic()]
+
+
+def note_suspend(where):
+    """Detect a suspend/resume and say so out loud.
+
+    The wall clock and the monotonic clock advance together while the
+    machine is awake; a suspend advances only the wall clock. The gap is
+    therefore exactly the time the box was asleep - and on 2026-10-20 it
+    was 6h48m, invisible in the log until the wall-clock arithmetic was
+    checked. A silent multi-hour stall in a benchmark is indistinguishable
+    from a model that stopped answering, which is why this exists.
+    """
+    off = time.time() - time.monotonic()
+    delta = off - _CLOCK_OFFSET[0]
+    if delta > 30:
+        log(f"  !! the machine was ASLEEP for {delta/60:.1f} min during {where} "
+            f"(suspend/resume) - the item below was still scored on resume")
+        _CLOCK_OFFSET[0] = off
+    return delta
+
+
 def pending_items(tasks, name, rep, done_ids):
     """Items of (task, rep) that still have to run.
 
@@ -1406,6 +1428,7 @@ def main():
             # item in flight. A 19-chain agentic rep and a 30-item math rep
             # are both far too much evidence to hold in memory.
             def prog(r, _cat=cat, _name=name, _rep=rep):
+                note_suspend(f"{name}/rep{rep} item {r.get('id')}")
                 r["task_category"] = r.get("category")
                 r["category"] = _cat
                 r["task"] = _name
