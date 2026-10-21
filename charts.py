@@ -108,6 +108,7 @@ def main():
                    and not f.endswith("-agentic.json")
                    and not f.endswith("-gsm8k.json")
                    and not f.endswith("-speed.json")
+                   and not f.endswith("-txt.json")
                    and not f.endswith("-medical.json")
                    and not f.endswith("-coder.json")
                    and not f.endswith("-embedded.json"))
@@ -280,6 +281,35 @@ def main():
                          "final_answer_accuracy_no_tools_required",
                          "mean_tool_calls", "fabrication_rate", "n_chains")},
         })
+    # ---- the second MC mechanism (text match), a SEPARATE instrument ----
+    # A model that answers with the option text instead of the letter cannot
+    # be scored by the letter-logprob mechanism. Its numbers live in their own
+    # categories and their own section: two mechanisms, two instruments, never
+    # one ranking.
+    txt_rows = []
+    TXT_CATS = ["science_txt", "electronics_txt", "persian_txt", "english_txt",
+                "std_arc_challenge_s30_txt", "std_arc_easy_s30_txt",
+                "std_hellaswag_s30_txt", "std_winogrande_s30_txt",
+                "std_truthfulqa_mc_s30_txt", "std_belebele_fa_s30_txt",
+                "std_mmlu_s30_txt"]
+    for f in sorted(glob.glob(os.path.join(RESULTS, "*-txt.json"))):
+        if f.endswith("-cs-txt.json"):
+            continue
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        s = d.get("summary", {})
+        if not any(c in s for c in TXT_CATS):
+            continue
+        lab = os.path.basename(f)[:-len("-txt.json")]
+        txt_rows.append({
+            "label": lab, "color": famcolor(lab),
+            "cats": {c: cell(s, c) for c in TXT_CATS},
+            "n_recs": len(d.get("records", [])),
+            "unparsed": {c: (s.get(c) or {}).get("unparsed_rate")
+                         for c in TXT_CATS},
+        })
     # ---- qualifier section: identical s30-era subsets for all six models ----
     qcats = ["science", "electronics", "persian", "english",
              "std_arc_easy_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30",
@@ -385,6 +415,7 @@ def main():
     payload = {"models": models,
                "custom": CUSTOM_CATS, "std": STD_CATS, "short": SHORT,
                "speeds": speed_rows,
+               "txt": txt_rows, "txt_cats": TXT_CATS,
                "q": qualifier, "q_cats": qcats,
                "deep": deep, "cs": cs100, "coverage": cov_cells,
                "meta": {"title": args.title, "runs": len(models)}}
@@ -447,6 +478,8 @@ every bar is an accuracy with an exact 95% Wilson interval, and every comparison
 <p class="note">Kept for the record: these per-suite rates were taken as a by-product of long benchmark runs while a runaway desktop thumbnailer held half the CPU (REVIEW5), so they UNDERSTATE true speed. Any speed claim on this page uses the isolated pass instead.</p><div id="c-tps" style="height:340px"></div></div>
 <div class="chart"><h2>Isolated throughput, every model</h2>
 <p class="note">One model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median of 12 identical prompts. The spread (p25-p75, min-max) is in the tooltip; the foreign-CPU column is what the desktop was using at measurement time. These replace the in-run rates above, which were taken while a runaway thumbnailer held half the CPU.</p><div id="c-speed" style="height:300px"></div></div>
+<div class="chart"><h2>Text-match MC: the second mechanism (separate instrument)</h2>
+<p class="note">A model that answers with the option's TEXT instead of the letter ("4" rather than "B") puts no probability mass on the letters, so the letter-logprob mechanism cannot score it - that model is unmeasured there, not wrong. This is the other mechanism: the generated answer is read and matched to the option. It is a DIFFERENT instrument: its categories are separate and are never ranked against the letter-logprob numbers above. Hover for the unparsed rate (answers that matched no option - counted as incorrect, never guessed).</p><div id="c-txt" style="height:380px"></div></div>
 <div class="chart"><h2>Qualifier: identical fast subsets, all models</h2>
 <p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. All six qualifier runs share ONE server build (b11558, 2026-10-17) so the ranking is internally consistent; the screening instrument was measured on b11714. The two are never compared with each other. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div></div>
 <div style="overflow-x:auto"><table id="tbl-q"></table></div>
@@ -646,6 +679,23 @@ agenticChart('c-agent', D.models);
     series:[{type:'bar',itemStyle:{color:'#5470C6'},
       data:rows.map(r=>({value:r.tps,itemStyle:{color:r.tps>=8?'#91CC75':r.tps>=5?'#5470C6':'#FAC858'}})),
       label:{show:true,position:'right',color:'#e6e8eb',formatter:p=>p.value+' tok/s'}}]});
+})();
+/* 8c. text-match MC (a separate instrument) */
+(function(){
+  const rows=D.txt||[];
+  if(!rows.length){mk('c-txt').setOption({title:{show:true,text:'no text-match runs yet',
+    left:'center',top:'middle',textStyle:{color:'#8b96a3',fontSize:13}}});return;}
+  const cats=D.txt_cats;
+  mk('c-txt').setOption({legend:{textStyle:{color:'#cfd6de'},top:0},
+    tooltip:{trigger:'item',formatter:p=>{const r=rows.find(x=>x.label===p.seriesName);
+      const c=cats[p.dataIndex];const cell=r.cats[c];
+      const un=r.unparsed&&r.unparsed[c]!=null?`<br/>unparsed ${(r.unparsed[c]*100).toFixed(1)}%`:'';
+      return `${r.label}<br/><b>${D.short[c]||c}: ${pct(cell&&cell.v)}</b><br/>n=${cell&&cell.n}${un}`;}},
+    grid:{bottom:110,top:40},xAxis:{type:'category',data:cats.map(c=>(D.short[c]||c).replace('_txt','')),
+      axisLabel:{color:'#9aa4b2',rotate:30,fontSize:10},axisLine:{lineStyle:{color:'#3a4756'}}},
+    yAxis:{max:1,...AX},
+    series:rows.map(r=>({name:r.label,type:'bar',itemStyle:{color:r.color},
+      data:cats.map(c=>{const x=r.cats[c];return x&&x.v!=null?x.v:'-';})}))});
 })();
 /* 9. throughput */
 (function(){

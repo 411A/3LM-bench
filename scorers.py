@@ -49,6 +49,77 @@ _SENTINEL = "#__LLMBENCH_TESTS_COMPLETED__"
 # to carry its own copy with the rounded z = 1.96 - the two disagreed in the
 # 4th decimal of the published interval, which is enough to flip a rounded
 # digit and to make a re-aggregated cell differ from the stored one.
+def score_mc_text(answer, choices):
+    """Match a free-text answer to a multiple-choice option.
+
+    Some models ignore "answer with a single letter" and reply with the
+    option's TEXT instead ("4" instead of "B"). The letter-logprob
+    mechanism cannot score those (the probability mass never lands on the
+    letters), so this is the second mechanism: read the answer, match it to
+    an option. It is a DIFFERENT instrument and is reported as one - the
+    categories are suffixed, never merged.
+
+    Every rule requires the match to be UNIQUE. When two options could
+    claim the answer, the answer is "none" - an unparsed answer is counted
+    as incorrect, never guessed onto the nearest option.
+
+    Returns (index or None, how), where how is one of "letter" | "text" |
+    "text_in_sentence" | "text_prefix" | "none".
+    """
+    import re as _re
+    a = (answer or "").strip()
+    if not a:
+        return None, "none"
+
+    def norm(s):
+        return _re.sub(r"[^a-z0-9 ]+", " ", s.lower()).strip()
+
+    # 1. a bare letter (A/B/C...), optionally wrapped in punctuation
+    m = _re.match(r"^\**\s*\(?([A-Z])\)?\s*\**[\s\.\):,-]*$", a.upper())
+    if m:
+        i = ord(m.group(1)) - ord("A")
+        if 0 <= i < len(choices):
+            return i, "letter"
+
+    na = norm(a)
+    normed = [norm(c) for c in choices]
+
+    # 2. exactly the option text
+    exact = [i for i, nc in enumerate(normed) if nc and na == nc]
+    if len(exact) == 1:
+        return exact[0], "text"
+
+    # 3. a distinctive PREFIX of the option appears in the answer: the model
+    #    started to write the option and the generation was cut off
+    #    ("... approximately 3 x 10^8 m" for the option "3 x 10^8 m/s").
+    pref_hits = []
+    for i, nc in enumerate(normed):
+        words = nc.split()
+        for take in (3, 2):
+            if len(words) < take:
+                continue
+            pref = " ".join(words[:take])
+            if len(pref) < 6:
+                continue
+            if pref in na:
+                pref_hits.append(i)
+                break
+    if len(set(pref_hits)) == 1:
+        return pref_hits[0], "text_prefix"
+
+    # 4. the answer starts with the option text
+    starts = [i for i, nc in enumerate(normed) if nc and na.startswith(nc)]
+    if len(starts) == 1:
+        return starts[0], "text"
+
+    # 5. the option text inside a sentence ("The answer is 4.")
+    inside = [i for i, nc in enumerate(normed)
+              if nc and _re.search(rf"(?:^|\s){_re.escape(nc)}(?:$|\s|[.,!?])", na)]
+    if len(inside) == 1:
+        return inside[0], "text_in_sentence"
+    return None, "none"
+
+
 from stats import wilson  # noqa: F401,E402  (re-exported: one definition)
 
 

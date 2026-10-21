@@ -670,7 +670,34 @@ source of truth - and `rescore.py` re-aggregates every finished file so the
 corpus never mixes statistical conventions. The audit gate re-derives all
 185 published numbers from the raw records and fails on any disagreement.
 
-### 7.6 Rules of engagement on this box
+### 7.6 Two MC mechanisms, two instruments
+
+The primary multiple-choice mechanism reads the model's probability mass on
+the option LETTERS from a single forward pass. It needs the model to
+answer in the requested format.
+
+Some models do not: k2-horizon replies with the option's TEXT ("4" instead
+of "B"), so its probability mass never lands on the letters - the letter
+mechanism cannot score it at all. The harness does not paper over that: the
+probe detects it, the family is skipped, and the cell stays MISSING (never
+zero, never a guess).
+
+A second mechanism exists for exactly that case: the model is asked for the
+option's text, the generated answer is read, and it is matched to the option
+(letter, exact text, the text inside a sentence, or a distinctive prefix of
+a truncated option). **Every matching rule requires the match to be unique**
+- when two options could claim the answer, the answer is `none`, counted as
+incorrect and reported as `unparsed_rate`. The results live in categories
+suffixed `_txt`, in their own section of the report, and are **never ranked
+against the letter-logprob numbers**: two mechanisms are two instruments.
+
+The two mechanisms answer different questions. The letter mechanism measures
+"can this model use the answer format the benchmark asks for"; the text
+mechanism measures "can this model answer the question". A model that scores
+well under one and is unmeasurable under the other is a real finding, not a
+harness failure - and it is reported as exactly that.
+
+### 7.7 Rules of engagement on this box
 - One model resident at a time; one run at a time (enforced by a lock).
 - Never reuse a server whose previous run was partial — it is holding the
   memory that caused the abort. Restart for a fresh window.

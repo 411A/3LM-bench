@@ -317,6 +317,22 @@ try:
 finally:
     R.battery_state = _orig
 
+# ---- the second MC mechanism (text match) ------------------------------
+check("text MC: a bare letter matches its option",
+      S.score_mc_text("B", ["3", "4", "5"]) == (1, "letter"))
+check("text MC: a letter wrapped in markdown still matches",
+      S.score_mc_text("**C**", ["x", "y", "z"]) == (2, "letter"))
+check("text MC: the option TEXT matches (this model's habit)",
+      S.score_mc_text("4", ["3", "4", "5"]) == (1, "text"))
+check("text MC: the option text inside a sentence matches",
+      S.score_mc_text("The answer is 4.", ["3", "4", "5"]) == (1, "text_in_sentence"))
+check("text MC: an unparseable answer is NOT forced onto an option",
+      S.score_mc_text("I cannot help with that", ["pain", "burn"]) == (None, "none"))
+check("text MC: an empty answer is not a match",
+      S.score_mc_text("", ["pain", "burn"]) == (None, "none"))
+check("text MC: a wrong option text is matched to the WRONG index",
+      S.score_mc_text("burn", ["pain", "burn"])[0] == 1)
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")

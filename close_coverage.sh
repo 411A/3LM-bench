@@ -95,10 +95,19 @@ run_instrument() { # $1 = instrument key, $2 = model
     fi
     sleep 5
   done
+  # Run a SNAPSHOT of the launcher, never the file in the tree: bash reads
+  # scripts incrementally, so editing run_llama.sh while it runs shifts the
+  # read offset and the running job dies with a syntax error (it did, at
+  # 05:17 today, right after a completed run). A per-job copy makes that
+  # class of accident impossible.
+  local runner="/tmp/opencode/run_llama.$$.sh"
+  mkdir -p /tmp/opencode
+  cp run_llama.sh "$runner"
   # shellcheck disable=SC2086
-  bash run_llama.sh "$m" "$prof" --out "$out" $extra --until-complete 6 \
+  bash "$runner" "$m" "$prof" --out "$out" $extra --until-complete 6 \
     > "$LOG_DIR/$m-$key.log" 2>&1
   rc=$?
+  rm -f "$runner"
   if [ "$rc" = "75" ]; then
     say "$key: $m PAUSED by the power policy (battery too low)"
     say "  stopping the queue: plug the charger in, then re-run close_coverage.sh"

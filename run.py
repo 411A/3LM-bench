@@ -71,6 +71,8 @@ FROZEN = {
 SYSTEM_CODER = ("You are a precise coding assistant. Output only the requested code "
                 "inside a single fenced code block, with no explanation.")
 SYSTEM_MC = "Answer with a single letter and nothing else."
+# The second mechanism's system prompt: the option's text, not a letter.
+SYSTEM_MC_TEXT = "Answer with the exact text of the correct option, and nothing else."
 
 
 def T(name):
@@ -82,6 +84,10 @@ def log(msg):
 
 
 def load_tasks(name):
+    # The _txt variants are the SAME items as their letter-logprob
+    # counterparts, measured with the other mechanism. The alias keeps one
+    # set of items on disk; the category suffix keeps the results apart.
+    name = TASK_ALIAS.get(name, name)
     p = os.path.join(TASKS_DIR, name + ".json")
     if not os.path.exists(p):
         raise SystemExit(f"missing task file: {p}")
@@ -650,6 +656,68 @@ def _install_signal_handlers():
             pass
 
 
+def run_mc_text(b, tasks, args, rep, progress=None):
+    """Multiple choice scored from a GENERATED answer matched to the option.
+
+    The second MC mechanism. The letter-logprob mechanism needs the model to
+    put its probability mass on the option letters; some models reply with
+    the option's TEXT instead ("4" instead of "B"), and then the mass never
+    lands on the letters and the suite is unmeasurable. This runner reads the
+    generated answer and matches it to an option (letter, exact text, or
+    the text inside a sentence).
+
+    It is a DIFFERENT instrument: the categories are suffixed with _txt and
+    are never merged with the letter-logprob cells, so the two are never
+    ranked against each other.
+    """
+    out = _ProgressList(progress)
+    n_tasks = len(tasks)
+    for i, t in enumerate(tasks):
+        try:
+            _mem_guard(b, args, "run_mc_text-item-%d" % (i + 1))
+            # The text mechanism asks for the option's TEXT (a letter is
+            # still accepted by the matcher). Asking for the letter is what
+            # the primary mechanism does, and it is exactly what this model
+            # ignores - the prompt has to meet the model where it answers.
+            msgs = [{"role": "system", "content": SYSTEM_MC_TEXT},
+                    {"role": "user", "content":
+                     f"{t['question']}\n\n" +
+                     "\n".join(f"{chr(ord('A') + j)}) {c}"
+                               for j, c in enumerate(t["choices"])) +
+                     "\n\nAnswer with the exact text of the correct option, "
+                     "and nothing else.\nAnswer:"}]
+            g = b.generate(msgs, max_tokens=48, temperature=0.0)
+            idx, how = S.score_mc_text(g["content"], t["choices"])
+            ok = (idx is not None and idx == t["answer"])
+            out.append({
+                "id": t["id"], "rep": rep, "category": t.get("category", "mc"),
+                "lang": t.get("lang"), "subject": t.get("subject"),
+                "question": t["question"], "choices": t["choices"],
+                "gold_index": t["answer"],
+                "chosen_index": idx, "chosen_letter":
+                    (chr(ord("A") + idx) if idx is not None else None),
+                "correct": ok, "pick_correct": ok,
+                "mc_mechanism": "text_match",
+                "match_kind": how,
+                "completion_raw": g["content"],
+                "unparsed": idx is None,
+                "tokens": {"prompt": g["prompt_tokens"], "eval": g["eval_tokens"]},
+                "speed": {"gen_tps": g["gen_tps"], "ttft_s": g["ttft_s"],
+                          "wall_s": g["wall_s"]},
+            })
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<28} {'OK ' if ok else 'X  '} "
+                f"match={how:<18} {g['gen_tps']}tok/s")
+        except BackendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            out.append(_item_error(t, rep, "mc_text", e))
+    return out
+
+
+# Task name -> the task file it reads (the _txt variants reuse the same
+# items; only the scoring mechanism differs).
+TASK_ALIAS = {}
+
 RUNNERS = {
     "code_humaneval": (run_code, "code"),
     "code_mbpp": (run_code, "code"),
@@ -706,6 +774,12 @@ MC_CATS = {"science", "electronics", "persian", "english",
            "std_winogrande_s30", "std_truthfulqa_mc_s30",
            "std_belebele_fa_s30", "std_mmlu_s30", "std_mmlu_cs"}
 GSM8K_CATS = {"std_gsm8k", "std_gsm8k_s30"}
+# The text-match MC families: the same items, the other scoring mechanism.
+MC_CATS_TXT = {c + "_txt" for c in
+               ("science", "electronics", "persian", "english",
+                "std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
+                "std_winogrande_s30", "std_truthfulqa_mc_s30",
+                "std_belebele_fa_s30", "std_mmlu_s30", "std_mmlu_cs")}
 CODE_CATS = {"code", "bugfix", "algo", "refactor", "rust"}
 
 
@@ -776,8 +850,13 @@ def check_power_policy(where, min_battery):
             f"battery at {cap}% and {status} (threshold {min_battery}%) - "
             f"pausing at {where}")
     if status.lower() in ("discharging", "discharging-not-charging"):
-        log(f"  (running on battery at {cap}% - the system may sleep to save "
-            f"power; the run pauses cleanly at {min_battery}%)")
+        # Once per task, not once per item: a per-item warning turns a
+        # 350-item run into 350 identical lines.
+        _warned = getattr(check_power_policy, "_warned", None)
+        if _warned != cap:
+            check_power_policy._warned = cap
+            log(f"  (running on battery at {cap}% - the system may sleep to "
+                f"save power; the run pauses cleanly at {min_battery}%)")
 
 
 def pending_items(tasks, name, rep, done_ids):
@@ -888,6 +967,19 @@ def coverage_report(records, expected):
     return gaps
 
 
+# The second MC mechanism, as separate categories. A model that answers with
+# the option text instead of the letter is not broken - it is measured with
+# the mechanism that can read it, and its numbers live in different
+# categories so nothing is ever ranked across mechanisms.
+for _c in ("science", "electronics", "persian", "english",
+           "std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30",
+           "std_winogrande_s30", "std_truthfulqa_mc_s30",
+           "std_belebele_fa_s30", "std_mmlu_s30", "std_mmlu_cs"):
+    _n = _c + "_txt"
+    RUNNERS[_n] = (run_mc_text, _n)
+    TASK_ALIAS[_n] = _c
+
+
 def aggregate(records):
     """Per-category scores with Wilson intervals, plus pass@k and pass^k."""
     by = {}
@@ -960,7 +1052,7 @@ def aggregate(records):
                             if r.get("lint", {}).get("available")) / max(1, sum(1 for r in rs if r.get("lint", {}).get("available"))), 4)
                 entry["ruff_noqa_gaming_rate"] = round(
                     sum(1 for r in rs if r.get("lint", {}).get("noqa_gaming")) / n, 4)
-        elif cat in MC_CATS:
+        elif cat in MC_CATS or cat in MC_CATS_TXT:
             # An accuracy without a null model is not interpretable: at n=14 a
             # 43% score sits inside the 95% interval of pure guessing. Every MC
             # figure therefore ships with the chance baseline, the smartest
@@ -968,16 +1060,27 @@ def aggregate(records):
             # p-value, and the accuracy REQUIRED at this n to exclude chance -
             # so no MC number can be read naked. See stats.py.
             entry = dict(mc_bundle(rs, None))
+            entry["mc_mechanism"] = ("text_match" if cat in MC_CATS_TXT
+                                     else "letter_logprob")
             # Pooled reps inflate n: Wilson/p-value assume independent items.
             # Report both so a 35x2 pooled n=70 is never read as 70 items.
             entry["n_items"] = len({r.get("id") for r in rs})
             entry["n_samples"] = n
             entry["note"] = ("n pools reps; CIs/p-values computed on n_samples "
                              "and are optimistic vs n_items")
-            entry["mean_confidence"] = round(
-                sum(r.get("confidence", 0) for r in rs) / n, 4)
-            entry["low_information_rate"] = round(
-                sum(1 for r in rs if not r.get("informed", True)) / n, 4)
+            if cat in MC_CATS_TXT:
+                # Letter-mass confidence is a letter-logprob concept; the text
+                # mechanism reports its own failure mode instead.
+                entry["unparsed_rate"] = round(
+                    sum(1 for r in rs if r.get("unparsed")) / n, 4)
+                entry["match_kinds"] = {
+                    k: sum(1 for r in rs if r.get("match_kind") == k)
+                    for k in ("letter", "text", "text_in_sentence")}
+            else:
+                entry["mean_confidence"] = round(
+                    sum(r.get("confidence", 0) for r in rs) / n, 4)
+                entry["low_information_rate"] = round(
+                    sum(1 for r in rs if not r.get("informed", True)) / n, 4)
             entry["tokens_per_item"] = round(
                 sum(r["tokens"]["eval"] for r in rs) / n, 2)
             # Degenerate-answerer control: if a model answered one letter every
@@ -1138,7 +1241,7 @@ def aggregate(records):
         # microsecond of eval_duration reads as 1e6 tok/s. The wall-clock time
         # per item is the honest number there, since it is dominated by prompt
         # processing, which is what actually costs something on this hardware.
-        if tps and cat not in MC_CATS:
+        if tps and cat not in MC_CATS and cat not in MC_CATS_TXT:
             entry["gen_tps_mean"] = round(sum(tps) / len(tps), 2)
             entry["gen_tps_median"] = sorted(tps)[len(tps) // 2]
         walls = [r["speed"]["wall_s"] for r in rs if r.get("speed", {}).get("wall_s")]
@@ -1316,9 +1419,16 @@ def main():
                              "no scores to collect")
         skipped = []
         if not probes.get("mc_logprob", (False,))[0]:
-            dropped = [n for n in names if RUNNERS[n][1] in MC_CATS]
+            # Only the letter-logprob families are unmeasurable. The _txt
+            # families read a GENERATED answer, so they need the generation
+            # probe (which passed) - dropping them here would throw away a
+            # perfectly measurable suite.
+            dropped = [n for n in names
+                       if RUNNERS[n][1] in MC_CATS and not n.endswith("_txt")]
             if dropped:
-                skipped += [(n, "mc_logprob probe failed: letters carry no mass") for n in dropped]
+                skipped += [(n, "mc_logprob probe failed: letters carry no mass "
+                               "(this model answers with the option text, not "
+                               "the letter - measure it with the _txt families)") for n in dropped]
                 names = [n for n in names if n not in dropped]
         if not probes.get("tools", (False,))[0]:
             dropped = [n for n in names if RUNNERS[n][1] == "agentic"]
