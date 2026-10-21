@@ -44,20 +44,12 @@ _SENTINEL = "#__LLMBENCH_TESTS_COMPLETED__"
 
 
 # --------------------------------------------------------------------- stats
-def wilson(k, n, z=1.96):
-    """Wilson score interval.
-
-    Preferred over the normal approximation here because every task family has
-    n < 100, where the CLT assumption (arXiv:2503.01747) does not hold and the
-    naive interval routinely extends outside [0, 1] or collapses to zero width.
-    """
-    if n == 0:
-        return (0.0, 1.0)
-    p = k / n
-    d = 1 + z * z / n
-    c = (p + z * z / (2 * n)) / d
-    h = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / d
-    return (max(0.0, c - h), min(1.0, c + h))
+# The Wilson interval has ONE definition in this project: stats.wilson, with
+# the exact two-sided 95% normal quantile (z = 1.959963985). This module used
+# to carry its own copy with the rounded z = 1.96 - the two disagreed in the
+# 4th decimal of the published interval, which is enough to flip a rounded
+# digit and to make a re-aggregated cell differ from the stored one.
+from stats import wilson  # noqa: F401,E402  (re-exported: one definition)
 
 
 def pass_at_k(n, c, k):

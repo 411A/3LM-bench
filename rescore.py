@@ -77,7 +77,8 @@ def main():
             print(f"  {name:<28} {len(after)} categories"
                   + (f"  CHANGED: {list(changed)}" if changed else "  (no change)"))
         else:
-            json.dump(d, open(f, "w"), ensure_ascii=False, indent=1)
+            # Atomic: a rescore must never leave a half-written result file.
+            R.write_atomic(f, d)
             print(f"  {name:<28} rescored -> {len(after)} categories"
                   + (f"  (changed: {', '.join(changed)})" if changed else ""))
     return 0

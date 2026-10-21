@@ -659,7 +659,18 @@ What the harness does instead:
 A laptop that is about to sleep is a *hardware* fact, and the answer is a
 charger, not a disabled policy.
 
-### 7.5 Rules of engagement on this box
+### 7.5 One definition per statistic
+
+The project used to carry TWO Wilson implementations - `stats.wilson`
+(exact quantile, z = 1.959963985) and `scorers.wilson` (rounded, z = 1.96).
+They disagreed in the 4th decimal of the published interval, which was
+enough to flip a rounded digit: a re-aggregated cell could differ from the
+stored one. `scorers.py` now re-exports `stats.wilson` - one definition, one
+source of truth - and `rescore.py` re-aggregates every finished file so the
+corpus never mixes statistical conventions. The audit gate re-derives all
+185 published numbers from the raw records and fails on any disagreement.
+
+### 7.6 Rules of engagement on this box
 - One model resident at a time; one run at a time (enforced by a lock).
 - Never reuse a server whose previous run was partial — it is holding the
   memory that caused the abort. Restart for a fresh window.

@@ -105,6 +105,10 @@ run_instrument() { # $1 = instrument key, $2 = model
     exit 0
   fi
   [ "$rc" != 0 ] && say "$key: $m did not finish cleanly (see $LOG_DIR/$m-$key.log)"
+  # Re-aggregate with the current definitions, so the corpus never mixes
+  # statistical conventions across files.
+  python3 rescore.py --files "$file" >/dev/null 2>&1 \
+    || say "rescore of $file failed (non-fatal)"
   if complete "$file"; then
     say "$key: $m COMPLETE"
     # Snapshot the evidence: a power cut cannot lose it (the checkpoint
