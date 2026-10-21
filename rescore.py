@@ -26,6 +26,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import run as R  # noqa: E402
+import scorers as S  # noqa: E402
 
 RESULTS = os.path.join(HERE, "results")
 
@@ -36,6 +37,17 @@ def recategorize(rec):
     if rec.get("category") != cat:
         rec["task_category"] = rec.get("category")
         rec["category"] = cat
+    # The text mechanism's matching is POST-PROCESSING: the model's answer
+    # is stored, so a better matcher can be applied to the whole file
+    # without re-running the model. Re-match on every rescore.
+    if rec.get("mc_mechanism") == "text_match" and rec.get("completion_raw"):
+        idx, how = S.score_mc_text(rec.get("completion_raw"), rec.get("choices") or [])
+        rec["chosen_index"] = idx
+        rec["chosen_letter"] = chr(ord("A") + idx) if idx is not None else None
+        rec["match_kind"] = how
+        rec["unparsed"] = idx is None
+        rec["correct"] = bool(idx is not None and idx == rec.get("gold_index"))
+        rec["pick_correct"] = rec["correct"]
     return rec
 
 

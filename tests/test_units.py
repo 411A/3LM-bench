@@ -332,6 +332,17 @@ check("text MC: an empty answer is not a match",
       S.score_mc_text("", ["pain", "burn"]) == (None, "none"))
 check("text MC: a wrong option text is matched to the WRONG index",
       S.score_mc_text("burn", ["pain", "burn"])[0] == 1)
+check("text MC: the letter WITH its option text matches",
+      S.score_mc_text("A) O(n^2)", ["O(n^2)", "O(n log n)"])[0] == 0)
+check("text MC: an echoed option list ending in 'Answer: D' is read from the end",
+      S.score_mc_text("A) mass x velocity\nB) y\n\nAnswer: B",
+                      ["mass x velocity", "y"])[0] == 1)
+check("text MC: an echoed list is not scored as its own first option",
+      S.score_mc_text("A) mass x velocity\nB) y\n\nAnswer: B",
+                      ["mass x velocity", "y"])[0] == 1)
+check("text MC: an answer matching two options is NOT guessed",
+      S.score_mc_text("the block", ["the block's mass", "the block's colour"])[0]
+      is None)
 
 print()
 if fails:

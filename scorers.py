@@ -74,12 +74,43 @@ def score_mc_text(answer, choices):
     def norm(s):
         return _re.sub(r"[^a-z0-9 ]+", " ", s.lower()).strip()
 
+    def _letter_only(txt):
+        m = _re.match(r"^\**\s*\(?([A-Z])\)?\s*\**[\s\.\):,-]*$", txt.upper())
+        if not m:
+            return None
+        i = ord(m.group(1)) - ord("A")
+        return i if 0 <= i < len(choices) else None
+
+    # 0. the model echoed the question and the option list and then gave the
+    #    answer at the END ("... A) x\nB) y\n\nAnswer: D"). The LAST
+    #    "answer:" marker is the model's actual answer; the echo before it
+    #    is noise.
+    marks = [m.start() for m in _re.finditer(r"answer\s*:", a, _re.I)]
+    if marks:
+        tail = a[marks[-1] + len(_re.match(r"answer\s*:", a[marks[-1]:], _re.I).group(0)):]
+        tail = tail.strip()
+        li = _letter_only(tail)
+        if li is not None:
+            return li, "letter"
+        for i, c in enumerate(choices):
+            if norm(c) and norm(c) == norm(tail):
+                return i, "text"
+        a = tail or a
+
     # 1. a bare letter (A/B/C...), optionally wrapped in punctuation
-    m = _re.match(r"^\**\s*\(?([A-Z])\)?\s*\**[\s\.\):,-]*$", a.upper())
+    li = _letter_only(a)
+    if li is not None:
+        return li, "letter"
+    # 1b. the letter with its option text ("A) O(n^2)")
+    m = _re.match(r"^\**\s*\(?([A-Z])\)?\s*[\.\):,-]\s*(.*)$", a)
     if m:
         i = ord(m.group(1)) - ord("A")
-        if 0 <= i < len(choices):
-            return i, "letter"
+        rest = m.group(2).strip()
+        if 0 <= i < len(choices) and rest:
+            if norm(rest) == norm(choices[i]):
+                return i, "letter"
+            if norm(choices[i]) and norm(rest).startswith(norm(choices[i])):
+                return i, "letter"
 
     na = norm(a)
     normed = [norm(c) for c in choices]
