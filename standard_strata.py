@@ -199,6 +199,72 @@ def build_belebele():
     return rows, bands, {"type": "question_number+distinct-passage", "proxy": False}
 
 
+# A cell is POSITION-CONFOUNDED when a model that always answered the same
+# way would beat chance by more than this. At n=30 an interval is +-8pp, so
+# a confound above 8 points is bigger than the thing the cell can resolve:
+# it decides the ranking on its own. Below it, the confound is disclosed
+# (every MC cell publishes a constant-picker baseline) and left alone.
+POSITION_CONFOUND_LIMIT = 0.08
+
+
+def position_confound(items):
+    """(best constant picker's score) - (chance), for one instance."""
+    from collections import Counter
+    if not items or "answer" not in items[0]:
+        return 0.0
+    counts = Counter(x["answer"] for x in items)
+    nch = [len(x.get("choices") or []) for x in items if x.get("choices")]
+    if not nch:
+        return 0.0
+    chance = sum(1.0 / k for k in nch) / len(nch)
+    return max(counts.values()) / len(items) - chance
+
+
+def debias_positions(items, n_options=None):
+    """Re-assign the gold position round-robin, permuting the options.
+
+    The upstream MMLU option order puts 25 of the 30 golds in C/D. That is
+    not a neutral accident: a model with a C/D preference would score up to
+    18 points above its true ability - the same size as the whole signal -
+    while a model with an A/B preference would be punished by the same
+    amount. The questions and the distractors are untouched; only the ORDER
+    of the options changes, deterministically, so the instance is still the
+    same 30 MMLU items.
+
+    Returns the items with balanced gold positions.
+    """
+    if not items:
+        return items
+    k = n_options or len(items[0].get("choices") or [])
+    if k < 2:
+        return items
+    out = []
+    for i, it in enumerate(items):
+        ch = list(it.get("choices") or [])
+        if len(ch) != k:
+            out.append(dict(it))
+            continue
+        gold = int(it["answer"])
+        target = i % k
+        # Rotate so the GOLD lands on `target`. A left rotation by `shift`
+        # moves the element at index j to (j - shift) mod k, so the gold
+        # needs shift = (gold - target) mod k. (The other sign moves the
+        # options without moving the key - the gold text must be checked,
+        # not just the option set.)
+        shift = (gold - target) % k
+        new = dict(it)
+        new["choices"] = ch[shift:] + ch[:shift]
+        new["answer"] = target
+        # The invariant that matters: the correct OPTION is the same option,
+        # only in a different place. A rotation that moves the options
+        # without moving the key silently breaks the item.
+        assert new["choices"][target] == it["choices"][gold], (
+            f"debias moved the options but not the key: {it.get('id')}")
+        new["position_debiased"] = True
+        out.append(new)
+    return out
+
+
 def build_mmlu():
     rows = load("std_mmlu")
     rng = random.Random(f"{SEED}-mmlu")
@@ -244,6 +310,7 @@ BUILDERS = {
 def main():
     check_only = "--check" in sys.argv
     ok = True
+    debiased = []
     for name, fn in BUILDERS.items():
         out = os.path.join(TASKS, name + "_s30.json")
         if check_only:
@@ -268,10 +335,19 @@ def main():
                     r["screen_subset"] = True
                     r["screen_seed"] = SEED
                     ordered.append(r)
+        confound = position_confound(ordered)
+        if confound > POSITION_CONFOUND_LIMIT:
+            # The gold positions are skewed enough to decide the ranking on
+            # their own: the questions and distractors are untouched, only
+            # the order of the options changes, deterministically.
+            ordered = debias_positions(ordered)
+            debiased.append((name, round(confound, 3)))
         with open(out, "w") as f:
             json.dump(ordered, f, ensure_ascii=False, indent=1)
         print(f"  {name}_s30: {len(ordered)} items "
-              f"({'+'.join(f'{bn}={len(bi)}' for bn, bi in bands)}) [{meta['type']}]")
+              f"({'+'.join(f'{bn}={len(bi)}' for bn, bi in bands)}) [{meta['type']}]"
+              + (f"  POSITION-DEBIASED (confound {confound:.3f})"
+                 if any(n == name for n, _ in debiased) else ""))
         man_path = os.path.join(HERE, "data", "manifest.json")
         man = json.load(open(man_path)) if os.path.exists(man_path) else {}
         import hashlib
@@ -281,6 +357,8 @@ def main():
             "strata": meta,
             "stratum_names": [bn for bn, _ in bands],
             "order": "round-robin",
+            "position_debiased": any(n == name for n, _ in debiased),
+            "position_confound_before": round(confound, 4),
             "sha16": hashlib.sha256(json.dumps(
                 ordered, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16],
         }

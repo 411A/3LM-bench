@@ -469,7 +469,7 @@ every bar is an accuracy with an exact 95% Wilson interval, and every comparison
 <div class="chart"><h2>Custom suites — accuracy with 95% Wilson intervals</h2>
 <p class="note">Whiskers are exact 95% Wilson intervals (never the normal approximation). Hover for n and chance baseline.</p><div id="c-custom" style="height:460px"></div></div>
 <div class="chart"><h2>Standard s30 suites — accuracy with 95% Wilson intervals</h2>
-<p class="note">Stratified 30-item official-split instances. Same-interval semantics as above.</p><div id="c-std" style="height:440px"></div></div>
+<p class="note">Stratified 30-item official-split instances. Same-interval semantics as above. MMLU-6, HellaSwag and WinoGrande are POSITION-DEBIASED: the upstream option order put 10-18 points of the answer in one letter, so the gold positions were permuted deterministically (same questions, same distractors) and those cells were re-measured. Every cell also publishes the score a constant picker would get, so the remaining confound is visible.</p><div id="c-std" style="height:440px"></div></div>
 <div class="chart"><h2>Capability heatmap</h2>
 <p class="note">Darker = stronger. Missing = suite absent for that model.</p><div id="c-heat" style="height:380px"></div></div>
 <div class="chart"><h2>Efficiency: capability vs decode speed</h2>

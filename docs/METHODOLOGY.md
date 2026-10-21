@@ -712,7 +712,40 @@ compile-error and timeout paths), stale directories are swept at start-up,
 and two unit contracts assert that the sandbox is off `/tmp` and empty
 afterwards. See `REVIEW6.md`.
 
-### 7.8 Rules of engagement on this box
+### 7.8 Position-debiased instances (and a stated threshold)
+
+Upstream MMLU ships its options in a fixed order, and in the 30-item
+stratified instance that put **25 of the 30 golds in C/D**. A model with a
+C/D preference would gain up to 18 points - larger than the entire signal
+the cell is supposed to measure - while a model with an A/B preference
+would be punished by the same amount. The instance was not a neutral
+sample of MMLU; it was a test of letter preference.
+
+The rule is now mechanical, not a judgement call:
+
+> An instance is **position-debiased** when a constant picker's score
+> exceeds chance by more than **0.08** - the width of a 30-item interval.
+> Above that, the confound is bigger than the thing the cell can resolve.
+
+Debiasing permutes the options deterministically so the gold positions are
+balanced. The questions, the distractors and the option SETS are untouched
+(verified: same 30 items, same questions, same sorted option lists) - only
+the order and the gold letter move. Three instances crossed the threshold
+and were debiased: **MMLU-6** (confound 0.183), **HellaSwag** (0.117) and
+**WinoGrande** (0.100). All three now sit at or below 0.05.
+
+Changing an instance invalidates its numbers, so exactly the affected cells
+were re-measured and nothing else: `drop_tasks.py` removes the records of
+the changed tasks (the item ids stay the same but the content does not, so
+a resume would otherwise keep the stale answers), and the next resume
+re-runs those items. That is 90 MC items per screening file, 36 per
+qualifier file and 90 for the text instrument - not a re-run of everything.
+
+The instances that were NOT debiased keep the upstream order, and every MC
+cell publishes a constant-picker baseline so the remaining confound is
+visible rather than hidden.
+
+### 7.9 Rules of engagement on this box
 - One model resident at a time; one run at a time (enforced by a lock).
 - Never reuse a server whose previous run was partial — it is holding the
   memory that caused the abort. Restart for a fresh window.

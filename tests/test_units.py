@@ -10,6 +10,7 @@ stub exclusion in aggregate.
 import json
 import os
 import sys
+from collections import Counter
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import scorers as S
@@ -366,6 +367,24 @@ _left = set(os.listdir(S.TMP)) - _snap_before
 check("the sandbox does not accumulate files after a run", not _left)
 if _left:
     print(f"       (leftovers: {sorted(_left)[:4]})")
+
+
+# ---- the position-debiasing must move the KEY with the options --------
+import standard_strata as _SS
+_items = [{"id": f"i{k}", "answer": k % 4,
+           "choices": [f"c{k}_{j}" for j in range(4)]} for k in range(8)]
+_deb = _SS.debias_positions(_items)
+check("debiasing keeps the same CORRECT option in every item",
+      all(d["choices"][d["answer"]] == o["choices"][o["answer"]]
+          for d, o in zip(_deb, _items)))
+check("debiasing balances the gold positions",
+      sorted(Counter(x["answer"] for x in _deb).values()) == [2, 2, 2, 2])
+check("debiasing leaves the option SETS untouched",
+      all(sorted(d["choices"]) == sorted(o["choices"])
+          for d, o in zip(_deb, _items)))
+check("the confound measure spots a skewed instance",
+      _SS.position_confound([{"answer": 3, "choices": list("abcd")}] * 25
+                             + [{"answer": 0, "choices": list("abcd")}] * 5) > 0.5)
 
 print()
 if fails:

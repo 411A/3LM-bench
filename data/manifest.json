@@ -128,6 +128,8 @@
    "national-intl"
   ],
   "order": "round-robin",
+  "position_debiased": false,
+  "position_confound_before": 0.05,
   "sha16": "32aa95d70b26e4e6"
  },
  "std_arc_easy_s30": {
@@ -146,6 +148,8 @@
    "national-intl"
   ],
   "order": "round-robin",
+  "position_debiased": false,
+  "position_confound_before": 0.05,
   "sha16": "279f2bbef919faf6"
  },
  "std_hellaswag_s30": {
@@ -164,7 +168,9 @@
    "zeroshot"
   ],
   "order": "round-robin",
-  "sha16": "8d96245e4506a444"
+  "position_debiased": true,
+  "position_confound_before": 0.1167,
+  "sha16": "55992046ef273e69"
  },
  "std_winogrande_s30": {
   "source": "std_winogrande",
@@ -187,7 +193,9 @@
    "long"
   ],
   "order": "round-robin",
-  "sha16": "0a4507f87359c76c"
+  "position_debiased": true,
+  "position_confound_before": 0.1,
+  "sha16": "bc0bd74b2767b8bd"
  },
  "std_truthfulqa_mc_s30": {
   "source": "std_truthfulqa_mc",
@@ -206,6 +214,8 @@
    "choice8+"
   ],
   "order": "round-robin",
+  "position_debiased": false,
+  "position_confound_before": -0.0045,
   "sha16": "522131bbfeae22f4"
  },
  "std_belebele_fa_s30": {
@@ -223,6 +233,8 @@
    "qnum2"
   ],
   "order": "round-robin",
+  "position_debiased": false,
+  "position_confound_before": 0.05,
   "sha16": "25eb91a6b66ad88f"
  },
  "std_mmlu_s30": {
@@ -252,7 +264,9 @@
    "mmlu/high_school_world_history"
   ],
   "order": "round-robin",
-  "sha16": "5a451702179daca8"
+  "position_debiased": true,
+  "position_confound_before": 0.1833,
+  "sha16": "c7e43da6a0ef7909"
  },
  "std_gsm8k_s30": {
   "source": "std_gsm8k",
@@ -271,6 +285,8 @@
    "steps5+"
   ],
   "order": "round-robin",
+  "position_debiased": false,
+  "position_confound_before": 0.0,
   "sha16": "c1c65d25915461b1"
  },
  "std_mmlu_cs": {
