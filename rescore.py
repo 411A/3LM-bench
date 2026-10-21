@@ -79,10 +79,22 @@ def main():
         after = R.aggregate(recs)
         d["records"] = recs
         d["summary"] = after
-        # Backfill the partial flag on files written before it existed:
-        # any ERROR stub means the run never completed cleanly.
-        if any("ERROR" in str(r.get("id", "")) for r in recs):
-            d["partial"] = True
+        # Recompute the coverage and the partial flag against the SAME
+        # expectation the run had (its own config), so a file that a later
+        # round completed is not called partial.
+        cfg = d.get("config") or {}
+        try:
+            exp = R.expected_coverage(
+                cfg.get("tasks", []), cfg.get("caps_per_task") or {},
+                {k: v for k, v in (cfg.get("reps_per_task") or {}).items()
+                 if k != "(all)"} or {"(all)": cfg.get("reps", 1)},
+                cfg.get("subsample", 0), cfg.get("limit", 0))
+            gaps = R.coverage_report(recs, exp)
+        except Exception:
+            gaps = d.get("coverage_gaps") or []
+        d["coverage_gaps"] = gaps
+        d["partial"] = bool(gaps) or any(
+            "ERROR" in str(r.get("id", "")) for r in recs)
         changed = {c: v for c, v in after.items() if before.get(c) != v.get("accuracy", v.get("mean_score"))}
         name = os.path.basename(f)
         if args.dry_run:

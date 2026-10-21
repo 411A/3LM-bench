@@ -859,6 +859,33 @@ def check_power_policy(where, min_battery):
                 f"save power; the run pauses cleanly at {min_battery}%)")
 
 
+def expected_coverage(names, caps, rep_for, subsample_n=0, limit=0):
+    """The (task, rep) -> item-count map a run is expected to cover.
+
+    One definition, used by the run itself and by the rescorer, so a file's
+    partial flag is decided against the same expectation the run had.
+    """
+    exp = {}
+    for name in names:
+        if name == "agentic":
+            tasks = [{"id": c["id"]} for c in agentic.CHAINS]
+        else:
+            try:
+                tasks = load_tasks(name)
+            except SystemExit:
+                continue
+        tasks = subsample(tasks, caps.get(name, 0) or subsample_n)
+        if limit:
+            tasks = tasks[:limit]
+        try:
+            reps = int(rep_for.get(name, 1))
+        except (TypeError, ValueError):
+            reps = 1
+        for r in range(reps):
+            exp[(name, r)] = len(tasks)
+    return exp
+
+
 def pending_items(tasks, name, rep, done_ids):
     """Items of (task, rep) that still have to run.
 
@@ -1574,7 +1601,7 @@ def main():
                        "summary": agg, "records": live,
                        "superseded_stubs": superseded,
                        "coverage_gaps": gaps,
-                       "partial": bool(gaps) or bool(server_dead),
+                       "partial": bool(gaps),
                        "backend_totals": b.summary()}
             write_atomic(out_path, payload)
             log(f"  [checkpoint written: {len(records)} records]")
@@ -1744,7 +1771,11 @@ def main():
         # COVERAGE (valid records per task/rep vs items expected), not by the
         # mere presence of an old stub: a stub that a later attempt replaced
         # with a real record must not keep the file "partial" forever.
-        "partial": bool(server_dead) or bool(coverage_gaps),
+        # partial means the file does not COVER the requested work. A server
+        # that died mid-run is recorded separately (server_dead): when a later
+        # round completed the work, the file IS complete, and calling it
+        # partial would be false.
+        "partial": bool(coverage_gaps),
         "coverage_gaps": coverage_gaps,
         "server_dead": bool(server_dead),
         # Skipped-by-probe suites: explicitly unmeasured, never zero.

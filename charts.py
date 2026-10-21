@@ -292,10 +292,8 @@ def main():
                 "std_arc_challenge_s30_txt", "std_arc_easy_s30_txt",
                 "std_hellaswag_s30_txt", "std_winogrande_s30_txt",
                 "std_truthfulqa_mc_s30_txt", "std_belebele_fa_s30_txt",
-                "std_mmlu_s30_txt"]
+                "std_mmlu_s30_txt", "std_mmlu_cs_txt"]
     for f in sorted(glob.glob(os.path.join(RESULTS, "*-txt.json"))):
-        if f.endswith("-cs-txt.json"):
-            continue
         try:
             d = json.load(open(f))
         except Exception:
@@ -304,6 +302,8 @@ def main():
         if not any(c in s for c in TXT_CATS):
             continue
         lab = os.path.basename(f)[:-len("-txt.json")]
+        if lab.endswith("-cs"):
+            lab = lab[:-3]
         txt_rows.append({
             "label": lab, "color": famcolor(lab),
             "cats": {c: cell(s, c) for c in TXT_CATS},
