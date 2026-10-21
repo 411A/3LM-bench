@@ -284,6 +284,39 @@ check("a stub never counts as done (failed items re-run)",
 check("a different rep is a different item",
       [x["id"] for x in R.pending_items(_t, "t", 1, {("t", 0, "a")})] == ["a", "b", "c"])
 
+# ---- the power policy belongs to the human, not to the harness ---------
+_st, _cap = R.battery_state()
+check("battery_state reads the machine (or reports none)",
+      _st is None or isinstance(_st, str))
+_orig = R.battery_state
+try:
+    R.battery_state = lambda: ("Discharging", 12)
+    try:
+        R.check_power_policy("test", 30)
+        check("a draining battery below the threshold pauses the run", False)
+    except R.PauseRun:
+        check("a draining battery below the threshold pauses the run", True)
+    R.battery_state = lambda: ("Charging", 12)
+    try:
+        R.check_power_policy("test", 30)
+        check("a charging battery never pauses the run", True)
+    except R.PauseRun:
+        check("a charging battery never pauses the run", False)
+    R.battery_state = lambda: ("Discharging", 80)
+    try:
+        R.check_power_policy("test", 30)
+        check("a healthy battery on battery power never pauses the run", True)
+    except R.PauseRun:
+        check("a healthy battery on battery power never pauses the run", False)
+    R.battery_state = lambda: (None, None)
+    try:
+        R.check_power_policy("test", 30)
+        check("a desktop with no battery never pauses the run", True)
+    except R.PauseRun:
+        check("a desktop with no battery never pauses the run", False)
+finally:
+    R.battery_state = _orig
+
 print()
 if fails:
     print(f"{len(fails)} UNIT FAILURES")

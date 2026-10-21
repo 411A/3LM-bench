@@ -630,7 +630,36 @@ defence is `snapshot.sh`: after every completed instrument the evidence
 (`results/`, `reports/`, `tasks/`, manifests) is archived to
 `~/llmbench-backups/llmbench-<timestamp>.tar.gz`, keeping the newest 20.
 
-### 7.4 Rules of engagement on this box
+### 7.4 The power policy belongs to the human, not to the harness
+
+On a laptop the system suspends (or suspends-then-hibernates) itself to
+preserve the battery. A benchmark tool must **never override that**: on
+2026-10-20 UPower's critical action fired at 8% battery and the machine was
+asleep for 6h48m in the middle of a run.
+
+What the harness does instead:
+
+* **It never touches the system's sleep configuration.** No masked units, no
+  edited `logind.conf`, no edited `UPower.conf`, no disabled power manager.
+  (An earlier attempt to mask `sleep.target` was reverted the moment it was
+  made - the operator's power policy is not the harness's to change.)
+* **It yields to the policy.** The run checks the battery after every
+  checkpointed item. If the machine is *discharging* and below
+  `--min-battery` (default 30%), the run pauses: it finishes the item in
+  flight, writes the checkpoint, and exits with code 75. The queue stops and
+  says so. Nothing is lost - the resume is item-level.
+* **It survives the interruption anyway.** The per-item checkpoint, the
+  atomic write and the item-level resume mean a suspend, a power cut or a
+  crash costs at most the item in flight.
+* **It tells you.** `note_suspend()` compares the wall clock with the
+  monotonic clock after every item; the gap is exactly the time the machine
+  was asleep, and the run log now says so in minutes instead of leaving a
+  silent multi-hour stall that looks like a model that stopped answering.
+
+A laptop that is about to sleep is a *hardware* fact, and the answer is a
+charger, not a disabled policy.
+
+### 7.5 Rules of engagement on this box
 - One model resident at a time; one run at a time (enforced by a lock).
 - Never reuse a server whose previous run was partial — it is holding the
   memory that caused the abort. Restart for a fresh window.

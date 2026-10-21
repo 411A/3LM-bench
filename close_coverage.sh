@@ -97,8 +97,14 @@ run_instrument() { # $1 = instrument key, $2 = model
   done
   # shellcheck disable=SC2086
   bash run_llama.sh "$m" "$prof" --out "$out" $extra --until-complete 6 \
-    > "$LOG_DIR/$m-$key.log" 2>&1 \
-    || say "$key: $m did not finish cleanly (see $LOG_DIR/$m-$key.log)"
+    > "$LOG_DIR/$m-$key.log" 2>&1
+  rc=$?
+  if [ "$rc" = "75" ]; then
+    say "$key: $m PAUSED by the power policy (battery too low)"
+    say "  stopping the queue: plug the charger in, then re-run close_coverage.sh"
+    exit 0
+  fi
+  [ "$rc" != 0 ] && say "$key: $m did not finish cleanly (see $LOG_DIR/$m-$key.log)"
   if complete "$file"; then
     say "$key: $m COMPLETE"
     # Snapshot the evidence: a power cut cannot lose it (the checkpoint

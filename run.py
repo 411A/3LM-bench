@@ -731,6 +731,55 @@ def note_suspend(where):
     return delta
 
 
+class PauseRun(Exception):
+    """Raised when the machine must stop benchmarking for a while.
+
+    The power policy belongs to the human, not to the harness. On a laptop
+    the system suspends itself to preserve the battery, and a benchmark
+    must NOT override that: it pauses cleanly at the last scored item and
+    lets the operator plug the charger in. The run then continues with the
+    same command - the resume is item-level, so nothing is lost.
+    """
+
+
+def battery_state():
+    """(status, capacity_percent) of the first battery, or (None, None)."""
+    for path in ("/sys/class/power_supply/BAT0",
+                 "/sys/class/power_supply/BAT1",
+                 "/sys/class/power_supply/Battery"):
+        try:
+            with open(os.path.join(path, "status")) as f:
+                status = f.read().strip()
+            with open(os.path.join(path, "capacity")) as f:
+                cap = int(f.read().strip())
+            return status, cap
+        except (OSError, ValueError):
+            continue
+    return None, None
+
+
+def check_power_policy(where, min_battery):
+    """Pause the run if the machine is on a dying battery.
+
+    Only ACTS when the battery is discharging and below the threshold: a
+    charging machine is fine, a desktop with no battery is fine, and a
+    healthy battery is fine. The system's own sleep/hibernate policy stays
+    exactly as the operator configured it - this only avoids starting work
+    that the power policy is about to interrupt.
+    """
+    status, cap = battery_state()
+    if status is None or cap is None:
+        return
+    if status.lower() in ("discharging", "discharging-not-charging") \
+            and cap < min_battery:
+        raise PauseRun(
+            f"battery at {cap}% and {status} (threshold {min_battery}%) - "
+            f"pausing at {where}")
+    if status.lower() in ("discharging", "discharging-not-charging"):
+        log(f"  (running on battery at {cap}% - the system may sleep to save "
+            f"power; the run pauses cleanly at {min_battery}%)")
+
+
 def pending_items(tasks, name, rep, done_ids):
     """Items of (task, rep) that still have to run.
 
@@ -1137,6 +1186,11 @@ def main():
                          "must already exist (see standard_fetch.py --check)")
     ap.add_argument("--timeout", type=int, default=900,                    help="per-request seconds (default 900; qualifier uses 300: "
                          "a hung generation must not cost 30 min twice)")
+    ap.add_argument("--min-battery", type=int, default=30,
+                    help="pause the run when the machine is on battery below "
+                         "this percentage (default 30). The system power "
+                         "policy is never overridden: the run pauses cleanly "
+                         "and resumes item-level after the charger is in.")
     ap.add_argument("--probe-only", action="store_true",
                     help="run backend self-qualification and exit (no tasks)")
     ap.add_argument("--no-probe", action="store_true",
@@ -1338,6 +1392,7 @@ def main():
     # They were conflated: "started_unix" held monotonic seconds, so every
     # result file claimed to start in 1970 and no run could be dated.
     records, t_start, t_wall = [], time.monotonic(), time.time()
+    min_battery = getattr(args, "min_battery", 30)
     server_dead = False
     consec_err = 0
     # Coverage ledger: expected (task, rep) -> item count, and the set of
@@ -1439,6 +1494,14 @@ def main():
                 if "ERROR" not in str(r.get("id", "")):
                     done_ids.add((_name, _rep, r.get("id")))
                 checkpoint()
+                # AFTER the checkpoint: a pause must never cost the item.
+                try:
+                    check_power_policy(f"{_name} item {r.get('id')}", min_battery)
+                except PauseRun as e:
+                    log(f"PAUSED: {e}")
+                    log("  the run stops here; plug the charger in and re-run "
+                        "the same command to continue from the last item")
+                    os._exit(75)
             attempt = 0
             while True:
                 try:

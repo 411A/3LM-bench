@@ -377,6 +377,10 @@ run_one() { # $1=label, $2=k/n for banner
     --agentic-reps "$AGENTIC" --label "$LABEL" --out "$OUT" 2>&1 | tee "$LOG"
   local rc=${PIPESTATUS[0]}
   cleanup
+  if [ "$rc" = "75" ]; then
+    say "PAUSED by the power policy (battery) — $OUT keeps every item scored so far"
+    say "  plug the charger in and re-run the same command to continue"
+  fi
   if python3 -c "import json,sys; sys.exit(0 if json.load(open('$OUT')).get('partial') else 1)" 2>/dev/null; then
     say "NOTE: $OUT is PARTIAL (stubs or unrun tasks) — resume, do not quote"
   fi
