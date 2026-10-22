@@ -186,10 +186,46 @@ def main():
                 "NOT COMPARABLE: this backend cannot emit a parseable tool call "
                 "(tools probe FAILED), so the chains scored zero by construction."
                 + alt)
-        vals_c = [cats[c]["v"] for c in CUSTOM_CATS
-                  if cats[c] and isinstance(cats[c]["v"], (int, float))]
-        vals_s = [cats[c]["v"] for c in STD_CATS
-                  if cats[c] and isinstance(cats[c]["v"], (int, float))]
+        # The text-mechanism cells for the same model, if any. A model whose
+        # backend cannot score answer LETTERS still has multiple-choice
+        # numbers - measured by the other mechanism. They belong in the row,
+        # visibly marked as a different instrument, because a row that looks
+        # empty is a false statement about the model.
+        txt_cells = {}
+        ts = {}
+        tf = os.path.join(RESULTS, f"{os.path.basename(f)[:-5]}-txt.json")
+        if os.path.exists(tf):
+            try:
+                ts = json.load(open(tf)).get("summary", {})
+            except Exception:
+                ts = {}
+            for c, e in ts.items():
+                if c.endswith("_txt") and e.get("accuracy") is not None:
+                    ci = e.get("ci95_wilson") or [None, None]
+                    txt_cells[c[:-4]] = {
+                        "v": e["accuracy"], "lo": ci[0], "hi": ci[1],
+                        "n": e.get("n_items"),
+                        "chance": e.get("chance_baseline"),
+                        "src": "text_match",
+                        "unparsed": e.get("unparsed_rate"),
+                        "range": e.get("accuracy_range"),
+                    }
+        vals_c = []
+        c_has_txt = False
+        for c in CUSTOM_CATS:
+            if cats[c] and isinstance(cats[c]["v"], (int, float)):
+                vals_c.append(cats[c]["v"])
+            elif c in txt_cells and isinstance(txt_cells[c]["v"], (int, float)):
+                vals_c.append(txt_cells[c]["v"])
+                c_has_txt = True
+        vals_s = []
+        s_has_txt = False
+        for c in STD_CATS:
+            if cats[c] and isinstance(cats[c]["v"], (int, float)):
+                vals_s.append(cats[c]["v"])
+            elif c in txt_cells and isinstance(txt_cells[c]["v"], (int, float)):
+                vals_s.append(txt_cells[c]["v"])
+                s_has_txt = True
         dg = d.get("provenance", {}).get("model_digest", {}) or {}
         lab = label or os.path.basename(f)[:-5]
         # Server build, per file: captured in the provenance when the run
@@ -210,29 +246,6 @@ def main():
                 speed = json.load(open(sp))
             except Exception:
                 speed = None
-        # The text-mechanism cells for the same model, if any. A model whose
-        # backend cannot score answer LETTERS still has multiple-choice
-        # numbers - measured by the other mechanism. They belong in the row,
-        # visibly marked as a different instrument, because a row that looks
-        # empty is a false statement about the model.
-        txt_cells = {}
-        tf = os.path.join(RESULTS, f"{os.path.basename(f)[:-5]}-txt.json")
-        if os.path.exists(tf):
-            try:
-                ts = json.load(open(tf)).get("summary", {})
-            except Exception:
-                ts = {}
-            for c, e in ts.items():
-                if c.endswith("_txt") and e.get("accuracy") is not None:
-                    ci = e.get("ci95_wilson") or [None, None]
-                    txt_cells[c[:-4]] = {
-                        "v": e["accuracy"], "lo": ci[0], "hi": ci[1],
-                        "n": e.get("n_items"),
-                        "chance": e.get("chance_baseline"),
-                        "src": "text_match",
-                        "unparsed": e.get("unparsed_rate"),
-                        "range": e.get("accuracy_range"),
-                    }
         if not server:
             server = ("b11558 (inferred)" if os.path.getmtime(f) < UPGRADE_TS
                       else "b11714 (inferred)")
@@ -257,6 +270,8 @@ def main():
                 gaps.append(f"{src_name}: {x}")
             if not g and dd.get("partial"):
                 gaps.append(f"{src_name}: incomplete run (stubs or unrun tasks)")
+        mmlu_sub = (s.get("std_mmlu_s30") or {}).get("by_subject") or (
+            ts.get("std_mmlu_s30_txt") or {}).get("by_subject", {})
         return {
             "label": lab,
             "color": famcolor(lab),
@@ -265,6 +280,8 @@ def main():
             "server": server,
             "macro_custom": round(sum(vals_c) / len(vals_c), 4) if vals_c else None,
             "macro_std": round(sum(vals_s) / len(vals_s), 4) if vals_s else None,
+            "macro_custom_txt": c_has_txt,
+            "macro_std_txt": s_has_txt,
             "mean_tps": (speed or {}).get("tps_median"),
             "tps_source": "isolated" if speed else "in-run",
             "speed": speed,
@@ -275,7 +292,8 @@ def main():
             "txt_cats": txt_cells,
             "gaps": gaps,
             "broken": broken,
-            "mmlu": (s.get("std_mmlu_s30") or {}).get("by_subject", {}),
+            "mmlu": mmlu_sub,
+            "mmlu_txt": bool(not (s.get("std_mmlu_s30") or {}).get("by_subject") and mmlu_sub),
             "agentic": {k: ag_sum.get("agentic", {}).get(k) for k in
                         ("pass_hat_k_reliability", "per_trial_trace_rate",
                          "final_answer_accuracy_no_tools_required",
@@ -311,7 +329,7 @@ def main():
     # be scored by the letter-logprob mechanism. Its numbers live in their own
     # categories and their own section: two mechanisms, two instruments, never
     # one ranking.
-    txt_rows = []
+    txt_by_lab = {}
     TXT_CATS = ["science_txt", "electronics_txt", "persian_txt", "english_txt",
                 "std_arc_challenge_s30_txt", "std_arc_easy_s30_txt",
                 "std_hellaswag_s30_txt", "std_winogrande_s30_txt",
@@ -328,16 +346,23 @@ def main():
         lab = os.path.basename(f)[:-len("-txt.json")]
         if lab.endswith("-cs"):
             lab = lab[:-3]
-        txt_rows.append({
+        row = txt_by_lab.setdefault(lab, {
             "label": lab, "color": famcolor(lab),
-            "cats": {c: cell(s, c) for c in TXT_CATS},
-            "n_recs": len(d.get("records", [])),
-            "unparsed": {c: (s.get(c) or {}).get("unparsed_rate")
-                         for c in TXT_CATS},
-            "gaps": list(d.get("coverage_gaps") or [])
-                    + (["incomplete run (stubs or unrun tasks)"]
-                       if d.get("partial") and not d.get("coverage_gaps") else []),
+            "cats": {c: None for c in TXT_CATS},
+            "n_recs": 0,
+            "unparsed": {c: None for c in TXT_CATS},
+            "gaps": [],
         })
+        for c in TXT_CATS:
+            v = cell(s, c)
+            if v is not None:
+                row["cats"][c] = v
+                row["unparsed"][c] = (s.get(c) or {}).get("unparsed_rate")
+        row["n_recs"] += len(d.get("records", []))
+        row["gaps"] += list(d.get("coverage_gaps") or []) + (
+            ["incomplete run (stubs or unrun tasks)"]
+            if d.get("partial") and not d.get("coverage_gaps") else [])
+    txt_rows = [txt_by_lab[k] for k in sorted(txt_by_lab)]
     # ---- qualifier section: identical s30-era subsets for all six models ----
     qcats = ["science", "electronics", "persian", "english",
              "std_arc_easy_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30",
@@ -401,21 +426,31 @@ def main():
                              r["label"]))
     # ---- CS-100 decider ----
     cs100 = []
-    for f in sorted(glob.glob(os.path.join(RESULTS, "*-cs.json"))):
+    for f in sorted(glob.glob(os.path.join(RESULTS, "*-cs.json"))
+                    + glob.glob(os.path.join(RESULTS, "*-cs-txt.json"))):
         try:
             d = json.load(open(f))
         except Exception:
             continue
-        s = (d.get("summary", {}) or {}).get("std_mmlu_cs") or {}
+        is_txt = f.endswith("-cs-txt.json")
+        key = "std_mmlu_cs_txt" if is_txt else "std_mmlu_cs"
+        s = (d.get("summary", {}) or {}).get(key) or {}
         if s.get("accuracy") is None:
             continue
         lab = os.path.basename(f)[:-5]
         ci = s.get("ci95_wilson") or [None, None]
+        c_entry = {
+            "v": s.get("accuracy"), "lo": ci[0], "hi": ci[1],
+            "n": s.get("n_items") or s.get("n"),
+            "chance": s.get("chance_baseline"),
+        }
+        if is_txt:
+            c_entry["src"] = "text_match"
+            c_entry["unparsed"] = s.get("unparsed_rate")
+            c_entry["range"] = s.get("accuracy_range")
         cs100.append({"label": lab, "color": famcolor(lab),
-                      "cats": {"std_mmlu_cs": {
-                          "v": s.get("accuracy"), "lo": ci[0], "hi": ci[1],
-                          "n": s.get("n_items") or s.get("n"),
-                          "chance": s.get("chance_baseline")}},
+                      "cats": {"std_mmlu_cs": None if is_txt else c_entry},
+                      "txt_cats": {"std_mmlu_cs": c_entry} if is_txt else {},
                       "n_recs": len(d.get("records", []))})
     # ---- coverage matrix: who ran what (plan vs reality) ----
     cov_cells = []
@@ -484,7 +519,8 @@ code{background:#1d2630;padding:1px 6px;border-radius:6px}
 <div class="sub" style="margin:2px 0 10px"><b>How to read the marks:</b>
 <span class="warn">⚠ incomplete</span> = the run behind that row is missing items (never a score) ·
 <span class="warn">⚠ n/c</span> = the cell is real but <i>not comparable</i> (broken tool-calling backend) ·
-every bar is an accuracy with an exact 95% Wilson interval, and every comparison on this page stays inside one instrument.</div>
+<span class="warn">⚠ txt</span> / dashed amber border = multiple-choice cell measured by the <i>text-match</i> mechanism (generated answer matched to option, not single-token letter logprob) ·
+every bar is an accuracy with an exact 95% Wilson interval.</div>
 <h2 style="margin-top:20px">Coverage: who ran what</h2>
 <p class="note" style="font-size:12px;color:#8b96a3">Record counts per instrument. Every section below compares only within one instrument — cross-section ranks are never computed.</p>
 <div style="overflow-x:auto"><table id="cov"></table></div>
@@ -546,12 +582,26 @@ if (ONLY) {
   mk = function(id){ if(!id.includes(ONLY)) return {setOption(){},resize(){}}; return _mk(id); };
 }
 function pct(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
+function cellOf(m, c){
+  if(!m) return null;
+  const x = m.cats && m.cats[c];
+  if(x && x.v!=null) return x;
+  const t = m.txt_cats && m.txt_cats[c];
+  if(t && t.v!=null) return t;
+  return null;
+}
 function tipOf(m, c, cell){
-  if(!cell || cell.v==null) return `${m.label}<br/>${D.short[c]}: — (not run)`;
-  if(m.broken && m.broken[c]) return `${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b><br/>`+
+  cell = cell || cellOf(m, c);
+  const sname = D.short[c] || c;
+  if(!cell || cell.v==null) return `${m.label}<br/>${sname}: — (not run)`;
+  if(m.broken && m.broken[c]) return `${m.label}<br/><b>${sname}: ${pct(cell.v)}</b><br/>`+
     `<span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
-  if(m.gaps&&m.gaps.length) { /* gap badge shown next to the model name */ }
-  let t = `${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b>`;
+  let t = `${m.label}<br/><b>${sname}: ${pct(cell.v)}</b>`;
+  if(cell.src==='text_match'){
+    t += `<br/><span style="color:#f0c674">⚠ text-match instrument (generated answer matched to option; not single-token letter logprob)</span>`;
+    if(cell.range) t += `<br/>range ${pct(cell.range[0])}–${pct(cell.range[1])} (if unparsed answers were right)`;
+    if(cell.unparsed!=null) t += `<br/>unparsed ${(cell.unparsed*100).toFixed(1)}%`;
+  }
   if(cell.lo!=null) t += `<br/>95% CI ${pct(cell.lo)} – ${pct(cell.hi)} · n=${cell.n}`;
   else if(cell.n!=null) t += `<br/>n=${cell.n}`;
   if(cell.chance!=null) t += `<br/>chance ${pct(cell.chance)}`;
@@ -568,7 +618,7 @@ function tipOf(m, c, cell){
     legend:{textStyle:{color:'#cfd6de'},bottom:0},
     tooltip:{formatter:p=>`${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b>`}, series:D.models.map(m=>({name:m.label,type:'radar',
       itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
-      data:[{value:axes.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:0;}),name:m.label}]}))});
+      data:[{value:axes.map(c=>{const x=cellOf(m,c);return x&&x.v!=null?x.v:0;}),name:m.label}]}))});
 })();
 /* shared grouped-bar builder with CI whiskers (custom series) */
 function barsWithCI(id, cats, models, rotate, fs){
@@ -577,17 +627,19 @@ function barsWithCI(id, cats, models, rotate, fs){
   const series = [];
   models.forEach((m,mi)=>{
     series.push({name:m.label,type:'bar',itemStyle:{color:m.color},
-      data:cats.map(c=>{const x=m.cats[c];
+      data:cats.map(c=>{const x=cellOf(m,c);
         if(!x||x.v==null) return '-';
         if(m.broken&&m.broken[c]) return {value:x.v,itemStyle:{
           color:'#39424e',borderColor:'#f0c674',borderWidth:1.5,borderType:'dashed'}};
+        if(x.src==='text_match') return {value:x.v,itemStyle:{
+          color:m.color,opacity:0.78,borderColor:'#f0c674',borderWidth:1.5,borderType:'dashed'}};
         return x.v;}),
       barGap:'18%', barCategoryGap:'32%'});
   });
   // whisker data: [catIndex, modelIndex, lo, hi]
   const wd = [];
   models.forEach((m,mi)=>cats.forEach((c,ci)=>{
-    const x=m.cats[c];
+    const x=cellOf(m,c);
     if(x&&x.v!=null&&x.lo!=null) wd.push([ci,mi,x.lo,x.hi]);
   }));
   const CATGAP=0.32, BARGAP=0.18;
@@ -607,14 +659,14 @@ function barsWithCI(id, cats, models, rotate, fs){
         {type:'line',shape:{x1:cx-4,y1:yLo,x2:cx+4,y2:yLo},style:{stroke:'#e6e8eb',lineWidth:1.5}},
         {type:'line',shape:{x1:cx-4,y1:yHi,x2:cx+4,y2:yHi},style:{stroke:'#e6e8eb',lineWidth:1.5}}]};
     },data:wd,
-    tooltip:{formatter:p=>{const w=wd[p.dataIndex];const m=D.models[w[1]],c=cats[w[0]];
-      return tipOf(m,c,m.cats[c]);}},z:5});
+    tooltip:{formatter:p=>{const w=wd[p.dataIndex];const m=models[w[1]],c=cats[w[0]];
+      return tipOf(m,c,cellOf(m,c));}},z:5});
   ch.setOption({legend:{textStyle:{color:'#cfd6de'},top:0},
     tooltip:{trigger:'item',formatter:p=>{
       if(p.seriesName==='95% CI') return p.data&&p.data.tooltip||'';
       const m=models.find(x=>x.label===p.seriesName);
-      return tipOf(m,cats[p.dataIndex],m.cats[cats[p.dataIndex]]);}},
-    grid:{bottom:70,top:40}, xAxis:{type:'category',data:cats.map(c=>D.short[c]),
+      return tipOf(m,cats[p.dataIndex],cellOf(m,cats[p.dataIndex]));}},
+    grid:{bottom:70,top:40}, xAxis:{type:'category',data:cats.map(c=>D.short[c]||c),
       axisLabel:{color:'#9aa4b2',rotate:rotate,fontSize:fs},axisLine:{lineStyle:{color:'#3a4756'}}},
     yAxis:{type:'value',max:1,...AX}, series});
 }
@@ -675,36 +727,47 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
 /* 4. efficiency */
 (function(){
   mk('c-eff').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{formatter:p=>`${p.seriesName} · ${p.data[3]}<br/>macro ${pct(p.data[1])} · ${p.data[0]} tok/s · ${p.data[2]} GB`},
+    tooltip:{formatter:p=>{
+      const hasTxt = p.data[4];
+      return `${p.seriesName} · ${p.data[3]}<br/>macro ${pct(p.data[1])}${hasTxt?' <span style="color:#f0c674">(⚠ MC via text-match)</span>':''} · ${p.data[0]} tok/s · ${p.data[2]} GB`;}},
     xAxis:{name:'decode tok/s (isolated pass)',...AX}, yAxis:{name:'macro-mean',max:1,...AX},
     series:['macro_custom','macro_std'].map((k,ki)=>({name:ki?'PRIMARY-STD':'PRIMARY-CUSTOM',
       type:'scatter',symbolSize:d=>18+Math.sqrt(d[2])*14,
       itemStyle:{color:ki?'#EE6666':'#5470C6',opacity:0.9},
       data:D.models.filter(m=>m[k]!=null&&m.mean_tps!=null&&m.tps_source==='isolated')
-        .map(m=>[m.mean_tps,m[k],m.fileGB,m.label])}))});
+        .map(m=>{
+          const hasTxt = m[k+'_txt'];
+          return {value:[m.mean_tps,m[k],m.fileGB,m.label,hasTxt?1:0],
+                  itemStyle:hasTxt?{borderColor:'#f0c674',borderWidth:2,borderType:'dashed'}:{}};})}))});
 })();
 /* 5. bilingual */
 (function(){
   const cats=['english','persian','std_belebele_fa_s30'];
   mk('c-lang').setOption({legend:{textStyle:{color:'#cfd6de'}},
     tooltip:{trigger:'item',formatter:p=>{const m=D.models.find(x=>x.label===p.seriesName);
-      return tipOf(m,cats[p.dataIndex],m.cats[cats[p.dataIndex]]);}},
+      return tipOf(m,cats[p.dataIndex],cellOf(m,cats[p.dataIndex]));}},
     xAxis:{type:'category',data:['English','Persian','Belebele-fa'],axisLabel:{color:'#cfd6de'}},yAxis:{max:1,...AX},
     series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
-      data:cats.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:'-';})}))});
+      data:cats.map(c=>{const x=cellOf(m,c);
+        if(!x||x.v==null) return '-';
+        if(x.src==='text_match') return {value:x.v,itemStyle:{color:m.color,opacity:0.78,borderColor:'#f0c674',borderWidth:1.5,borderType:'dashed'}};
+        return x.v;})}))});
 })();
 /* 6. MC vs chance */
 (function(){
   const cats=[...D.custom.filter(c=>['science','electronics','persian','english'].includes(c)),...D.std.filter(c=>c!=='std_gsm8k_s30')];
   const series=D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
-    data:cats.map(c=>{const x=m.cats[c];return x&&x.v!=null?x.v:'-';})}));
+    data:cats.map(c=>{const x=cellOf(m,c);
+      if(!x||x.v==null) return '-';
+      if(x.src==='text_match') return {value:x.v,itemStyle:{color:m.color,opacity:0.78,borderColor:'#f0c674',borderWidth:1.5,borderType:'dashed'}};
+      return x.v;})}));
   series.push({name:'chance',type:'scatter',symbol:'x',symbolSize:12,
     itemStyle:{color:'#8b96a3'},data:cats.map(c=>{
-      const xs=D.models.map(m=>m.cats[c]).filter(x=>x&&x.chance!=null).map(x=>x.chance);
+      const xs=D.models.map(m=>cellOf(m,c)).filter(x=>x&&x.chance!=null).map(x=>x.chance);
       return xs.length?Math.max(...xs):'-';})});
   mk('c-chance').setOption({legend:{textStyle:{color:'#cfd6de'}},
     tooltip:{trigger:'item',formatter:p=>{const m=D.models.find(x=>x.label===p.seriesName);
-      if(!m) return 'chance baseline';return tipOf(m,cats[p.dataIndex],m.cats[cats[p.dataIndex]]);}},
+      if(!m) return 'chance baseline';return tipOf(m,cats[p.dataIndex],cellOf(m,cats[p.dataIndex]));}},
     grid:{bottom:70},xAxis:{type:'category',data:cats.map(c=>D.short[c]),
       axisLabel:{color:'#9aa4b2',rotate:26,fontSize:11}},yAxis:{max:1,...AX},series});
 })();
@@ -712,11 +775,17 @@ barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models)
 (function(){
   const subs=[...new Set(D.models.flatMap(m=>Object.keys(m.mmlu)))].sort();
   mk('c-mmlu').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>`${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b> (n=5)`},
+    tooltip:{trigger:'item',formatter:p=>{
+      const m=D.models.find(x=>x.label===p.seriesName);
+      const tag=m&&m.mmlu_txt?'<br/><span style="color:#f0c674">⚠ text-match instrument</span>':'';
+      return `${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b> (n=5)${tag}`;}},
     xAxis:{type:'category',data:subs.map(s=>s.split('/')[1]||s),
       axisLabel:{color:'#9aa4b2',rotate:22,fontSize:10}},yAxis:{max:1,...AX},
     series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
-      data:subs.map(s=>{const x=m.mmlu[s];return x?x.acc:'-';})}))});
+      data:subs.map(s=>{const x=m.mmlu[s];
+        if(!x) return '-';
+        if(m.mmlu_txt) return {value:x.acc,itemStyle:{color:m.color,opacity:0.78,borderColor:'#f0c674',borderWidth:1.5,borderType:'dashed'}};
+        return x.acc;})}))});
 })();
 /* 8. agentic */
 function agenticChart(id, models){
@@ -778,14 +847,21 @@ agenticChart('c-agent', D.models);
 (function(){
   const cats=[...D.custom,...D.std];
   let h='<tr><th>suite</th>'+D.models.map(m=>`<th>${m.label}</th>`).join('')+'</tr>';
-  const macC=D.models.map(m=>m.macro_custom), macS=D.models.map(m=>m.macro_std);
-  h+=`<tr><td>★ PRIMARY-CUSTOM</td>${macC.map(v=>`<td><b>${v!=null?pct(v):'—'}</b></td>`).join('')}</tr>`;
-  h+=`<tr><td>★ PRIMARY-STD</td>${macS.map(v=>`<td><b>${pct(v)}</b></td>`).join('')}</tr>`;
+  const txtTip='Includes multiple-choice suites measured via the text-match mechanism (generated answer matched to option, not single-token letter logprob).';
+  h+=`<tr><td>★ PRIMARY-CUSTOM</td>${D.models.map(m=>`<td><b>${m.macro_custom!=null?pct(m.macro_custom):'—'}</b>${m.macro_custom_txt?' <span class="warn" title="'+txtTip+'">⚠ txt</span>':''}</td>`).join('')}</tr>`;
+  h+=`<tr><td>★ PRIMARY-STD</td>${D.models.map(m=>`<td><b>${m.macro_std!=null?pct(m.macro_std):'—'}</b>${m.macro_std_txt?' <span class="warn" title="'+txtTip+'">⚠ txt</span>':''}</td>`).join('')}</tr>`;
   cats.forEach(c=>{
     h+=`<tr><td>${D.short[c]}</td>`+D.models.map(m=>{
-      const x=m.cats[c];
+      const x=cellOf(m,c);
       if(!x||x.v==null) return '<td>—</td>';
-      let s=`<b>${pct(x.v)}</b>${(m.broken&&m.broken[c])?' <span class="warn" title="'+m.broken[c]+'">⚠ n/c</span>':''}`;
+      let badge='';
+      if(m.broken&&m.broken[c]) badge=` <span class="warn" title="${m.broken[c]}">⚠ n/c</span>`;
+      else if(x.src==='text_match'){
+        const u=x.unparsed!=null?`unparsed ${(x.unparsed*100).toFixed(1)}%`:'';
+        const r=x.range?` · range ${pct(x.range[0])}–${pct(x.range[1])}`:'';
+        badge=` <span class="warn" title="text-match instrument (generated answer matched to option) · ${u}${r}">⚠ txt</span>`;
+      }
+      let s=`<b>${pct(x.v)}</b>${badge}`;
       if(x.lo!=null) s+=`<br/><span style="color:#8b96a3">${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</span>`;
       else if(x.n!=null) s+=`<br/><span style="color:#8b96a3">n=${x.n}</span>`;
       return `<td>${s}</td>`;}).join('')+'</tr>';
@@ -822,8 +898,10 @@ agenticChart('c-deep', D.deep);
   barsWithCI('c-cs', ['std_mmlu_cs'], D.cs);
   let h='<tr><th>model</th><th>CS-100</th><th>95% CI</th></tr>';
   D.cs.forEach(m=>{
-    const x=m.cats.std_mmlu_cs;
-    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}</td><td><b>${pct(x.v)}</b></td><td>${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</td></tr>`;
+    const x=cellOf(m,'std_mmlu_cs');
+    if(!x||x.v==null) return;
+    const badge=x.src==='text_match'?` <span class="warn" title="text-match instrument · unparsed ${(x.unparsed*100).toFixed(1)}% · range ${pct(x.range[0])}–${pct(x.range[1])}">⚠ txt</span>`:'';
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}${badge}</td><td><b>${pct(x.v)}</b></td><td>${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</td></tr>`;
   });
   h+='<tr><td colspan="3" style="text-align:left;color:#8b96a3">Paired McNemar on shared items, all three pairs: TIE (closest p=0.053). The s30 gap did not replicate.</td></tr>';
   document.getElementById('tbl-cs').innerHTML=h;
