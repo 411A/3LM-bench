@@ -210,6 +210,29 @@ def main():
                 speed = json.load(open(sp))
             except Exception:
                 speed = None
+        # The text-mechanism cells for the same model, if any. A model whose
+        # backend cannot score answer LETTERS still has multiple-choice
+        # numbers - measured by the other mechanism. They belong in the row,
+        # visibly marked as a different instrument, because a row that looks
+        # empty is a false statement about the model.
+        txt_cells = {}
+        tf = os.path.join(RESULTS, f"{os.path.basename(f)[:-5]}-txt.json")
+        if os.path.exists(tf):
+            try:
+                ts = json.load(open(tf)).get("summary", {})
+            except Exception:
+                ts = {}
+            for c, e in ts.items():
+                if c.endswith("_txt") and e.get("accuracy") is not None:
+                    ci = e.get("ci95_wilson") or [None, None]
+                    txt_cells[c[:-4]] = {
+                        "v": e["accuracy"], "lo": ci[0], "hi": ci[1],
+                        "n": e.get("n_items"),
+                        "chance": e.get("chance_baseline"),
+                        "src": "text_match",
+                        "unparsed": e.get("unparsed_rate"),
+                        "range": e.get("accuracy_range"),
+                    }
         if not server:
             server = ("b11558 (inferred)" if os.path.getmtime(f) < UPGRADE_TS
                       else "b11714 (inferred)")
@@ -249,6 +272,7 @@ def main():
             "elapsed_h": round(d.get("elapsed_s", 0) / 3600, 2),
             "n_recs": len(d.get("records", [])),
             "cats": cats,
+            "txt_cats": txt_cells,
             "gaps": gaps,
             "broken": broken,
             "mmlu": (s.get("std_mmlu_s30") or {}).get("by_subject", {}),
@@ -471,7 +495,7 @@ every bar is an accuracy with an exact 95% Wilson interval, and every comparison
 <div class="chart"><h2>Standard s30 suites — accuracy with 95% Wilson intervals</h2>
 <p class="note">Stratified 30-item official-split instances. Same-interval semantics as above. MMLU-6, HellaSwag and WinoGrande are POSITION-DEBIASED: the upstream option order put 10-18 points of the answer in one letter, so the gold positions were permuted deterministically (same questions, same distractors) and those cells were re-measured. Every cell also publishes the score a constant picker would get, so the remaining confound is visible.</p><div id="c-std" style="height:440px"></div></div>
 <div class="chart"><h2>Capability heatmap</h2>
-<p class="note">Darker = stronger. Missing = suite absent for that model.</p><div id="c-heat" style="height:380px"></div></div>
+<p class="note">Cells outlined in amber were measured with the OTHER multiple-choice mechanism (text match) - a different instrument, not a peer of the cells around it. Lighter = stronger (0 to 1). "\u2014" = the suite was not measured for that model <i>in this instrument</i>. A cell marked with an amber \u26a0 is real but not comparable (a broken tool-calling backend). k2-horizon's multiple-choice cells come from the TEXT-MATCH instrument - its llama.cpp build cannot score answer letters - so they are a different measurement and are never ranked against the letter-logprob cells of the other models. Hover any cell for its instrument, n and unparsed rate.</p><div id="c-heat" style="height:380px"></div></div>
 <div class="chart"><h2>Efficiency: capability vs decode speed</h2>
 <p class="note">Bubble area = model file GB. Faster + higher is better; top-right wins. Speed here is the DEDICATED isolated pass: one model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median decode rate of 12 identical prompts - not a by-product of a long benchmark run. Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714; no comparison on this page spans two builds.</p><div id="c-eff" style="height:400px"></div></div>
 <div class="chart"><h2>English vs Persian (custom + Belebele-fa standard)</h2>
@@ -598,22 +622,55 @@ function barsWithCI(id, cats, models, rotate, fs){
 barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models);
 /* 3. heatmap */
 (function(){
-  const cats=[...D.custom,...D.std], data=[];
+  // The value dimension MUST be the third element: a fourth element made
+  // ECharts colour every cell by that flag instead of by the score, which
+  // painted the whole map in the minimum colour and highlighted exactly
+  // one cell. The flags now travel in a side table.
+  const cats=[...D.custom,...D.std], data=[], flags={}, srcs={};
   D.models.forEach((m,mi)=>cats.forEach((c,ci)=>{
     const x=m.cats[c];
-    const brk = m.broken && m.broken[c];
-    data.push([ci,mi,x&&x.v!=null?Math.round(x.v*1000)/1000:null,brk?1:0]);
+    const t=(m.txt_cats&&m.txt_cats[c])||null;
+    const cell=(x&&x.v!=null)?x:((t&&t.v!=null)?t:null);
+    const isText=!((x&&x.v!=null))&&!!(t&&t.v!=null);
+    const val = cell&&cell.v!=null?Math.round(cell.v*1000)/1000:null;
+    if(isText){
+      // A visibly different cell: the value was measured with the OTHER
+      // multiple-choice mechanism, so it must not be read as a peer of the
+      // letter-logprob cells around it.
+      data.push({value:[ci,mi,val],itemStyle:{borderColor:'#f0c674',borderWidth:2}});
+      srcs[mi+':'+ci]='text';
+    } else {
+      data.push([ci,mi,val]);
+      if(m.broken&&m.broken[c]) flags[mi+':'+ci]='brk';
+    }
   }));
   mk('c-heat').setOption({tooltip:{formatter:p=>{
-      const m=D.models[p.value[1]],c=cats[p.value[0]];return tipOf(m,c,m.cats[c]);}},
+      const mi=p.value[1],ci=p.value[0],m=D.models[mi],c=cats[ci];
+      const x=m.cats[c];
+      const t=(m.txt_cats&&m.txt_cats[c])||null;
+      const cell=(x&&x.v!=null)?x:((t&&t.v!=null)?t:null);
+      if(!cell||cell.v==null) return `${m.label}<br/>${D.short[c]}: \u2014 (not measured in this instrument)`;
+      let s=`${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b>`;
+      if(srcs[mi+':'+ci]==='text')
+        s+=`<br/><span style="color:#f0c674">text-match instrument: this model's backend cannot score answer letters, so its MC was measured by reading the generated answer. NOT comparable with the letter-logprob cells of the other models.</span>`;
+      if(cell.range) s+=`<br/>range ${pct(cell.range[0])}-${pct(cell.range[1])} (an unparsed answer could have been right)`;
+      if(cell.unparsed!=null) s+=`<br/>unparsed ${(cell.unparsed*100).toFixed(1)}%`;
+      if(flags[mi+':'+ci]==='brk') s+=`<br/><span style="color:#f0c674">\u26a0 ${m.broken[c]}</span>`;
+      s+=`<br/>n=${cell.n}`;
+      return s;}},
     grid:{height:'78%',top:10}, xAxis:{type:'category',data:cats.map(c=>D.short[c]),
       axisLabel:{color:'#9aa4b2',rotate:30,fontSize:10},splitArea:{show:true}},
     yAxis:{type:'category',data:D.models.map(m=>m.label),axisLabel:{color:'#cfd6de'}},
     visualMap:{min:0,max:1,calculable:true,orient:'vertical',right:0,top:'middle',
-      textStyle:{color:'#9aa4b2'},inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
+      textStyle:{color:'#8b96a3'},inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
     series:[{type:'heatmap',data,label:{show:true,fontSize:9,color:'#fff',
-      formatter:p=>p.value[2]==null?'—':(p.value[3]?'⚠'+p.value[2]:p.value[2])},
-      itemStyle:{borderColor:'#11161d',borderWidth:1}}]});
+      formatter:p=>{const k=p.value[1]+':'+p.value[0];
+        if(p.value[2]==null) return '\u2014';
+        if(flags[k]==='brk') return '\u26a0'+p.value[2];
+        return p.value[2];}},
+      itemStyle:{borderColor:'#11161d',borderWidth:1},
+      emphasis:{itemStyle:{borderColor:'#e6e8eb',borderWidth:2}},
+      encode:{x:0,y:1,value:2}}]});
 })();
 /* 4. efficiency */
 (function(){
