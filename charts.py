@@ -626,7 +626,9 @@ h1{font-size:26px;margin:26px 0 4px} .sub{color:#9aa4b2;font-size:13px;margin-bo
 .chart{background:#161d26;border:1px solid #232e3b;border-radius:10px;margin:16px 0;padding:12px 8px 4px}
 .chart h2{font-size:16px;margin:6px 12px;color:#cfd6de}
 .chart .note{font-size:12px;color:#8b96a3;margin:0 12px 8px}
-.chart>div[id]{width:100%;height:420px}
+/* the chart canvas holder only - a note div with an id must NOT be
+   forced to 420px (that left a screen of empty space under every chart) */
+.chart>div[id]:not(.nd){width:100%;height:420px}
 table{border-collapse:collapse;width:100%;font-size:12px;background:#161d26}
 th,td{border:1px solid #232e3b;padding:5px 8px;text-align:right}
 th:first-child,td:first-child{text-align:left}
@@ -642,7 +644,7 @@ code{background:#1d2630;padding:1px 6px;border-radius:6px}
 <div class="sub" style="margin:2px 0 10px"><b>How to read the marks:</b>
 <span class="warn">⚠ incomplete</span> = the run behind that row is missing items (never a score) ·
 <span class="warn">⚠ n/c</span> = the cell is real but <i>not comparable</i> (broken tool-calling backend, or a multiple-choice mechanism that was never qualified) ·
-<span class="warn">⚠ txt</span> / lighter bar = multiple-choice cell measured by the <i>text-match</i> mechanism (generated answer matched to option, not single-token letter logprob) ·
+<span class="warn">⚠ txt</span> / <span class="warn">◐</span> on the bar = multiple-choice cell measured by the <i>text-match</i> mechanism (generated answer matched to option, not single-token letter logprob) ·
 <span class="warn">—</span> = not measured in this instrument (an empty slot, never a zero) ·
 <span class="warn">0%</span> = a measured zero (a real score that would otherwise draw no bar) ·
 <span class="warn">◐</span> = text-match cell in the heatmap ·
@@ -650,10 +652,10 @@ bars show accuracy; hover any bar for its exact 95% Wilson interval (also printe
 <h2 style="margin-top:20px">Coverage: who ran what</h2>
 <p class="note" style="font-size:12px;color:#8b96a3">Record counts per instrument. Every section below compares only within one instrument — cross-section ranks are never computed.</p>
 <div style="overflow-x:auto"><table id="cov"></table></div>
-<div class="chart"><h2>Capability radar (headline metric per suite, higher is better)</h2>
-<p class="note">One axis per suite. Lint = clean rate, NetDiag/DevOps = mean score, Agentic = pass^k reliability, rest = accuracy. One cell is a broken-backend artifact and is marked everywhere it appears: nemotron's agentic score comes from a llama.cpp build that cannot emit a parseable tool call, so its chains could not use tools (the same weights reach 0.895 through Ollama). It is drawn here as measured, but it is not a like-for-like comparison — see the ⚠ n/c marks below.</p><div id="c-radar"></div><div class="nd" id="nd-c-radar"></div></div>
+<div id="radars"></div>
+<div class="nd" id="nd-radars"></div>
 <div class="chart"><h2>Custom suites — accuracy</h2>
-<p class="note">Hover any bar for its exact 95% Wilson interval (never the normal approximation), n and chance baseline. Lighter bars marked ⚠ txt are the text-match instrument, not letter-logprob peers.</p><div id="c-custom" style="height:460px"></div><div class="nd" id="nd-c-custom"></div></div>
+<p class="note">Hover any bar for its exact 95% Wilson interval (never the normal approximation), n and chance baseline. Bars marked ◐ are the text-match instrument, not letter-logprob peers.</p><div id="c-custom" style="height:460px"></div><div class="nd" id="nd-c-custom"></div></div>
 <div class="chart"><h2>Standard s30 suites — accuracy</h2>
 <p class="note">Stratified 30-item official-split instances. Hover for the Wilson interval, n and chance baseline. MMLU-6, HellaSwag and WinoGrande are POSITION-DEBIASED: the upstream option order put 10-18 points of the answer in one letter, so the gold positions were permuted deterministically (same questions, same distractors) and those cells were re-measured. Every cell also publishes the score a constant picker would get, so the remaining confound is visible.</p><div id="c-std" style="height:440px"></div><div class="nd" id="nd-c-std"></div></div>
 <div class="chart"><h2>Capability heatmap</h2>
@@ -663,7 +665,7 @@ bars show accuracy; hover any bar for its exact 95% Wilson interval (also printe
 <div class="chart"><h2>English vs Persian (custom + Belebele-fa standard)</h2>
 <p class="note">Gap = English accuracy − Persian accuracy, in percentage points.</p><div id="c-lang" style="height:380px"></div><div class="nd" id="nd-c-lang"></div></div>
 <div class="chart"><h2>Multiple-choice vs chance baseline</h2>
-<p class="note">Bars = accuracy; ✕ = chance (mean 1/k over items, not flat 25%). A bar at chance level knows nothing.</p><div id="c-chance" style="height:440px"></div><div class="nd" id="nd-c-chance"></div></div>
+<p class="note">Bars = accuracy; the ring marks the chance baseline (mean 1/k over items, not flat 25%). A bar at chance level knows nothing.</p><div id="c-chance" style="height:440px"></div><div class="nd" id="nd-c-chance"></div></div>
 <div class="chart"><h2>MMLU-6 by subject (n=5 each)</h2>
 <p class="note">Tiny-n: ±35pp intervals. Read rankings, not gaps.</p><div id="c-mmlu" style="height:380px"></div><div class="nd" id="nd-c-mmlu"></div></div>
 <div class="chart"><h2>Agentic: reliability, trace, answer-only</h2>
@@ -694,7 +696,7 @@ document.getElementById('chips').innerHTML =
   D.models.map(m=>`<span class="chip"><b style="color:${m.color}">●</b> ${m.label} · ${m.fileGB} GB · <code>…${m.digest}</code> · ${m.elapsed_h} h · server ${m.server}${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠ incomplete</span>':''}</span>`).join('');
 document.getElementById('foot').innerHTML =
   `Scores: per-suite headline with 95% Wilson intervals; MC figures carry chance baselines and exact binomial p-values in the JSON. ` +
-  `PRIMARY-STD and PRIMARY-CUSTOM macro-means are shown as ★ AVG in the table. ` +
+  `PRIMARY-STD and PRIMARY-CUSTOM macro-means are the ★ rows of the full data table. ` +
   `s30 = stratified 30-item official-split instances (never full-leaderboard numbers). ` +
   `Reproduce: <code>bash run_llama.sh all qualifier</code> → <code>python3 qualify.py</code> → screening → <code>python3 charts.py</code>. ` +
   `Charts: Apache ECharts ${echarts.version}, vendored offline in <code>reports/assets</code>.`;
@@ -757,7 +759,7 @@ function chartNote(shown, absent, get, cats){
     return cells.some(x=>x&&x.src==='text_match');
   }).map(m=>m.label);
   if(txtModels.length)
-    bits.push(`<b>other instrument:</b> ${txtModels.join(', ')} — multiple-choice cells measured by text match (lighter bars), not by single-token letter logprob`);
+    bits.push(`<b>other instrument:</b> ${txtModels.join(', ')} — multiple-choice cells measured by text match (marked ◐ on the bar), not by single-token letter logprob`);
   return bits.length? `<div class="nd">${bits.join(' · ')}</div>` : '';
 }
 /* shared grouped-bar builder.
@@ -790,12 +792,18 @@ function bars(id, cats, models, opts){
     data:r.cells.map((x,ci)=>{
       if(!x || x.v==null) return '-';
       const cat = cats[ci];
+      // A not-comparable cell keeps the model colour (dimmed only a little,
+      // so the value stays readable) and carries a warning ON the bar.
       if(r.m.broken && r.m.broken[opts.catKey?opts.catKey(cat):cat])
-        return {value:x.v, itemStyle:{color:r.m.color, opacity:0.55, borderRadius:[3,3,0,0]},
-                label:{show:true, position:'top', formatter:'⚠', color:'#f0c674', fontSize:12}};
+        return {value:x.v, itemStyle:{color:r.m.color, opacity:0.72, borderRadius:[3,3,0,0]},
+                label:{show:true, position:'top', color:'#f0c674', fontSize:11,
+                       formatter:p=>p.value? '⚠' : '0% ⚠'}};
+      // The other multiple-choice mechanism is marked with a glyph, NOT by
+      // dimming the bar: a dimmed bar is a bar the reader cannot read.
       if(x.src==='text_match')
-        return {value:x.v, itemStyle:{color:r.m.color, opacity:0.62, borderRadius:[3,3,0,0]},
-                label:(x.v===0)?{show:true,position:'top',formatter:'0%',color:'#8b96a3',fontSize:10}:undefined};
+        return {value:x.v, itemStyle:{color:r.m.color, borderRadius:[3,3,0,0]},
+                label:{show:true, position:'top', color:'#f0c674', fontSize:10,
+                       formatter:p=>p.value? '◐' : '0%'}};
       // A real 0% draws NO bar, and an empty slot reads as "missing".
       // Print the zero so a measured zero can never be mistaken for a gap.
       if(x.v===0)
@@ -846,46 +854,101 @@ function bars(id, cats, models, opts){
   const note=document.getElementById('nd-'+id);
   if(note) note.innerHTML=chartNote(shown.map(r=>r.m), absent, get, cats);
 }
-/* 1. radar */
+/* 1. radar - ONE axis group per set of models that can actually be
+   measured on it. A radar polygon that collapses to the centre because a
+   model has no score on an axis is a false zero, so an axis that not every
+   model can answer gets its own radar with the models that can.
+   (ECharts draws a missing radar value as 0 - it has no gap - so the only
+   honest option is to group the axes by coverage.) */
 (function(){
-  const axes = ['code','rust','embedded_cpp','science','electronics','persian',
+  const AXES=['code','rust','embedded_cpp','science','electronics','persian',
     'english','netdiag','devops','agentic','std_mmlu_s30','std_gsm8k_s30'];
-  mk('c-radar').setOption({radar:{center:['50%','45%'], radius:'78%',
-    indicator:axes.map(c=>({name:shortOf(c),max:1})),
-    axisName:{color:'#9aa4b2',fontSize:11},splitArea:{areaStyle:{color:['#161d26','#141a22']}}},
-    legend:{textStyle:{color:'#cfd6de'},bottom:0},
-    // NOTE: for a radar series p.value is the WHOLE value array, not the
-    // point's value - pct(p.value) printed "NaN%". The point's own value
-    // is p.value[p.dimensionIndex].
-    tooltip:{formatter:p=>{
-      const v = Array.isArray(p.value) ? p.value[p.dimensionIndex] : p.value;
-      const c = axes[p.dimensionIndex!=null?p.dimensionIndex:0];
-      const m = D.models.find(x=>x.label===p.seriesName);
-      if(v==null) return `${p.seriesName}<br/>${shortOf(c)}: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
-      let t = `${p.seriesName}<br/><b>${shortOf(c)}: ${pct(v)}</b>`;
-      const x = m ? (m.cats||{})[c] : null;
-      if(x && x.lo!=null) t += `<br/>95% CI ${pct(x.lo)} – ${pct(x.hi)} · n=${x.n}`;
-      else if(x && x.n!=null) t += `<br/>n=${x.n}`;
-      if(x && x.src==='text_match')
-        t += `<br/><span style="color:#f0c674">⚠ text-match instrument (not single-token letter logprob)</span>`;
-      if(m && m.broken && m.broken[c])
-        t += `<br/><span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
-      return t;}},
-    series:D.models.map(m=>({name:m.label,type:'radar',
-      itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
-      // ONE instrument per chart: the letter-logprob cells only. Pulling in
-      // the text-match cells here would silently rank two mechanisms
-      // against each other - the one thing this report must never do.
-      // A model without a letter-logprob score gets a GAP, not a zero.
-      data:[{value:axes.map(c=>{const x=(m.cats||{})[c];return x&&x.v!=null?x.v:null;}),name:m.label}]}))});
-  const nd=document.getElementById('nd-c-radar');
-  if(nd) nd.innerHTML='One instrument only: the letter-logprob cells. A GAP means the model has no letter-logprob score for that suite (k2-horizon\u2019s backend cannot score answer letters, so its multiple-choice numbers live in the text-match section). A gap is never a zero.';
+  const groups={};
+  AXES.forEach(c=>{
+    const have=D.models.filter(m=>{const x=(m.cats||{})[c];return x&&x.v!=null;});
+    if(!have.length) return;
+    const key=have.map(m=>m.label).sort().join('|');
+    if(!groups[key]) groups[key]={axes:[], models:have.map(m=>m.label)};
+    groups[key].axes.push(c);
+  });
+  const sets=Object.values(groups);
+  const big=sets.filter(g=>g.axes.length>=3);
+  const small=sets.filter(g=>g.axes.length<3);
+  const host=document.getElementById('radars');
+  if(!host) return;
+  big.forEach((g,gi)=>{
+    const id='c-radar'+gi;
+    const box=document.createElement('div');
+    box.className='chart';
+    const title=document.createElement('h2');
+    title.textContent='Capability radar '+(gi+1)+' of '+big.length+' — '+g.axes.length+' axes, '+g.models.length+' models';
+    const note=document.createElement('p');
+    note.className='note';
+    note.textContent='Every axis in this radar is measured for every model in it, by the same mechanism. '+
+      'Axes that not every model can answer are drawn in a separate radar, so no polygon ever collapses to the centre.';
+    const holder=document.createElement('div');
+    holder.id=id; holder.style.height='470px';
+    const nd=document.createElement('div'); nd.className='nd'; nd.id='nd-'+id;
+    box.appendChild(title); box.appendChild(note); box.appendChild(holder); box.appendChild(nd);
+    host.appendChild(box);
+    const models=D.models.filter(m=>g.models.indexOf(m.label)>=0);
+    mk(id).setOption({radar:{center:['50%','46%'], radius:'70%',
+      indicator:g.axes.map(c=>({name:shortOf(c),max:1})),
+      axisName:{color:'#9aa4b2',fontSize:11},
+      splitArea:{areaStyle:{color:['#161d26','#141a22']}}},
+      legend:{textStyle:{color:'#cfd6de'},bottom:0},
+      // NOTE: for a radar series p.value is the WHOLE value array, not the
+      // point's value - pct(p.value) printed "NaN". The point's own value
+      // is p.value[p.dimensionIndex].
+      tooltip:{formatter:p=>{
+        const v = Array.isArray(p.value) ? p.value[p.dimensionIndex] : p.value;
+        const c = g.axes[p.dimensionIndex!=null?p.dimensionIndex:0];
+        const m = D.models.find(x=>x.label===p.seriesName);
+        if(v==null) return `${p.seriesName}<br/>${shortOf(c)}: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
+        let t = `${p.seriesName}<br/><b>${shortOf(c)}: ${pct(v)}</b>`;
+        const x = m ? (m.cats||{})[c] : null;
+        if(x && x.lo!=null) t += `<br/>95% CI ${pct(x.lo)} – ${pct(x.hi)} · n=${x.n}`;
+        else if(x && x.n!=null) t += `<br/>n=${x.n}`;
+        if(m && m.broken && m.broken[c])
+          t += `<br/><span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
+        return t;}},
+      series:models.map(m=>({name:m.label,type:'radar',
+        itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
+        data:[{value:g.axes.map(c=>{const x=(m.cats||{})[c];return x&&x.v!=null?x.v:0;}),name:m.label}]}))});
+    const el=document.getElementById('nd-'+id);
+    const out=D.models.filter(m=>g.models.indexOf(m.label)<0).map(m=>m.label);
+    if(el) el.innerHTML='One instrument only: the letter-logprob cells. '+
+      (out.length? 'Models not in this radar: '+out.join(', ')+' — they have no letter-logprob score for these axes.'
+                   : 'Every model is in this radar: all of them can be measured on all of these axes.');
+  });
+  if(small.length){
+    const el=document.getElementById('nd-radars');
+    if(el) el.innerHTML='<b>axes not drawn as a radar</b> (fewer than three models can answer them, so a polygon would be meaningless): '+
+      small.map(g=>`${g.axes.map(shortOf).join(', ')} (${g.models.length} model${g.models.length>1?'s':''})`).join(' · ')+
+      ' — these are charted in the agentic section instead.';
+  }
 })();
 /* the two headline bar charts */
 bars('c-custom', D.custom, D.models);
 bars('c-std', D.std, D.models);
 /* 3. heatmap */
 (function(){
+  // The same ramp the visualMap uses, so the label ink can be chosen from
+  // the cell's ACTUAL fill. Bright cells take dark ink, dark cells take
+  // white ink: the number is readable on every cell in the map.
+  const RAMP=['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858'];
+  function rampRGB(v){
+    const t=Math.max(0,Math.min(1,v==null?0:v))*(RAMP.length-1);
+    const i=Math.min(RAMP.length-2,Math.floor(t));
+    const f=t-i;
+    const pa=[1,3,5].map(k=>parseInt(RAMP[i].substr(k,2),16));
+    const pb=[1,3,5].map(k=>parseInt(RAMP[i+1].substr(k,2),16));
+    return pa.map((x,k)=>x+(pb[k]-x)*f);
+  }
+  function relLum(rgb){
+    const a=rgb.map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});
+    return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];
+  }
   // The value dimension MUST be the third element: a fourth element made
   // ECharts colour every cell by that flag instead of by the score, which
   // painted the whole map in the minimum colour and highlighted exactly
@@ -902,7 +965,9 @@ bars('c-std', D.std, D.models);
       // own label. A null value renders as an empty hole that looks like a
       // rendering failure, and it is NOT a zero.
       miss[mi+':'+ci]=true;
-      data.push({value:[ci,mi,0], itemStyle:{color:NODATA, borderColor:'#11161d', borderWidth:1}});
+      data.push({value:[ci,mi,0],
+        itemStyle:{color:NODATA, borderColor:'#11161d', borderWidth:1},
+        label:{color:'#8494a6', textBorderColor:'#8494a6', textBorderWidth:1.5}});
       return;
     }
     const val = Math.round(cell.v*1000)/1000;
@@ -917,6 +982,12 @@ bars('c-std', D.std, D.models);
       item.itemStyle = {borderColor:'#f0c674', borderWidth:2};
       flags[mi+':'+ci]='brk';
     }
+    // The label ink follows the cell's own fill. ECharts 5.6 does NOT call a
+    // label.color CALLBACK for a heatmap series (it silently keeps the
+    // series default), so the colour must be set per item - which does work.
+    const rgb=rampRGB(val);
+    const ink = relLum(rgb)>0.40 ? '#10151c' : '#ffffff';
+    item.label = {color:ink, textBorderColor:ink, textBorderWidth:1.5};
     data.push(item);
   }));
   mk('c-heat').setOption({tooltip:{formatter:p=>{
@@ -942,13 +1013,9 @@ bars('c-std', D.std, D.models);
       textStyle:{color:'#8b96a3',fontSize:10},
       inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
     series:[{type:'heatmap',data,
-      // The label colour follows the cell's own lightness: white on the
-      // dark cells, near-black on the bright ones. One fixed colour made
-      // the strongest cells the least readable.
+      // The ink colour is set per data item above (a label.color callback
+      // is never invoked for a heatmap series).
       label:{show:true,fontSize:9,
-        color:p=>{const v=p.value&&p.value[2];
-          if(miss[p.value[1]+':'+p.value[0]]) return '#6b7a8d';
-          return (v!=null && v>0.72)? '#0d1117':'#fff';},
         formatter:p=>{const k=p.value[1]+':'+p.value[0];
           if(miss[k]) return '—';
           const pc=Math.round(p.value[2]*100)+'%';
@@ -1032,7 +1099,7 @@ bars('c-std', D.std, D.models);
       itemStyle:{color:'#11161d',borderColor:'#e6e8eb',borderWidth:2},
       data:chance}]});
   const nd=document.getElementById('nd-c-chance');
-  if(nd) nd.innerHTML='✕ marks the chance baseline (mean 1/k over items, not a flat 25%). A bar at chance level knows nothing.';
+  if(nd) nd.innerHTML='The ring marks the chance baseline (mean 1/k over items, not a flat 25%). A bar at chance level knows nothing.';
 })();
 /* 7. MMLU subjects */
 (function(){
@@ -1042,7 +1109,7 @@ bars('c-std', D.std, D.models);
   bars('c-mmlu', subs, D.models, {rotate:22, fs:10, get:get,
     label:(c)=> (c.split('/')[1]||c).replace(/_/g,' ')});
   const nd=document.getElementById('nd-c-mmlu');
-  if(nd) nd.innerHTML='n=5 per subject, so every cell carries roughly ±35pp. Lighter bars are the text-match instrument.';
+  if(nd) nd.innerHTML='n=5 per subject, so every cell carries roughly ±35pp. Bars marked ◐ are the text-match instrument.';
 })();
 /* 8. agentic: reliability, trace, answer-only */
 function agenticChart(id, models, opts){
@@ -1091,8 +1158,9 @@ function agenticChart(id, models, opts){
       barGap:'20%', barCategoryGap:'30%',
       data:r.cells.map(x=>{
         if(!x||x.v==null) return '-';
-        if(x.broken) return {value:x.v,itemStyle:{color:r.m.color,opacity:0.55,borderRadius:[3,3,0,0]},
-          label:{show:true,position:'top',formatter:'⚠',color:'#f0c674',fontSize:12}};
+        if(x.broken) return {value:x.v,itemStyle:{color:r.m.color,opacity:0.72,borderRadius:[3,3,0,0]},
+          label:{show:true,position:'top',color:'#f0c674',fontSize:11,
+                 formatter:p=>p.value? '⚠' : '0% ⚠'}};
         return x.v;})}))});
   const nd=document.getElementById('nd-'+id);
   if(nd) nd.innerHTML = (absent.length?`<b>no data in this chart:</b> ${absent.join(', ')} — never measured here, not a zero · `:'')+
@@ -1131,12 +1199,17 @@ agenticChart('c-agent', D.models);
 })();
 /* 9. throughput */
 (function(){
-  const rows=[['code','Code tok/s'],['std_gsm8k','GSM8K tok/s']];
+  // the payload key is 'std_gsm8k_s30'; the old 'std_gsm8k' matched
+  // nothing and left the whole GSM8K group blank
+  const rows=[['code','Code tok/s'],['std_gsm8k_s30','GSM8K tok/s']];
   mk('c-tps').setOption({legend:{textStyle:{color:'#cfd6de'}},
     tooltip:{trigger:'item',formatter:p=>{const r=rows[p.dataIndex];
       return `${p.seriesName}<br/>${r?r[1]:''}: <b>${p.value}</b>`;}},
-    xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'}},yAxis:{...AX},
-    series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
+    xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'},axisTick:{show:false},
+      axisLine:{lineStyle:{color:'#3a4756'}}},
+    yAxis:{type:'value',splitLine:{show:false},axisLine:{show:false},axisTick:{show:false},
+      axisLabel:{color:'#cfd6de'}},
+    series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color,borderRadius:[3,3,0,0]},
       data:rows.map(r=>m.tps[r[0]]!=null?m.tps[r[0]]:'-')}))});
 })();
 /* table */

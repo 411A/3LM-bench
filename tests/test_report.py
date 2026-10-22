@@ -149,10 +149,40 @@ def main():
     # the "not measured" language must exist
     check("page explains 'not measured'", "not measured in this instrument" in html)
     # every chart that can lose a model must carry a note container
-    for cid in ("c-radar", "c-custom", "c-std", "c-heat", "c-eff", "c-lang",
+    for cid in ("c-custom", "c-std", "c-heat", "c-eff", "c-lang",
                 "c-chance", "c-mmlu", "c-agent", "c-speed", "c-txt", "c-qual",
                 "c-deep", "c-cs"):
         check(f"{cid} has a note container", f'id="nd-{cid}"' in html)
+    # the radar charts are built at run time, one per axis-coverage group
+    check("radar host exists", 'id="radars"' in html)
+    check("radar groups by coverage", 'groups[key]' in script)
+    # the radar must never plot a missing value as a zero: ECharts draws a
+    # null radar value at the centre, so an axis that not every model can
+    # answer has to live in its own radar.
+    check("radar groups by model coverage", 'g.axes.length>=3' in script)
+    # the heatmap label ink must be set per item (a label.color CALLBACK is
+    # never invoked for a heatmap series in ECharts 5.6)
+    check("heatmap label ink is per item", 'item.label = {color:ink' in script)
+    check("heatmap computes the ramp", 'function rampRGB' in script)
+    # ---- 8. a chart group must never be empty: the in-run throughput
+    #         chart once looked up a key that does not exist, so its whole
+    #         GSM8K group was blank and nobody noticed ----
+    tps_keys = set()
+    for m in models:
+        tps_keys |= set((m.get("tps") or {}).keys())
+    rows = re.search(r"const rows=\[\['code','Code tok/s'\],\['([a-z0-9_]+)'", script)
+    check("the throughput chart's row keys exist in the payload",
+          rows is not None and rows.group(1) in tps_keys,
+          f"chart wants {rows.group(1) if rows else '?'}, payload has {sorted(tps_keys)}")
+    check("every payload tps key is plotted",
+          tps_keys <= {("code"), rows.group(1) if rows else ""},
+          f"payload has {sorted(tps_keys)}")
+    # the note divs must not be forced to the chart-canvas height: that
+    # left 420px of empty space under every chart
+    check("note divs are excluded from the canvas height rule",
+          ".chart>div[id]:not(.nd)" in html)
+    check("the note wording matches the glyph mark",
+          "marked \u25d0 on the bar" in script or "marked \u25d0" in script)
     os.remove("/tmp/llmbench-test-report.html")
 
     print()
