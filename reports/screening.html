@@ -19,55 +19,60 @@ th{background:#1d2630;color:#cfd6de}
 tr:nth-child(even) td{background:#131922}
 .foot{color:#8b96a3;font-size:12px;margin-top:18px;line-height:1.6}
 code{background:#1d2630;padding:1px 6px;border-radius:6px}
+.nd{color:#8b96a3;font-size:11px;margin:2px 12px 8px;line-height:1.5}
+.nd b{color:#b9c2cc}
 .warn{background:#3a2a12;border:1px solid #7a5a1e;color:#f0c674;border-radius:9px;padding:0 7px;font-size:11px;cursor:help}
 </style></head><body><div class="wrap">
 <h1 id="t"></h1><div class="sub" id="chips"></div>
 <div class="sub" style="margin:2px 0 10px"><b>How to read the marks:</b>
 <span class="warn">⚠ incomplete</span> = the run behind that row is missing items (never a score) ·
-<span class="warn">⚠ n/c</span> = the cell is real but <i>not comparable</i> (broken tool-calling backend) ·
+<span class="warn">⚠ n/c</span> = the cell is real but <i>not comparable</i> (broken tool-calling backend, or a multiple-choice mechanism that was never qualified) ·
 <span class="warn">⚠ txt</span> / lighter bar = multiple-choice cell measured by the <i>text-match</i> mechanism (generated answer matched to option, not single-token letter logprob) ·
+<span class="warn">—</span> = not measured in this instrument (an empty slot, never a zero) ·
+<span class="warn">0%</span> = a measured zero (a real score that would otherwise draw no bar) ·
+<span class="warn">◐</span> = text-match cell in the heatmap ·
 bars show accuracy; hover any bar for its exact 95% Wilson interval (also printed in the full data table).</div>
 <h2 style="margin-top:20px">Coverage: who ran what</h2>
 <p class="note" style="font-size:12px;color:#8b96a3">Record counts per instrument. Every section below compares only within one instrument — cross-section ranks are never computed.</p>
 <div style="overflow-x:auto"><table id="cov"></table></div>
 <div class="chart"><h2>Capability radar (headline metric per suite, higher is better)</h2>
-<p class="note">One axis per suite. Lint = clean rate, NetDiag/DevOps = mean score, Agentic = pass^k reliability, rest = accuracy. One cell is a broken-backend artifact and is marked everywhere it appears: nemotron's agentic score comes from a llama.cpp build that cannot emit a parseable tool call, so its chains could not use tools (the same weights reach 0.895 through Ollama). It is drawn here as measured, but it is not a like-for-like comparison — see the ⚠ n/c marks below.</p><div id="c-radar"></div></div>
+<p class="note">One axis per suite. Lint = clean rate, NetDiag/DevOps = mean score, Agentic = pass^k reliability, rest = accuracy. One cell is a broken-backend artifact and is marked everywhere it appears: nemotron's agentic score comes from a llama.cpp build that cannot emit a parseable tool call, so its chains could not use tools (the same weights reach 0.895 through Ollama). It is drawn here as measured, but it is not a like-for-like comparison — see the ⚠ n/c marks below.</p><div id="c-radar"></div><div class="nd" id="nd-c-radar"></div></div>
 <div class="chart"><h2>Custom suites — accuracy</h2>
-<p class="note">Hover any bar for its exact 95% Wilson interval (never the normal approximation), n and chance baseline. Lighter bars marked ⚠ txt are the text-match instrument, not letter-logprob peers.</p><div id="c-custom" style="height:460px"></div></div>
+<p class="note">Hover any bar for its exact 95% Wilson interval (never the normal approximation), n and chance baseline. Lighter bars marked ⚠ txt are the text-match instrument, not letter-logprob peers.</p><div id="c-custom" style="height:460px"></div><div class="nd" id="nd-c-custom"></div></div>
 <div class="chart"><h2>Standard s30 suites — accuracy</h2>
-<p class="note">Stratified 30-item official-split instances. Hover for the Wilson interval, n and chance baseline. MMLU-6, HellaSwag and WinoGrande are POSITION-DEBIASED: the upstream option order put 10-18 points of the answer in one letter, so the gold positions were permuted deterministically (same questions, same distractors) and those cells were re-measured. Every cell also publishes the score a constant picker would get, so the remaining confound is visible.</p><div id="c-std" style="height:440px"></div></div>
+<p class="note">Stratified 30-item official-split instances. Hover for the Wilson interval, n and chance baseline. MMLU-6, HellaSwag and WinoGrande are POSITION-DEBIASED: the upstream option order put 10-18 points of the answer in one letter, so the gold positions were permuted deterministically (same questions, same distractors) and those cells were re-measured. Every cell also publishes the score a constant picker would get, so the remaining confound is visible.</p><div id="c-std" style="height:440px"></div><div class="nd" id="nd-c-std"></div></div>
 <div class="chart"><h2>Capability heatmap</h2>
-<p class="note">Cells outlined in amber were measured with the OTHER multiple-choice mechanism (text match) - a different instrument, not a peer of the cells around it. Lighter = stronger (0 to 1). "\u2014" = the suite was not measured for that model <i>in this instrument</i>. A cell marked with an amber \u26a0 is real but not comparable (a broken tool-calling backend). k2-horizon's multiple-choice cells come from the TEXT-MATCH instrument - its llama.cpp build cannot score answer letters - so they are a different measurement and are never ranked against the letter-logprob cells of the other models. Hover any cell for its instrument, n and unparsed rate.</p><div id="c-heat" style="height:380px"></div></div>
+<p class="note">Cells outlined in amber were measured with the OTHER multiple-choice mechanism (text match) - a different instrument, not a peer of the cells around it. Lighter = stronger (0 to 1). "\u2014" = the suite was not measured for that model <i>in this instrument</i>. A cell marked with an amber \u26a0 is real but not comparable (a broken tool-calling backend). k2-horizon's multiple-choice cells come from the TEXT-MATCH instrument - its llama.cpp build cannot score answer letters - so they are a different measurement and are never ranked against the letter-logprob cells of the other models. Hover any cell for its instrument, n and unparsed rate.</p><div id="c-heat" style="height:380px"></div><div class="nd" id="nd-c-heat"></div></div>
 <div class="chart"><h2>Efficiency: capability vs decode speed</h2>
-<p class="note">Bubble area = model file GB. Faster + higher is better; top-right wins. Speed here is the DEDICATED isolated pass: one model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median decode rate of 12 identical prompts - not a by-product of a long benchmark run. Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714; no comparison on this page spans two builds.</p><div id="c-eff" style="height:400px"></div></div>
+<p class="note">Bubble area = model file GB. Faster + higher is better; top-right wins. Speed here is the DEDICATED isolated pass: one model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median decode rate of 12 identical prompts - not a by-product of a long benchmark run. Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714; no comparison on this page spans two builds.</p><div id="c-eff" style="height:400px"></div><div class="nd" id="nd-c-eff"></div></div>
 <div class="chart"><h2>English vs Persian (custom + Belebele-fa standard)</h2>
-<p class="note">Gap = English accuracy − Persian accuracy, in percentage points.</p><div id="c-lang" style="height:380px"></div></div>
+<p class="note">Gap = English accuracy − Persian accuracy, in percentage points.</p><div id="c-lang" style="height:380px"></div><div class="nd" id="nd-c-lang"></div></div>
 <div class="chart"><h2>Multiple-choice vs chance baseline</h2>
-<p class="note">Bars = accuracy; ✕ = chance (mean 1/k over items, not flat 25%). A bar at chance level knows nothing.</p><div id="c-chance" style="height:440px"></div></div>
+<p class="note">Bars = accuracy; ✕ = chance (mean 1/k over items, not flat 25%). A bar at chance level knows nothing.</p><div id="c-chance" style="height:440px"></div><div class="nd" id="nd-c-chance"></div></div>
 <div class="chart"><h2>MMLU-6 by subject (n=5 each)</h2>
-<p class="note">Tiny-n: ±35pp intervals. Read rankings, not gaps.</p><div id="c-mmlu" style="height:380px"></div></div>
+<p class="note">Tiny-n: ±35pp intervals. Read rankings, not gaps.</p><div id="c-mmlu" style="height:380px"></div><div class="nd" id="nd-c-mmlu"></div></div>
 <div class="chart"><h2>Agentic: reliability, trace, answer-only</h2>
-<p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div></div>
+<p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div><div class="nd" id="nd-c-agent"></div></div>
 <div class="chart"><h2>In-run decode rate (historical, under background load)</h2>
 <p class="note">Kept for the record: these per-suite rates were taken as a by-product of long benchmark runs while a runaway desktop thumbnailer held half the CPU (REVIEW5), so they UNDERSTATE true speed. Any speed claim on this page uses the isolated pass instead.</p><div id="c-tps" style="height:340px"></div></div>
 <div class="chart"><h2>Isolated throughput, every model</h2>
-<p class="note">One model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median of 12 identical prompts. The spread (p25-p75, min-max) is in the tooltip; the foreign-CPU column is what the desktop was using at measurement time. These replace the in-run rates above, which were taken while a runaway thumbnailer held half the CPU.</p><div id="c-speed" style="height:300px"></div></div>
+<p class="note">One model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median of 12 identical prompts. The spread (p25-p75, min-max) is in the tooltip; the foreign-CPU column is what the desktop was using at measurement time. These replace the in-run rates above, which were taken while a runaway thumbnailer held half the CPU.</p><div id="c-speed" style="height:300px"></div><div class="nd" id="nd-c-speed"></div></div>
 <div class="chart"><h2>Text-match MC: the second mechanism (separate instrument)</h2>
-<p class="note">A model that answers with the option's TEXT instead of the letter ("4" rather than "B") puts no probability mass on the letters, so the letter-logprob mechanism cannot score it - that model is unmeasured there, not wrong. This is the other mechanism: the generated answer is read and matched to the option. It is a DIFFERENT instrument: its categories are separate and are never ranked against the letter-logprob numbers above. Hover for the unparsed rate (answers that matched no option - counted as incorrect, never guessed).</p><div id="c-txt" style="height:380px"></div></div>
+<p class="note">A model that answers with the option's TEXT instead of the letter ("4" rather than "B") puts no probability mass on the letters, so the letter-logprob mechanism cannot score it - that model is unmeasured there, not wrong. This is the other mechanism: the generated answer is read and matched to the option. It is a DIFFERENT instrument: its categories are separate and are never ranked against the letter-logprob numbers above. Hover for the unparsed rate (answers that matched no option - counted as incorrect, never guessed).</p><div id="c-txt" style="height:380px"></div><div class="nd" id="nd-c-txt"></div></div>
 <div class="chart"><h2>Qualifier: identical fast subsets, all models</h2>
-<p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. All six qualifier runs share ONE server build (b11558, 2026-10-17) so the ranking is internally consistent; the screening instrument was measured on b11714. The two are never compared with each other. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div></div>
+<p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. All six qualifier runs share ONE server build (b11558, 2026-10-17) so the ranking is internally consistent; the screening instrument was measured on b11714. The two are never compared with each other. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div><div class="nd" id="nd-c-qual"></div></div>
 <div style="overflow-x:auto"><table id="tbl-q"></table></div>
 <div class="chart"><h2>Agentic deep-dive: every model with 19-chain evidence</h2>
-<p class="note">Deep files (19 chains) plus screening subsets (8 chains, chain count shown) for models without one. pass^k requires tool use; compare within equal chain counts.</p><div id="c-deep" style="height:380px"></div></div>
+<p class="note">Deep files (19 chains) plus screening subsets (8 chains, chain count shown) for models without one. pass^k requires tool use; compare within equal chain counts.</p><div id="c-deep" style="height:380px"></div><div class="nd" id="nd-c-deep"></div></div>
 <div class="chart"><h2>CS-100 decider: full official CS subject</h2>
-<p class="note">100 items, ±10pp — the instrument that acquitted qwen's s30 gap (all pairs TIE). Hover for Wilson intervals.</p><div id="c-cs" style="height:360px"></div></div>
+<p class="note">100 items, ±10pp — the instrument that acquitted qwen's s30 gap (all pairs TIE). Hover for Wilson intervals.</p><div id="c-cs" style="height:360px"></div><div class="nd" id="nd-c-cs"></div></div>
 <div style="overflow-x:auto"><table id="tbl-cs"></table></div>
 <h2 style="margin-top:26px">Full data table</h2>
 <div style="overflow-x:auto"><table id="tbl"></table></div>
 <div class="foot" id="foot"></div>
 </div>
 <script>
-const D = {"models": [{"label": "granite4-3b", "color": "#5470C6", "fileGB": 2.24, "digest": "18a7cb78e7d5", "server": "b11714-c0fd78626", "macro_custom": 0.7396, "macro_std": 0.6583, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 5.79, "tps_source": "isolated", "speed": {"model": "granite4-3b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 5.79, "tps_mean": 5.726, "tps_min": 5.37, "tps_max": 5.83, "tps_p25": 5.67, "tps_p75": 5.82, "wall_s_median": 15.3, "per_prompt_tps": [5.66, 5.82, 5.57, 5.76, 5.78, 5.81, 5.82, 5.67, 5.37, 5.8, 5.83, 5.82], "measured_unix": 1792531653.938395, "load_avg_at_start": "3.41", "foreign_cpu_pct_at_start": 20.5, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.39, "elapsed_h": 0.44, "n_recs": 566, "cats": {"code": {"v": 0.8, "lo": 0.6524, "hi": 0.895, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.5, "lo": 0.2366, "hi": 0.7634, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.4167, "lo": 0.1933, "hi": 0.6805, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9429, "lo": 0.8139, "hi": 0.9842, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7241, "lo": 0.598, "hi": 0.8225, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.475, "lo": 0.3294, "hi": 0.625, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8444, "lo": 0.7122, "hi": 0.9225, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.7274, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.8917, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.3571, "lo": 0.1634, "hi": 0.6124, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.8421, "lo": 0.6243, "hi": 0.9448, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.5333, "lo": 0.3614, "hi": 0.6977, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.5333, "lo": 0.3614, "hi": 0.6977, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 1.0}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.6}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 1.0}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.8421, "per_trial_trace_rate": 0.7368, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 1.47, "fabrication_rate": 0.0, "n_chains": 19}, "tps": {"code": 5.04, "std_gsm8k_s30": 4.92}}, {"label": "k2-horizon", "color": "#3BA272", "fileGB": 3.16, "digest": "d820f23207b2", "server": "b11714-c0fd78626", "macro_custom": 0.7375, "macro_std": 0.5167, "macro_custom_txt": true, "macro_std_txt": true, "mean_tps": 4.34, "tps_source": "isolated", "speed": {"model": "k2-horizon", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 4.34, "tps_mean": 4.339, "tps_min": 4.26, "tps_max": 4.41, "tps_p25": 4.3, "tps_p75": 4.37, "wall_s_median": 23.89, "per_prompt_tps": [4.37, 4.41, 4.33, 4.32, 4.35, 4.3, 4.29, 4.41, 4.36, 4.26, 4.37, 4.3], "measured_unix": 1792531228.5309975, "load_avg_at_start": "3.51", "foreign_cpu_pct_at_start": 19.1, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 2.15, "elapsed_h": 0.08, "n_recs": 172, "cats": {"code": {"v": 0.8, "lo": 0.6524, "hi": 0.895, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.7, "lo": 0.3968, "hi": 0.8922, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": null, "range": null}, "science": null, "electronics": null, "persian": null, "english": null, "netdiag": {"v": 0.697, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.9667, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.3571, "lo": 0.1634, "hi": 0.6124, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.5263, "lo": 0.3171, "hi": 0.7267, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": null, "std_arc_easy_s30": null, "std_hellaswag_s30": null, "std_winogrande_s30": null, "std_truthfulqa_mc_s30": null, "std_belebele_fa_s30": null, "std_mmlu_s30": null, "std_gsm8k_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": null, "range": null}}, "txt_cats": {"science": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "src": "text_match", "unparsed": 0.0286, "range": [0.9143, 0.9429]}, "electronics": {"v": 0.7414, "lo": 0.6162, "hi": 0.8365, "n": 58, "chance": 0.25, "src": "text_match", "unparsed": 0.1552, "range": [0.7414, 0.8966]}, "persian": {"v": 0.4, "lo": 0.2635, "hi": 0.554, "n": 40, "chance": 0.2562, "src": "text_match", "unparsed": 0.5, "range": [0.4, 0.9]}, "english": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "src": "text_match", "unparsed": 0.0444, "range": [0.8889, 0.9333]}, "std_arc_challenge_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.2, "range": [0.7, 0.9]}, "std_arc_easy_s30": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.1, "range": [0.7667, 0.8667]}, "std_truthfulqa_mc_s30": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.2045, "src": "text_match", "unparsed": 0.4333, "range": [0.3333, 0.7667]}, "std_belebele_fa_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.2333, "range": [0.5667, 0.8]}, "std_hellaswag_s30": {"v": 0.2, "lo": 0.0951, "hi": 0.3731, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.4667, "range": [0.2, 0.6667]}, "std_winogrande_s30": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.5, "src": "text_match", "unparsed": 0.3, "range": [0.4333, 0.7333]}, "std_mmlu_s30": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.5333, "range": [0.3333, 0.8667]}}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 0.6}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.8}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.0}, "mmlu/high_school_physics": {"n": 5, "acc": 0.0}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.0}}, "mmlu_txt": true, "agentic": {"pass_hat_k_reliability": 0.5263, "per_trial_trace_rate": 0.6842, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 2.05, "fabrication_rate": 0.2368, "n_chains": 19}, "tps": {"code": 4.3, "std_gsm8k_s30": 3.81}}, {"label": "medgemma-4b", "color": "#EE6666", "fileGB": 2.49, "digest": "eb79afe751f3", "server": "b11714-c0fd78626", "macro_custom": 0.694, "macro_std": 0.6375, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 4.91, "tps_source": "isolated", "speed": {"model": "medgemma-4b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 4.91, "tps_mean": 4.877, "tps_min": 4.67, "tps_max": 5.05, "tps_p25": 4.78, "tps_p75": 5.0, "wall_s_median": 22.47, "per_prompt_tps": [4.69, 5.0, 5.0, 5.05, 4.8, 4.92, 4.93, 4.78, 5.0, 4.9, 4.67, 4.78], "measured_unix": 1792531978.773792, "load_avg_at_start": "3.66", "foreign_cpu_pct_at_start": 19.3, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.18, "elapsed_h": 0.27, "n_recs": 544, "cats": {"code": {"v": 0.725, "lo": 0.5717, "hi": 0.8389, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": null, "range": null}, "refactor": {"v": 0.8, "lo": 0.3755, "hi": 0.9638, "n": 5, "chance": null, "range": null}, "rust": {"v": 1.0, "lo": 0.7225, "hi": 1.0, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.1667, "lo": 0.047, "hi": 0.448, "n": 12, "chance": null, "range": null}, "science": {"v": 0.8571, "lo": 0.7062, "hi": 0.9374, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7241, "lo": 0.598, "hi": 0.8225, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.725, "lo": 0.5717, "hi": 0.8389, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8667, "lo": 0.7382, "hi": 0.9374, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.4545, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.8333, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.2857, "lo": 0.1172, "hi": 0.5465, "n": 14, "chance": null, "range": null}, "agentic": null, "std_arc_challenge_s30": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8333, "lo": 0.6644, "hi": 0.9266, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.4667, "lo": 0.3023, "hi": 0.6386, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6333, "lo": 0.4551, "hi": 0.7813, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.6667, "lo": 0.4878, "hi": 0.8077, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {"agentic": "NOT COMPARABLE: this backend cannot emit a parseable tool call (tools probe FAILED), so the chains scored zero by construction."}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 0.6}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.8}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.6}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": null, "per_trial_trace_rate": null, "final_answer_accuracy_no_tools_required": null, "mean_tool_calls": null, "fabrication_rate": null, "n_chains": null}, "tps": {"code": 4.61, "std_gsm8k_s30": 5.37}}, {"label": "minicpm5-2b", "color": "#B57EDC", "fileGB": 1.56, "digest": "dddf386602fd", "server": "b11714-c0fd78626", "macro_custom": 0.7329, "macro_std": 0.5917, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 8.5, "tps_source": "isolated", "speed": {"model": "minicpm5-2b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 8.5, "tps_mean": 8.472, "tps_min": 8.22, "tps_max": 8.58, "tps_p25": 8.48, "tps_p75": 8.55, "wall_s_median": 11.92, "per_prompt_tps": [8.56, 8.53, 8.45, 8.22, 8.48, 8.49, 8.55, 8.58, 8.51, 8.53, 8.28, 8.48], "measured_unix": 1792530880.5073473, "load_avg_at_start": "3.85", "foreign_cpu_pct_at_start": 17.1, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.25, "elapsed_h": 0.21, "n_recs": 560, "cats": {"code": {"v": 0.75, "lo": 0.5981, "hi": 0.8581, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.9, "lo": 0.5958, "hi": 0.9821, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7931, "lo": 0.6723, "hi": 0.8775, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.325, "lo": 0.2008, "hi": 0.4798, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8444, "lo": 0.7122, "hi": 0.9225, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.4849, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.8333, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.4286, "lo": 0.2138, "hi": 0.6741, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.7368, "lo": 0.5121, "hi": 0.8819, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.6667, "lo": 0.4878, "hi": 0.8077, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5, "lo": 0.3315, "hi": 0.6685, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5, "lo": 0.3315, "hi": 0.6685, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.4667, "lo": 0.3023, "hi": 0.6386, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6333, "lo": 0.4551, "hi": 0.7813, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.4}, "mmlu/high_school_biology": {"n": 5, "acc": 0.8}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.6}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.8}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.7368, "per_trial_trace_rate": 0.6886, "final_answer_accuracy_no_tools_required": 0.9211, "mean_tool_calls": 1.58, "fabrication_rate": 0.0, "n_chains": 19}, "tps": {"code": 7.0, "std_gsm8k_s30": 6.89}}, {"label": "nemotron-3-nano", "color": "#91CC75", "fileGB": 2.84, "digest": "212d37242970", "server": "b11714-c0fd78626", "macro_custom": 0.6562, "macro_std": 0.7208, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 3.82, "tps_source": "isolated", "speed": {"model": "nemotron-3-nano", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 3.82, "tps_mean": 3.784, "tps_min": 3.62, "tps_max": 3.85, "tps_p25": 3.8, "tps_p75": 3.84, "wall_s_median": 15.37, "per_prompt_tps": [3.63, 3.83, 3.85, 3.84, 3.83, 3.81, 3.71, 3.62, 3.8, 3.84, 3.84, 3.81], "measured_unix": 1792530699.6452239, "load_avg_at_start": "3.57", "foreign_cpu_pct_at_start": 22.0, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.08, "elapsed_h": 0.27, "n_recs": 566, "cats": {"code": {"v": 0.525, "lo": 0.375, "hi": 0.6706, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.6, "lo": 0.3127, "hi": 0.8318, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.0, "lo": 0.0, "hi": 0.2425, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.8276, "lo": 0.7109, "hi": 0.9036, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.525, "lo": 0.375, "hi": 0.6706, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.8485, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.9667, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.2143, "lo": 0.0757, "hi": 0.4759, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.2105, "lo": 0.0851, "hi": 0.4333, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8333, "lo": 0.6644, "hi": 0.9266, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.6, "lo": 0.4232, "hi": 0.7541, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5333, "lo": 0.3614, "hi": 0.6977, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.6333, "lo": 0.4551, "hi": 0.7813, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.8667, "lo": 0.7032, "hi": 0.9469, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {"agentic": "NOT COMPARABLE: this backend cannot emit a parseable tool call (tools probe FAILED), so the chains scored zero by construction. The same weights score 0.895 through Ollama, where the tool-calling pairing works."}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.8}, "mmlu/high_school_biology": {"n": 5, "acc": 1.0}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.8}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.2}, "mmlu/high_school_physics": {"n": 5, "acc": 0.8}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.6}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.2105, "per_trial_trace_rate": 0.0, "final_answer_accuracy_no_tools_required": 0.2632, "mean_tool_calls": 0.0, "fabrication_rate": 0.0, "n_chains": 19}, "tps": {"code": 3.43, "std_gsm8k_s30": 2.91}}, {"label": "qwen35-2b", "color": "#FAC858", "fileGB": 1.28, "digest": "0ee914699223", "server": "b11714-c0fd78626", "macro_custom": 0.6307, "macro_std": 0.6792, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 8.545, "tps_source": "isolated", "speed": {"model": "qwen35-2b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 8.545, "tps_mean": 8.483, "tps_min": 7.9, "tps_max": 8.62, "tps_p25": 8.47, "tps_p75": 8.61, "wall_s_median": 11.81, "per_prompt_tps": [8.36, 8.61, 8.62, 8.53, 8.62, 8.59, 8.47, 8.53, 8.58, 8.43, 7.9, 8.56], "measured_unix": 1792531407.2704644, "load_avg_at_start": "4.06", "foreign_cpu_pct_at_start": 20.1, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.36, "elapsed_h": 0.18, "n_recs": 566, "cats": {"code": {"v": 0.525, "lo": 0.375, "hi": 0.6706, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": null, "range": null}, "refactor": {"v": 0.8, "lo": 0.3755, "hi": 0.9638, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.4, "lo": 0.1682, "hi": 0.6873, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.25, "lo": 0.0889, "hi": 0.5323, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9429, "lo": 0.8139, "hi": 0.9842, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7414, "lo": 0.6162, "hi": 0.8365, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.625, "lo": 0.4703, "hi": 0.7578, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.697, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.875, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.2857, "lo": 0.1172, "hi": 0.5465, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.6316, "lo": 0.4104, "hi": 0.8085, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.8667, "lo": 0.7032, "hi": 0.9469, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.9667, "lo": 0.8333, "hi": 0.9941, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.4667, "lo": 0.3023, "hi": 0.6386, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 0.6}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.6}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.2}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.8}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.6316, "per_trial_trace_rate": 0.614, "final_answer_accuracy_no_tools_required": 0.8684, "mean_tool_calls": 1.42, "fabrication_rate": 0.0789, "n_chains": 19}, "tps": {"code": 8.74, "std_gsm8k_s30": 8.4}}], "custom": ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp", "science", "electronics", "persian", "english", "netdiag", "devops", "lint", "agentic"], "std": ["std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_belebele_fa_s30", "std_mmlu_s30", "std_gsm8k_s30"], "short": {"code": "Code", "bugfix": "BugFix", "algo": "Algo", "refactor": "Refactor", "rust": "Rust", "embedded_cpp": "Embed-C++", "science": "Science", "electronics": "Electronics", "persian": "Persian", "english": "English", "netdiag": "NetDiag", "devops": "DevOps", "lint": "Lint", "agentic": "Agentic", "std_arc_challenge_s30": "ARC-C", "std_arc_easy_s30": "ARC-E", "std_hellaswag_s30": "HellaSwag", "std_winogrande_s30": "WinoGrande", "std_truthfulqa_mc_s30": "TruthfulQA", "std_belebele_fa_s30": "Belebele-fa", "std_mmlu_s30": "MMLU-6", "std_gsm8k_s30": "GSM8K", "std_mmlu_cs": "MMLU-CS (100)"}, "speeds": [{"label": "granite4-3b", "tps": 5.79, "p25": 5.67, "p75": 5.82, "min": 5.37, "max": 5.83, "n": 12, "foreign_cpu": 20.5, "server": "b11714-c0fd78626"}, {"label": "k2-horizon", "tps": 4.34, "p25": 4.3, "p75": 4.37, "min": 4.26, "max": 4.41, "n": 12, "foreign_cpu": 19.1, "server": "b11714-c0fd78626"}, {"label": "medgemma-4b", "tps": 4.91, "p25": 4.78, "p75": 5.0, "min": 4.67, "max": 5.05, "n": 12, "foreign_cpu": 19.3, "server": "b11714-c0fd78626"}, {"label": "minicpm5-2b", "tps": 8.5, "p25": 8.48, "p75": 8.55, "min": 8.22, "max": 8.58, "n": 12, "foreign_cpu": 17.1, "server": "b11714-c0fd78626"}, {"label": "nemotron-3-nano", "tps": 3.82, "p25": 3.8, "p75": 3.84, "min": 3.62, "max": 3.85, "n": 12, "foreign_cpu": 22.0, "server": "b11714-c0fd78626"}, {"label": "qwen35-2b", "tps": 8.545, "p25": 8.47, "p75": 8.61, "min": 7.9, "max": 8.62, "n": 12, "foreign_cpu": 20.1, "server": "b11714-c0fd78626"}], "txt": [{"label": "k2-horizon", "color": "#3BA272", "cats": {"science_txt": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "range": [0.9143, 0.9429]}, "electronics_txt": {"v": 0.7414, "lo": 0.6162, "hi": 0.8365, "n": 58, "chance": 0.25, "range": [0.7414, 0.8966]}, "persian_txt": {"v": 0.4, "lo": 0.2635, "hi": 0.554, "n": 40, "chance": 0.2562, "range": [0.4, 0.9]}, "english_txt": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "range": [0.8889, 0.9333]}, "std_arc_challenge_s30_txt": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "range": [0.7, 0.9]}, "std_arc_easy_s30_txt": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "range": [0.7667, 0.8667]}, "std_hellaswag_s30_txt": {"v": 0.2, "lo": 0.0951, "hi": 0.3731, "n": 30, "chance": 0.25, "range": [0.2, 0.6667]}, "std_winogrande_s30_txt": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.5, "range": [0.4333, 0.7333]}, "std_truthfulqa_mc_s30_txt": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.2045, "range": [0.3333, 0.7667]}, "std_belebele_fa_s30_txt": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.25, "range": [0.5667, 0.8]}, "std_mmlu_s30_txt": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.25, "range": [0.3333, 0.8667]}, "std_mmlu_cs_txt": {"v": 0.43, "lo": 0.3373, "hi": 0.5278, "n": 100, "chance": 0.25, "range": [0.43, 0.77]}}, "n_recs": 488, "unparsed": {"science_txt": 0.0286, "electronics_txt": 0.1552, "persian_txt": 0.5, "english_txt": 0.0444, "std_arc_challenge_s30_txt": 0.2, "std_arc_easy_s30_txt": 0.1, "std_hellaswag_s30_txt": 0.4667, "std_winogrande_s30_txt": 0.3, "std_truthfulqa_mc_s30_txt": 0.4333, "std_belebele_fa_s30_txt": 0.2333, "std_mmlu_s30_txt": 0.5333, "std_mmlu_cs_txt": 0.34}, "gaps": []}], "txt_cats": ["science_txt", "electronics_txt", "persian_txt", "english_txt", "std_arc_challenge_s30_txt", "std_arc_easy_s30_txt", "std_hellaswag_s30_txt", "std_winogrande_s30_txt", "std_truthfulqa_mc_s30_txt", "std_belebele_fa_s30_txt", "std_mmlu_s30_txt", "std_mmlu_cs_txt"], "q": [{"label": "granite4-3b-q", "color": "#5470C6", "cats": {"science": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 1.0, "lo": 0.6097, "hi": 1.0, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": null, "range": null}, "agentic": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "k2-horizon-q", "color": "#3BA272", "cats": {"science": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.1667, "lo": 0.047, "hi": 0.448, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 0.8333, "lo": 0.4365, "hi": 0.9699, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.8, "lo": 0.3755, "hi": 0.9638, "n": 5, "chance": null, "range": null}}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "medgemma-4b-q", "color": "#EE6666", "cats": {"science": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 1.0, "lo": 0.6097, "hi": 1.0, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.2, "lo": 0.0362, "hi": 0.6245, "n": 5, "chance": null, "range": null}}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "minicpm5-2b-q", "color": "#B57EDC", "cats": {"science": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.4167, "lo": 0.1933, "hi": 0.6805, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 1.0, "lo": 0.6097, "hi": 1.0, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.6, "lo": 0.2307, "hi": 0.8824, "n": 5, "chance": null, "range": null}}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "nemotron-3-nano-q", "color": "#91CC75", "cats": {"science": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 0.8333, "lo": 0.4365, "hi": 0.9699, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.3333, "lo": 0.0615, "hi": 0.7923, "n": 3, "chance": null, "range": null}}, "n_recs": 141, "server": "b11714-c0fd78626"}, {"label": "qwen35-2b-q", "color": "#FAC858", "cats": {"science": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.4167, "lo": 0.1933, "hi": 0.6805, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 0.8333, "lo": 0.4365, "hi": 0.9699, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.6, "lo": 0.2307, "hi": 0.8824, "n": 5, "chance": null, "range": null}}, "n_recs": 143, "server": "b11714-c0fd78626"}], "q_cats": ["science", "electronics", "persian", "english", "std_arc_easy_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_hellaswag_s30", "std_belebele_fa_s30", "std_mmlu_s30", "code", "std_gsm8k_s30", "agentic"], "deep": [{"label": "granite4-3b-agentic", "color": "#5470C6", "n_chains": 19, "n_trials": 38, "agentic": {"pass_hat_k_reliability": 0.8421, "per_trial_trace_rate": 0.7368, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 1.47, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.4}}, {"label": "k2-horizon-agentic", "color": "#3BA272", "n_chains": 19, "n_trials": 38, "agentic": {"pass_hat_k_reliability": 0.5263, "per_trial_trace_rate": 0.6842, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 2.05, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.0}}, {"label": "minicpm5-2b-agentic", "color": "#B57EDC", "n_chains": 19, "n_trials": 38, "agentic": {"pass_hat_k_reliability": 0.7368, "per_trial_trace_rate": 0.6886, "final_answer_accuracy_no_tools_required": 0.9211, "mean_tool_calls": 1.58, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.8}}, {"label": "nemotron-3-nano-agentic", "color": "#91CC75", "n_chains": 19, "n_trials": 38, "agentic": {"pass_hat_k_reliability": 0.2105, "per_trial_trace_rate": 0.0, "final_answer_accuracy_no_tools_required": 0.2632, "mean_tool_calls": 0.0, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.8}}, {"label": "nemotron-3-nano-agentic (ollama)", "color": "#91CC75", "n_chains": 19, "n_trials": null, "agentic": {"pass_hat_k_reliability": 0.8947, "per_trial_trace_rate": 0.6491, "final_answer_accuracy_no_tools_required": 0.8947, "mean_tool_calls": 1.42, "fabrication_rate": 0.0526, "n_chains": 19}}, {"label": "qwen35-2b-agentic", "color": "#FAC858", "n_chains": 19, "n_trials": 38, "agentic": {"pass_hat_k_reliability": 0.6316, "per_trial_trace_rate": 0.614, "final_answer_accuracy_no_tools_required": 0.8684, "mean_tool_calls": 1.42, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.8}}, {"label": "medgemma-4b (screen-subset)", "color": "#EE6666", "n_chains": null, "n_trials": null, "agentic": {"pass_hat_k_reliability": null, "per_trial_trace_rate": null, "final_answer_accuracy_no_tools_required": null, "mean_tool_calls": null, "fabrication_rate": null, "n_chains": null}}], "cs": [{"label": "granite4-3b-cs", "color": "#5470C6", "cats": {"std_mmlu_cs": {"v": 0.68, "lo": 0.5834, "hi": 0.7633, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "k2-horizon-cs-txt", "color": "#3BA272", "cats": {"std_mmlu_cs": null}, "txt_cats": {"std_mmlu_cs": {"v": 0.43, "lo": 0.3373, "hi": 0.5278, "n": 100, "chance": 0.25, "src": "text_match", "unparsed": 0.34, "range": [0.43, 0.77]}}, "n_recs": 100}, {"label": "medgemma-4b-cs", "color": "#EE6666", "cats": {"std_mmlu_cs": {"v": 0.62, "lo": 0.5221, "hi": 0.709, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "minicpm5-2b-cs", "color": "#B57EDC", "cats": {"std_mmlu_cs": {"v": 0.64, "lo": 0.5424, "hi": 0.7273, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "nemotron-3-nano-cs", "color": "#91CC75", "cats": {"std_mmlu_cs": {"v": 0.74, "lo": 0.6463, "hi": 0.816, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "qwen35-2b-cs", "color": "#FAC858", "cats": {"std_mmlu_cs": {"v": 0.64, "lo": 0.5424, "hi": 0.7273, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}], "coverage": [{"model": "nemotron-3-nano", "color": "#91CC75", "cells": [566, 141, 57, 100, null]}, {"model": "qwen35-2b", "color": "#FAC858", "cells": [566, 143, 38, 100, null]}, {"model": "granite4-3b", "color": "#5470C6", "cells": [566, 143, 38, 100, null]}, {"model": "minicpm5-2b", "color": "#B57EDC", "cells": [560, 143, 38, 100, null]}, {"model": "k2-horizon", "color": "#3BA272", "cells": [172, 143, 38, null, 488]}, {"model": "medgemma-4b", "color": "#EE6666", "cells": [544, 143, null, 100, null]}], "meta": {"title": "llmbench — benchmark report (screening, qualifier, agentic, CS-100)", "runs": 6}};
+const D = {"models": [{"label": "granite4-3b", "color": "#5470C6", "fileGB": 2.24, "digest": "18a7cb78e7d5", "server": "b11714-c0fd78626", "macro_custom": 0.7396, "macro_std": 0.6583, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 5.79, "tps_source": "isolated", "speed": {"model": "granite4-3b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 5.79, "tps_mean": 5.726, "tps_min": 5.37, "tps_max": 5.83, "tps_p25": 5.67, "tps_p75": 5.82, "wall_s_median": 15.3, "per_prompt_tps": [5.66, 5.82, 5.57, 5.76, 5.78, 5.81, 5.82, 5.67, 5.37, 5.8, 5.83, 5.82], "measured_unix": 1792531653.938395, "load_avg_at_start": "3.41", "foreign_cpu_pct_at_start": 20.5, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.39, "elapsed_h": 0.44, "n_recs": 566, "cats": {"code": {"v": 0.8, "lo": 0.6524, "hi": 0.895, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.5, "lo": 0.2366, "hi": 0.7634, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.4167, "lo": 0.1933, "hi": 0.6805, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9429, "lo": 0.8139, "hi": 0.9842, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7241, "lo": 0.598, "hi": 0.8225, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.475, "lo": 0.3294, "hi": 0.625, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8444, "lo": 0.7122, "hi": 0.9225, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.7274, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.8917, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.3571, "lo": 0.1634, "hi": 0.6124, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.8421, "lo": 0.6243, "hi": 0.9448, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.5333, "lo": 0.3614, "hi": 0.6977, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.5333, "lo": 0.3614, "hi": 0.6977, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 1.0}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.6}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 1.0}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.8421, "per_trial_trace_rate": 0.7368, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 1.47, "fabrication_rate": 0.0, "n_chains": 19}, "agentic_ci": [0.6243, 0.9448], "tps": {"code": 5.04, "std_gsm8k_s30": 4.92}}, {"label": "k2-horizon", "color": "#3BA272", "fileGB": 3.16, "digest": "d820f23207b2", "server": "b11714-c0fd78626", "macro_custom": 0.7375, "macro_std": 0.5167, "macro_custom_txt": true, "macro_std_txt": true, "mean_tps": 4.34, "tps_source": "isolated", "speed": {"model": "k2-horizon", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 4.34, "tps_mean": 4.339, "tps_min": 4.26, "tps_max": 4.41, "tps_p25": 4.3, "tps_p75": 4.37, "wall_s_median": 23.89, "per_prompt_tps": [4.37, 4.41, 4.33, 4.32, 4.35, 4.3, 4.29, 4.41, 4.36, 4.26, 4.37, 4.3], "measured_unix": 1792531228.5309975, "load_avg_at_start": "3.51", "foreign_cpu_pct_at_start": 19.1, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 2.15, "elapsed_h": 0.08, "n_recs": 172, "cats": {"code": {"v": 0.8, "lo": 0.6524, "hi": 0.895, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.7, "lo": 0.3968, "hi": 0.8922, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": null, "range": null}, "science": null, "electronics": null, "persian": null, "english": null, "netdiag": {"v": 0.697, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.9667, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.3571, "lo": 0.1634, "hi": 0.6124, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.5263, "lo": 0.3171, "hi": 0.7267, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": null, "std_arc_easy_s30": null, "std_hellaswag_s30": null, "std_winogrande_s30": null, "std_truthfulqa_mc_s30": null, "std_belebele_fa_s30": null, "std_mmlu_s30": null, "std_gsm8k_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": null, "range": null}}, "txt_cats": {"science": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "src": "text_match", "unparsed": 0.0286, "range": [0.9143, 0.9429]}, "electronics": {"v": 0.7414, "lo": 0.6162, "hi": 0.8365, "n": 58, "chance": 0.25, "src": "text_match", "unparsed": 0.1552, "range": [0.7414, 0.8966]}, "persian": {"v": 0.4, "lo": 0.2635, "hi": 0.554, "n": 40, "chance": 0.2562, "src": "text_match", "unparsed": 0.5, "range": [0.4, 0.9]}, "english": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "src": "text_match", "unparsed": 0.0444, "range": [0.8889, 0.9333]}, "std_arc_challenge_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.2, "range": [0.7, 0.9]}, "std_arc_easy_s30": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.1, "range": [0.7667, 0.8667]}, "std_truthfulqa_mc_s30": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.2045, "src": "text_match", "unparsed": 0.4333, "range": [0.3333, 0.7667]}, "std_belebele_fa_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.2333, "range": [0.5667, 0.8]}, "std_hellaswag_s30": {"v": 0.2, "lo": 0.0951, "hi": 0.3731, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.4667, "range": [0.2, 0.6667]}, "std_winogrande_s30": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.5, "src": "text_match", "unparsed": 0.3, "range": [0.4333, 0.7333]}, "std_mmlu_s30": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.25, "src": "text_match", "unparsed": 0.5333, "range": [0.3333, 0.8667]}}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 0.6}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.8}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.0}, "mmlu/high_school_physics": {"n": 5, "acc": 0.0}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.0}}, "mmlu_txt": true, "agentic": {"pass_hat_k_reliability": 0.5263, "per_trial_trace_rate": 0.6842, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 2.05, "fabrication_rate": 0.2368, "n_chains": 19}, "agentic_ci": [0.3171, 0.7267], "tps": {"code": 4.3, "std_gsm8k_s30": 3.81}}, {"label": "medgemma-4b", "color": "#EE6666", "fileGB": 2.49, "digest": "eb79afe751f3", "server": "b11714-c0fd78626", "macro_custom": 0.694, "macro_std": 0.6375, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 4.91, "tps_source": "isolated", "speed": {"model": "medgemma-4b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 4.91, "tps_mean": 4.877, "tps_min": 4.67, "tps_max": 5.05, "tps_p25": 4.78, "tps_p75": 5.0, "wall_s_median": 22.47, "per_prompt_tps": [4.69, 5.0, 5.0, 5.05, 4.8, 4.92, 4.93, 4.78, 5.0, 4.9, 4.67, 4.78], "measured_unix": 1792531978.773792, "load_avg_at_start": "3.66", "foreign_cpu_pct_at_start": 19.3, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.18, "elapsed_h": 0.27, "n_recs": 544, "cats": {"code": {"v": 0.725, "lo": 0.5717, "hi": 0.8389, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": null, "range": null}, "refactor": {"v": 0.8, "lo": 0.3755, "hi": 0.9638, "n": 5, "chance": null, "range": null}, "rust": {"v": 1.0, "lo": 0.7225, "hi": 1.0, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.1667, "lo": 0.047, "hi": 0.448, "n": 12, "chance": null, "range": null}, "science": {"v": 0.8571, "lo": 0.7062, "hi": 0.9374, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7241, "lo": 0.598, "hi": 0.8225, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.725, "lo": 0.5717, "hi": 0.8389, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8667, "lo": 0.7382, "hi": 0.9374, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.4545, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.8333, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.2857, "lo": 0.1172, "hi": 0.5465, "n": 14, "chance": null, "range": null}, "agentic": null, "std_arc_challenge_s30": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8333, "lo": 0.6644, "hi": 0.9266, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.4667, "lo": 0.3023, "hi": 0.6386, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6333, "lo": 0.4551, "hi": 0.7813, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.6667, "lo": 0.4878, "hi": 0.8077, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {"agentic": "NOT COMPARABLE: this backend cannot emit a parseable tool call (tools probe FAILED), so the chains scored zero by construction."}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 0.6}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.8}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.6}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": null, "per_trial_trace_rate": null, "final_answer_accuracy_no_tools_required": null, "mean_tool_calls": null, "fabrication_rate": null, "n_chains": null}, "agentic_ci": null, "tps": {"code": 4.61, "std_gsm8k_s30": 5.37}}, {"label": "minicpm5-2b", "color": "#B57EDC", "fileGB": 1.56, "digest": "dddf386602fd", "server": "b11714-c0fd78626", "macro_custom": 0.7329, "macro_std": 0.5917, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 8.5, "tps_source": "isolated", "speed": {"model": "minicpm5-2b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 8.5, "tps_mean": 8.472, "tps_min": 8.22, "tps_max": 8.58, "tps_p25": 8.48, "tps_p75": 8.55, "wall_s_median": 11.92, "per_prompt_tps": [8.56, 8.53, 8.45, 8.22, 8.48, 8.49, 8.55, 8.58, 8.51, 8.53, 8.28, 8.48], "measured_unix": 1792530880.5073473, "load_avg_at_start": "3.85", "foreign_cpu_pct_at_start": 17.1, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.25, "elapsed_h": 0.21, "n_recs": 560, "cats": {"code": {"v": 0.75, "lo": 0.5981, "hi": 0.8581, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.9, "lo": 0.5958, "hi": 0.9821, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7931, "lo": 0.6723, "hi": 0.8775, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.325, "lo": 0.2008, "hi": 0.4798, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8444, "lo": 0.7122, "hi": 0.9225, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.4849, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.8333, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.4286, "lo": 0.2138, "hi": 0.6741, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.7368, "lo": 0.5121, "hi": 0.8819, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.6667, "lo": 0.4878, "hi": 0.8077, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5, "lo": 0.3315, "hi": 0.6685, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5, "lo": 0.3315, "hi": 0.6685, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.4667, "lo": 0.3023, "hi": 0.6386, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6333, "lo": 0.4551, "hi": 0.7813, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.4}, "mmlu/high_school_biology": {"n": 5, "acc": 0.8}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.6}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.8}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.7368, "per_trial_trace_rate": 0.6886, "final_answer_accuracy_no_tools_required": 0.9211, "mean_tool_calls": 1.58, "fabrication_rate": 0.0, "n_chains": 19}, "agentic_ci": [0.5121, 0.8819], "tps": {"code": 7.0, "std_gsm8k_s30": 6.89}}, {"label": "nemotron-3-nano", "color": "#91CC75", "fileGB": 2.84, "digest": "212d37242970", "server": "b11714-c0fd78626", "macro_custom": 0.6562, "macro_std": 0.7208, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 3.82, "tps_source": "isolated", "speed": {"model": "nemotron-3-nano", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 3.82, "tps_mean": 3.784, "tps_min": 3.62, "tps_max": 3.85, "tps_p25": 3.8, "tps_p75": 3.84, "wall_s_median": 15.37, "per_prompt_tps": [3.63, 3.83, 3.85, 3.84, 3.83, 3.81, 3.71, 3.62, 3.8, 3.84, 3.84, 3.81], "measured_unix": 1792530699.6452239, "load_avg_at_start": "3.57", "foreign_cpu_pct_at_start": 22.0, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.08, "elapsed_h": 0.27, "n_recs": 566, "cats": {"code": {"v": 0.525, "lo": 0.375, "hi": 0.6706, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "refactor": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.6, "lo": 0.3127, "hi": 0.8318, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.0, "lo": 0.0, "hi": 0.2425, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.8276, "lo": 0.7109, "hi": 0.9036, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.525, "lo": 0.375, "hi": 0.6706, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.8485, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.9667, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.2143, "lo": 0.0757, "hi": 0.4759, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.2105, "lo": 0.0851, "hi": 0.4333, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8333, "lo": 0.6644, "hi": 0.9266, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.6, "lo": 0.4232, "hi": 0.7541, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5333, "lo": 0.3614, "hi": 0.6977, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.6333, "lo": 0.4551, "hi": 0.7813, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.8, "lo": 0.6269, "hi": 0.9049, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.8667, "lo": 0.7032, "hi": 0.9469, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {"agentic": "NOT COMPARABLE: this backend cannot emit a parseable tool call (tools probe FAILED), so the chains scored zero by construction. The same weights score 0.895 through Ollama, where the tool-calling pairing works."}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.8}, "mmlu/high_school_biology": {"n": 5, "acc": 1.0}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.8}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.2}, "mmlu/high_school_physics": {"n": 5, "acc": 0.8}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.6}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.2105, "per_trial_trace_rate": 0.0, "final_answer_accuracy_no_tools_required": 0.2632, "mean_tool_calls": 0.0, "fabrication_rate": 0.0, "n_chains": 19}, "agentic_ci": [0.0851, 0.4333], "tps": {"code": 3.43, "std_gsm8k_s30": 2.91}}, {"label": "qwen35-2b", "color": "#FAC858", "fileGB": 1.28, "digest": "0ee914699223", "server": "b11714-c0fd78626", "macro_custom": 0.6307, "macro_std": 0.6792, "macro_custom_txt": false, "macro_std_txt": false, "mean_tps": 8.545, "tps_source": "isolated", "speed": {"model": "qwen35-2b", "n_prompts": 12, "warmup_prompts": 2, "max_tokens": 128, "ctx": 4096, "prompt_sha_prefix": "212ae32fc312d280", "tps_median": 8.545, "tps_mean": 8.483, "tps_min": 7.9, "tps_max": 8.62, "tps_p25": 8.47, "tps_p75": 8.61, "wall_s_median": 11.81, "per_prompt_tps": [8.36, 8.61, 8.62, 8.53, 8.62, 8.59, 8.47, 8.53, 8.58, 8.43, 7.9, 8.56], "measured_unix": 1792531407.2704644, "load_avg_at_start": "4.06", "foreign_cpu_pct_at_start": 20.1, "server_version": "b11714-c0fd78626"}, "mean_tps_inrun": 0.36, "elapsed_h": 0.18, "n_recs": 566, "cats": {"code": {"v": 0.525, "lo": 0.375, "hi": 0.6706, "n": 40, "chance": null, "range": null}, "bugfix": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": null, "range": null}, "algo": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": null, "range": null}, "refactor": {"v": 0.8, "lo": 0.3755, "hi": 0.9638, "n": 5, "chance": null, "range": null}, "rust": {"v": 0.4, "lo": 0.1682, "hi": 0.6873, "n": 10, "chance": null, "range": null}, "embedded_cpp": {"v": 0.25, "lo": 0.0889, "hi": 0.5323, "n": 12, "chance": null, "range": null}, "science": {"v": 0.9429, "lo": 0.8139, "hi": 0.9842, "n": 35, "chance": 0.25, "range": null}, "electronics": {"v": 0.7414, "lo": 0.6162, "hi": 0.8365, "n": 58, "chance": 0.25, "range": null}, "persian": {"v": 0.625, "lo": 0.4703, "hi": 0.7578, "n": 40, "chance": 0.2562, "range": null}, "english": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "range": null}, "netdiag": {"v": 0.697, "lo": null, "hi": null, "n": 11, "chance": null, "range": null}, "devops": {"v": 0.875, "lo": null, "hi": null, "n": 10, "chance": null, "range": null}, "lint": {"v": 0.2857, "lo": 0.1172, "hi": 0.5465, "n": 14, "chance": null, "range": null}, "agentic": {"v": 0.6316, "lo": 0.4104, "hi": 0.8085, "n": 19, "chance": null, "range": null}, "std_arc_challenge_s30": {"v": 0.8667, "lo": 0.7032, "hi": 0.9469, "n": 30, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.9667, "lo": 0.8333, "hi": 0.9941, "n": 30, "chance": 0.25, "range": null}, "std_hellaswag_s30": {"v": 0.4667, "lo": 0.3023, "hi": 0.6386, "n": 30, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.2045, "range": null}, "std_belebele_fa_s30": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.25, "range": null}, "std_gsm8k_s30": {"v": 0.7333, "lo": 0.5555, "hi": 0.8582, "n": 30, "chance": null, "range": null}}, "txt_cats": {}, "gaps": [], "broken": {}, "mmlu": {"mmlu/elementary_mathematics": {"n": 5, "acc": 0.6}, "mmlu/high_school_biology": {"n": 5, "acc": 0.6}, "mmlu/high_school_computer_science": {"n": 5, "acc": 0.6}, "mmlu/high_school_mathematics": {"n": 5, "acc": 0.2}, "mmlu/high_school_physics": {"n": 5, "acc": 0.6}, "mmlu/high_school_world_history": {"n": 5, "acc": 0.8}}, "mmlu_txt": false, "agentic": {"pass_hat_k_reliability": 0.6316, "per_trial_trace_rate": 0.614, "final_answer_accuracy_no_tools_required": 0.8684, "mean_tool_calls": 1.42, "fabrication_rate": 0.0789, "n_chains": 19}, "agentic_ci": [0.4104, 0.8085], "tps": {"code": 8.74, "std_gsm8k_s30": 8.4}}], "custom": ["code", "bugfix", "algo", "refactor", "rust", "embedded_cpp", "science", "electronics", "persian", "english", "netdiag", "devops", "lint", "agentic"], "std": ["std_arc_challenge_s30", "std_arc_easy_s30", "std_hellaswag_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_belebele_fa_s30", "std_mmlu_s30", "std_gsm8k_s30"], "short": {"code": "Code", "bugfix": "BugFix", "algo": "Algo", "refactor": "Refactor", "rust": "Rust", "embedded_cpp": "Embed-C++", "science": "Science", "electronics": "Electronics", "persian": "Persian", "english": "English", "netdiag": "NetDiag", "devops": "DevOps", "lint": "Lint", "agentic": "Agentic", "std_arc_challenge_s30": "ARC-C", "std_arc_easy_s30": "ARC-E", "std_hellaswag_s30": "HellaSwag", "std_winogrande_s30": "WinoGrande", "std_truthfulqa_mc_s30": "TruthfulQA", "std_belebele_fa_s30": "Belebele-fa", "std_mmlu_s30": "MMLU-6", "std_gsm8k_s30": "GSM8K", "std_mmlu_cs": "MMLU-CS (100)"}, "speeds": [{"label": "granite4-3b", "color": "#5470C6", "tps": 5.79, "p25": 5.67, "p75": 5.82, "min": 5.37, "max": 5.83, "n": 12, "foreign_cpu": 20.5, "server": "b11714-c0fd78626"}, {"label": "k2-horizon", "color": "#3BA272", "tps": 4.34, "p25": 4.3, "p75": 4.37, "min": 4.26, "max": 4.41, "n": 12, "foreign_cpu": 19.1, "server": "b11714-c0fd78626"}, {"label": "medgemma-4b", "color": "#EE6666", "tps": 4.91, "p25": 4.78, "p75": 5.0, "min": 4.67, "max": 5.05, "n": 12, "foreign_cpu": 19.3, "server": "b11714-c0fd78626"}, {"label": "minicpm5-2b", "color": "#B57EDC", "tps": 8.5, "p25": 8.48, "p75": 8.55, "min": 8.22, "max": 8.58, "n": 12, "foreign_cpu": 17.1, "server": "b11714-c0fd78626"}, {"label": "nemotron-3-nano", "color": "#91CC75", "tps": 3.82, "p25": 3.8, "p75": 3.84, "min": 3.62, "max": 3.85, "n": 12, "foreign_cpu": 22.0, "server": "b11714-c0fd78626"}, {"label": "qwen35-2b", "color": "#FAC858", "tps": 8.545, "p25": 8.47, "p75": 8.61, "min": 7.9, "max": 8.62, "n": 12, "foreign_cpu": 20.1, "server": "b11714-c0fd78626"}], "txt": [{"label": "k2-horizon", "color": "#3BA272", "cats": {"science_txt": {"v": 0.9143, "lo": 0.7762, "hi": 0.9704, "n": 35, "chance": 0.25, "range": [0.9143, 0.9429]}, "electronics_txt": {"v": 0.7414, "lo": 0.6162, "hi": 0.8365, "n": 58, "chance": 0.25, "range": [0.7414, 0.8966]}, "persian_txt": {"v": 0.4, "lo": 0.2635, "hi": 0.554, "n": 40, "chance": 0.2562, "range": [0.4, 0.9]}, "english_txt": {"v": 0.8889, "lo": 0.765, "hi": 0.9516, "n": 45, "chance": 0.25, "range": [0.8889, 0.9333]}, "std_arc_challenge_s30_txt": {"v": 0.7, "lo": 0.5212, "hi": 0.8334, "n": 30, "chance": 0.25, "range": [0.7, 0.9]}, "std_arc_easy_s30_txt": {"v": 0.7667, "lo": 0.5907, "hi": 0.8821, "n": 30, "chance": 0.25, "range": [0.7667, 0.8667]}, "std_hellaswag_s30_txt": {"v": 0.2, "lo": 0.0951, "hi": 0.3731, "n": 30, "chance": 0.25, "range": [0.2, 0.6667]}, "std_winogrande_s30_txt": {"v": 0.4333, "lo": 0.2738, "hi": 0.608, "n": 30, "chance": 0.5, "range": [0.4333, 0.7333]}, "std_truthfulqa_mc_s30_txt": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.2045, "range": [0.3333, 0.7667]}, "std_belebele_fa_s30_txt": {"v": 0.5667, "lo": 0.392, "hi": 0.7262, "n": 30, "chance": 0.25, "range": [0.5667, 0.8]}, "std_mmlu_s30_txt": {"v": 0.3333, "lo": 0.1923, "hi": 0.5122, "n": 30, "chance": 0.25, "range": [0.3333, 0.8667]}, "std_mmlu_cs_txt": {"v": 0.43, "lo": 0.3373, "hi": 0.5278, "n": 100, "chance": 0.25, "range": [0.43, 0.77]}}, "n_recs": 488, "unparsed": {"science_txt": 0.0286, "electronics_txt": 0.1552, "persian_txt": 0.5, "english_txt": 0.0444, "std_arc_challenge_s30_txt": 0.2, "std_arc_easy_s30_txt": 0.1, "std_hellaswag_s30_txt": 0.4667, "std_winogrande_s30_txt": 0.3, "std_truthfulqa_mc_s30_txt": 0.4333, "std_belebele_fa_s30_txt": 0.2333, "std_mmlu_s30_txt": 0.5333, "std_mmlu_cs_txt": 0.34}, "gaps": []}], "txt_cats": ["science_txt", "electronics_txt", "persian_txt", "english_txt", "std_arc_challenge_s30_txt", "std_arc_easy_s30_txt", "std_hellaswag_s30_txt", "std_winogrande_s30_txt", "std_truthfulqa_mc_s30_txt", "std_belebele_fa_s30_txt", "std_mmlu_s30_txt", "std_mmlu_cs_txt"], "q": [{"label": "granite4-3b-q", "color": "#5470C6", "cats": {"science": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 1.0, "lo": 0.6097, "hi": 1.0, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": null, "range": null}, "agentic": {"v": 1.0, "lo": 0.5655, "hi": 1.0, "n": 5, "chance": null, "range": null}}, "broken": {}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "k2-horizon-q", "color": "#3BA272", "cats": {"science": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.1667, "lo": 0.047, "hi": 0.448, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 0.8333, "lo": 0.4365, "hi": 0.9699, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.8, "lo": 0.3755, "hi": 0.9638, "n": 5, "chance": null, "range": null}}, "broken": {"science": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "electronics": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "persian": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "english": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "std_arc_easy_s30": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "std_winogrande_s30": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "std_truthfulqa_mc_s30": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "std_hellaswag_s30": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "std_belebele_fa_s30": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section.", "std_mmlu_s30": "NOT COMPARABLE: the answer-letter probe FAILED for this model (probability mass on the option letters 0.323 against a 0.50 floor), so the letter-logprob numbers below come from a mechanism that was never qualified. The same model's multiple-choice scores that WERE qualified are the text-match ones, shown in the text-match section."}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "medgemma-4b-q", "color": "#EE6666", "cats": {"science": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 1.0, "lo": 0.6097, "hi": 1.0, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.2, "lo": 0.0362, "hi": 0.6245, "n": 5, "chance": null, "range": null}}, "broken": {}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "minicpm5-2b-q", "color": "#B57EDC", "cats": {"science": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.4167, "lo": 0.1933, "hi": 0.6805, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 1.0, "lo": 0.6097, "hi": 1.0, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.6, "lo": 0.2307, "hi": 0.8824, "n": 5, "chance": null, "range": null}}, "broken": {}, "n_recs": 143, "server": "b11714-c0fd78626"}, {"label": "nemotron-3-nano-q", "color": "#91CC75", "cats": {"science": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.5, "lo": 0.2538, "hi": 0.7462, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.6667, "lo": 0.3906, "hi": 0.8619, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 0.8333, "lo": 0.4365, "hi": 0.9699, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.3333, "lo": 0.0615, "hi": 0.7923, "n": 3, "chance": null, "range": null}}, "broken": {}, "n_recs": 141, "server": "b11714-c0fd78626"}, {"label": "qwen35-2b-q", "color": "#FAC858", "cats": {"science": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "electronics": {"v": 0.4167, "lo": 0.1933, "hi": 0.6805, "n": 12, "chance": 0.25, "range": null}, "persian": {"v": 0.8333, "lo": 0.552, "hi": 0.953, "n": 12, "chance": 0.25, "range": null}, "english": {"v": 1.0, "lo": 0.7575, "hi": 1.0, "n": 12, "chance": 0.25, "range": null}, "std_arc_easy_s30": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_winogrande_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.5, "range": null}, "std_truthfulqa_mc_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.1841, "range": null}, "std_hellaswag_s30": {"v": 0.3333, "lo": 0.1381, "hi": 0.6094, "n": 12, "chance": 0.25, "range": null}, "std_belebele_fa_s30": {"v": 0.9167, "lo": 0.6461, "hi": 0.9851, "n": 12, "chance": 0.25, "range": null}, "std_mmlu_s30": {"v": 0.5833, "lo": 0.3195, "hi": 0.8067, "n": 12, "chance": 0.25, "range": null}, "code": {"v": 0.8333, "lo": 0.4365, "hi": 0.9699, "n": 6, "chance": null, "range": null}, "std_gsm8k_s30": {"v": 0.75, "lo": 0.4677, "hi": 0.9111, "n": 12, "chance": null, "range": null}, "agentic": {"v": 0.6, "lo": 0.2307, "hi": 0.8824, "n": 5, "chance": null, "range": null}}, "broken": {}, "n_recs": 143, "server": "b11714-c0fd78626"}], "q_cats": ["science", "electronics", "persian", "english", "std_arc_easy_s30", "std_winogrande_s30", "std_truthfulqa_mc_s30", "std_hellaswag_s30", "std_belebele_fa_s30", "std_mmlu_s30", "code", "std_gsm8k_s30", "agentic"], "deep": [{"label": "granite4-3b-agentic", "color": "#5470C6", "n_chains": 19, "n_trials": 38, "backend": "llama.cpp", "broken": null, "agentic": {"pass_hat_k_reliability": 0.8421, "per_trial_trace_rate": 0.7368, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 1.47, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.4}, "agentic_ci": [0.6243, 0.9448]}, {"label": "k2-horizon-agentic", "color": "#3BA272", "n_chains": 19, "n_trials": 38, "backend": "llama.cpp", "broken": null, "agentic": {"pass_hat_k_reliability": 0.5263, "per_trial_trace_rate": 0.6842, "final_answer_accuracy_no_tools_required": 0.8421, "mean_tool_calls": 2.05, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.0}, "agentic_ci": [0.3171, 0.7267]}, {"label": "minicpm5-2b-agentic", "color": "#B57EDC", "n_chains": 19, "n_trials": 38, "backend": "llama.cpp", "broken": null, "agentic": {"pass_hat_k_reliability": 0.7368, "per_trial_trace_rate": 0.6886, "final_answer_accuracy_no_tools_required": 0.9211, "mean_tool_calls": 1.58, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.8}, "agentic_ci": [0.5121, 0.8819]}, {"label": "nemotron-3-nano-agentic", "color": "#91CC75", "n_chains": 19, "n_trials": 38, "backend": "llama.cpp", "broken": "NOT COMPARABLE: this backend cannot emit a parseable tool call (no tool call was made in any chain), so the chains scored zero by construction. The same weights score 0.895 through Ollama, where the tool-calling pairing works.", "agentic": {"pass_hat_k_reliability": 0.2105, "per_trial_trace_rate": 0.0, "final_answer_accuracy_no_tools_required": 0.2632, "mean_tool_calls": 0.0, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.8}, "agentic_ci": [0.0851, 0.4333]}, {"label": "nemotron-3-nano-agentic (ollama)", "color": "#c2e3b3", "n_chains": 19, "n_trials": null, "backend": "ollama", "agentic": {"pass_hat_k_reliability": 0.8947, "per_trial_trace_rate": 0.6491, "final_answer_accuracy_no_tools_required": 0.8947, "mean_tool_calls": 1.42, "fabrication_rate": 0.0526, "n_chains": 19}}, {"label": "qwen35-2b-agentic", "color": "#FAC858", "n_chains": 19, "n_trials": 38, "backend": "llama.cpp", "broken": null, "agentic": {"pass_hat_k_reliability": 0.6316, "per_trial_trace_rate": 0.614, "final_answer_accuracy_no_tools_required": 0.8684, "mean_tool_calls": 1.42, "fabrication_rate": null, "n_chains": 19, "neg_refusal_rate": 0.8}, "agentic_ci": [0.4104, 0.8085]}, {"label": "medgemma-4b (screen-subset)", "color": "#EE6666", "n_chains": null, "n_trials": null, "backend": "llama.cpp", "broken": "NOT COMPARABLE: this backend cannot emit a parseable tool call (tools probe FAILED), so the chains scored zero by construction.", "agentic": {"pass_hat_k_reliability": null, "per_trial_trace_rate": null, "final_answer_accuracy_no_tools_required": null, "mean_tool_calls": null, "fabrication_rate": null, "n_chains": null}, "agentic_ci": null}], "cs": [{"label": "granite4-3b", "color": "#5470C6", "cats": {"std_mmlu_cs": {"v": 0.68, "lo": 0.5834, "hi": 0.7633, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "k2-horizon", "color": "#3BA272", "cats": {"std_mmlu_cs": null}, "txt_cats": {"std_mmlu_cs": {"v": 0.43, "lo": 0.3373, "hi": 0.5278, "n": 100, "chance": 0.25, "src": "text_match", "unparsed": 0.34, "range": [0.43, 0.77]}}, "n_recs": 100}, {"label": "medgemma-4b", "color": "#EE6666", "cats": {"std_mmlu_cs": {"v": 0.62, "lo": 0.5221, "hi": 0.709, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "minicpm5-2b", "color": "#B57EDC", "cats": {"std_mmlu_cs": {"v": 0.64, "lo": 0.5424, "hi": 0.7273, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "nemotron-3-nano", "color": "#91CC75", "cats": {"std_mmlu_cs": {"v": 0.74, "lo": 0.6463, "hi": 0.816, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}, {"label": "qwen35-2b", "color": "#FAC858", "cats": {"std_mmlu_cs": {"v": 0.64, "lo": 0.5424, "hi": 0.7273, "n": 100, "chance": 0.25}}, "txt_cats": {}, "n_recs": 100}], "coverage": [{"model": "nemotron-3-nano", "color": "#91CC75", "cells": [566, 141, 57, 100, null]}, {"model": "qwen35-2b", "color": "#FAC858", "cells": [566, 143, 38, 100, null]}, {"model": "granite4-3b", "color": "#5470C6", "cells": [566, 143, 38, 100, null]}, {"model": "minicpm5-2b", "color": "#B57EDC", "cells": [560, 143, 38, 100, null]}, {"model": "k2-horizon", "color": "#3BA272", "cells": [172, 143, 38, 100, 488]}, {"model": "medgemma-4b", "color": "#EE6666", "cells": [544, 143, null, 100, null]}], "meta": {"title": "llmbench — benchmark report (screening, qualifier, agentic, CS-100)", "runs": 6}};
 document.title = D.meta.title;
 document.getElementById('t').textContent = D.meta.title;
 document.getElementById('chips').innerHTML =
@@ -96,10 +101,17 @@ function cellOf(m, c){
   if(t && t.v!=null) return t;
   return null;
 }
+function shortOf(c){
+  if(D.short[c]) return D.short[c];
+  const base = c.replace(/_txt$/,'');
+  if(D.short[base]) return D.short[base];
+  return c;
+}
 function tipOf(m, c, cell){
   cell = cell || cellOf(m, c);
-  const sname = D.short[c] || c;
-  if(!cell || cell.v==null) return `${m.label}<br/>${sname}: — (not run)`;
+  const sname = shortOf(c);
+  if(!cell || cell.v==null)
+    return `${m.label}<br/><b>${sname}</b>: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
   if(m.broken && m.broken[c]) return `${m.label}<br/><b>${sname}: ${pct(cell.v)}</b><br/>`+
     `<span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
   let t = `${m.label}<br/><b>${sname}: ${pct(cell.v)}</b>`;
@@ -115,250 +127,399 @@ function tipOf(m, c, cell){
     t += `<br/>${m.agentic.n_chains} chains`;
   return t;
 }
-/* 1. radar */
-(function(){
-  const axes = ['code','rust','embedded_cpp','science','electronics','persian',
-    'english','netdiag','devops','agentic','std_mmlu_s30','std_gsm8k_s30'];
-  mk('c-radar').setOption({radar:{indicator:axes.map(c=>({name:D.short[c],max:1})),
-    axisName:{color:'#9aa4b2',fontSize:11},splitArea:{areaStyle:{color:['#161d26','#141a22']}}},
-    legend:{textStyle:{color:'#cfd6de'},bottom:0},
-    tooltip:{formatter:p=>`${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b>`}, series:D.models.map(m=>({name:m.label,type:'radar',
-      itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
-      // Missing is null, never 0: a gap in the polygon, not a false zero.
-      data:[{value:axes.map(c=>{const x=cellOf(m,c);return x&&x.v!=null?x.v:null;}),name:m.label}]}))});
-})();
-/* shared grouped-bar builder: clean bars, no whiskers, no gridlines.
-   Every bar's accuracy + exact 95% Wilson interval lives in the hover
-   tooltip and the full data table. Drawing 48-84 whiskers on one axis
-   (all overlapping at n=30) added 150+ line segments and a phantom
-   '95% CI' legend entry without adding information, so they are gone.
-   Text-match cells keep their model color at reduced opacity (no dashed
-   outline); the tooltip + table badge carry the instrument marking. */
-function barsWithCI(id, cats, models, rotate, fs){
-  rotate = rotate==null?28:rotate; fs = fs==null?11:fs;
+/* Grouped-bar layout constants. The bar series and the "not measured"
+   markers MUST use the same numbers, or the markers drift away from the
+   slots they belong to. One source of truth for both. */
+const CATGAP = 0.30, BARGAP = 0.20;
+/* the note printed under a chart: which models have no data at all, and
+   which cells came from the other multiple-choice mechanism */
+function chartNote(shown, absent, get, cats){
+  const bits=[];
+  if(absent && absent.length)
+    bits.push(`<b>no data in this chart:</b> ${absent.join(', ')} — never measured here, not a zero`);
+  const txtModels=shown.filter(m=>{
+    const cells = get ? cats.map(c=>get(m,c)) : Object.keys(m.cats||{}).map(c=>m.cats[c]);
+    return cells.some(x=>x&&x.src==='text_match');
+  }).map(m=>m.label);
+  if(txtModels.length)
+    bits.push(`<b>other instrument:</b> ${txtModels.join(', ')} — multiple-choice cells measured by text match (lighter bars), not by single-token letter logprob`);
+  return bits.length? `<div class="nd">${bits.join(' · ')}</div>` : '';
+}
+/* shared grouped-bar builder.
+   - a model with NO data in this chart is removed from the series and named
+     in the note: a legend entry that never draws a bar reads as a bug;
+   - a model with PARTIAL data keeps its slot, and the empty slots get an
+     explicit "not measured" marker instead of a silent void;
+   - a not-comparable cell keeps the model colour at reduced opacity and
+     carries a ⚠ on the bar, so it can never be read as a peer score. */
+function bars(id, cats, models, opts){
+  opts = opts || {};
+  const get = opts.get || ((m,c)=>cellOf(m,c));
+  const rotate = opts.rotate==null?28:opts.rotate;
+  const fs = opts.fs==null?11:opts.fs;
   const ch = mk(id);
-  const series = models.map(m=>({
-    name:m.label, type:'bar',
-    itemStyle:{color:m.color, borderRadius:[3,3,0,0]},
+  const rows = models.map(m=>({m, cells: cats.map(c=>get(m,c))}));
+  const shown = rows.filter(r=>r.cells.some(x=>x && x.v!=null));
+  const absent = rows.filter(r=>!r.cells.some(x=>x && x.v!=null)).map(r=>r.m.label);
+  const M = shown.length;
+  if(!M){
+    ch.setOption({title:{show:true,left:'center',top:'middle',
+      text:'no model has data in this instrument',
+      textStyle:{color:'#8b96a3',fontSize:13}}});
+    return;
+  }
+  const series = shown.map((r,mi)=>({
+    name:r.m.label, type:'bar',
+    itemStyle:{color:r.m.color, borderRadius:[3,3,0,0]},
     barGap:'20%', barCategoryGap:'30%',
-    data:cats.map(c=>{
-      const x=cellOf(m,c);
-      if(!x||x.v==null) return '-';
-      if(m.broken&&m.broken[c]) return {value:x.v,
-        itemStyle:{color:'#39424e', borderRadius:[3,3,0,0]}};
-      if(x.src==='text_match') return {value:x.v,
-        itemStyle:{color:m.color, opacity:0.7, borderRadius:[3,3,0,0]}};
+    data:r.cells.map((x,ci)=>{
+      if(!x || x.v==null) return '-';
+      const cat = cats[ci];
+      if(r.m.broken && r.m.broken[opts.catKey?opts.catKey(cat):cat])
+        return {value:x.v, itemStyle:{color:r.m.color, opacity:0.55, borderRadius:[3,3,0,0]},
+                label:{show:true, position:'top', formatter:'⚠', color:'#f0c674', fontSize:12}};
+      if(x.src==='text_match')
+        return {value:x.v, itemStyle:{color:r.m.color, opacity:0.62, borderRadius:[3,3,0,0]},
+                label:(x.v===0)?{show:true,position:'top',formatter:'0%',color:'#8b96a3',fontSize:10}:undefined};
+      // A real 0% draws NO bar, and an empty slot reads as "missing".
+      // Print the zero so a measured zero can never be mistaken for a gap.
+      if(x.v===0)
+        return {value:0, label:{show:true, position:'top', formatter:'0%',
+          color:'#8b96a3', fontSize:10}};
       return x.v;})
   }));
-  ch.setOption({legend:{textStyle:{color:'#cfd6de'},top:0},
+  /* explicit "not measured" markers: a hollow dashed stub with an em dash,
+     drawn in the slot of the model that has no value there */
+  const na=[];
+  shown.forEach((r,mi)=>r.cells.forEach((x,ci)=>{
+    if(!x || x.v==null) na.push([ci,mi]);}));
+  if(na.length){
+    series.push({type:'custom', name:'not measured', silent:true, z:6,
+      renderItem:(p,api)=>{
+        const ci=api.value(0), mi=api.value(1);
+        const band=api.size([1,0])[0];
+        const usable=band*(1-CATGAP);
+        const w=usable/(M+BARGAP*(M-1));
+        const start=api.coord([ci,0])[0]-usable/2;
+        const cx=start+w*(mi*(1+BARGAP)+0.5);
+        const y0=api.coord([0,0])[1];
+        const h=Math.max(4, Math.abs(api.coord([0,0.05])[1]-y0));
+        return {type:'group',children:[
+          {type:'rect', shape:{x:cx-w/2+1, y:y0-h, width:Math.max(3,w-2), height:h},
+           style:{fill:'rgba(120,132,148,0.12)', stroke:'#66768a', lineWidth:1, lineDash:[2,2]}},
+          {type:'text', style:{x:cx, y:y0-h-2, text:'—', fill:'#8494a6',
+           fontSize:11, textAlign:'center', textVerticalAlign:'bottom'}}]};
+      }, data:na});
+  }
+  ch.setOption({legend:{textStyle:{color:'#cfd6de'},top:0,
+      data: shown.map(r=>r.m.label).concat(opts.legendExtra||[])},
     tooltip:{trigger:'axis', axisPointer:{type:'shadow'},
       formatter:ps=>{
         if(!ps||!ps.length) return '';
         const c=cats[ps[0].dataIndex];
-        let h=`<b>${D.short[c]||c}</b>`;
-        ps.forEach(p=>{
-          if(p.value==='-'||p.value==null) return;
-          const m=models.find(x=>x.label===p.seriesName);
-          if(m) h+='<br/>'+tipOf(m,c,cellOf(m,c));
-        });
+        let h=`<b>${shortOf(c)}</b>`;
+        shown.forEach(r=>{ h+='<br/>'+tipOf(r.m,c,r.cells[ps[0].dataIndex]); });
         return h;}},
-    grid:{bottom:70,top:40,containLabel:true},
-    xAxis:{type:'category',data:cats.map(c=>D.short[c]||c),
+    grid:{bottom:opts.bottom==null?58:opts.bottom,top:34,containLabel:true},
+    xAxis:{type:'category',data:cats.map(c=>opts.label?opts.label(c):shortOf(c)),
       axisLabel:{color:'#9aa4b2',rotate:rotate,fontSize:fs},
       axisLine:{lineStyle:{color:'#3a4756'}},axisTick:{show:false}},
     yAxis:{type:'value',min:0,max:1,
       axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
       splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
-    series});
+    series: series.concat(opts.extraSeries||[])});
+  const note=document.getElementById('nd-'+id);
+  if(note) note.innerHTML=chartNote(shown.map(r=>r.m), absent, get, cats);
 }
-/* wire whisker tooltip via data */
-barsWithCI('c-custom', D.custom, D.models); barsWithCI('c-std', D.std, D.models);
+/* 1. radar */
+(function(){
+  const axes = ['code','rust','embedded_cpp','science','electronics','persian',
+    'english','netdiag','devops','agentic','std_mmlu_s30','std_gsm8k_s30'];
+  mk('c-radar').setOption({radar:{center:['50%','45%'], radius:'78%',
+    indicator:axes.map(c=>({name:shortOf(c),max:1})),
+    axisName:{color:'#9aa4b2',fontSize:11},splitArea:{areaStyle:{color:['#161d26','#141a22']}}},
+    legend:{textStyle:{color:'#cfd6de'},bottom:0},
+    // NOTE: for a radar series p.value is the WHOLE value array, not the
+    // point's value - pct(p.value) printed "NaN%". The point's own value
+    // is p.value[p.dimensionIndex].
+    tooltip:{formatter:p=>{
+      const v = Array.isArray(p.value) ? p.value[p.dimensionIndex] : p.value;
+      const c = axes[p.dimensionIndex!=null?p.dimensionIndex:0];
+      const m = D.models.find(x=>x.label===p.seriesName);
+      if(v==null) return `${p.seriesName}<br/>${shortOf(c)}: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
+      let t = `${p.seriesName}<br/><b>${shortOf(c)}: ${pct(v)}</b>`;
+      const x = m ? (m.cats||{})[c] : null;
+      if(x && x.lo!=null) t += `<br/>95% CI ${pct(x.lo)} – ${pct(x.hi)} · n=${x.n}`;
+      else if(x && x.n!=null) t += `<br/>n=${x.n}`;
+      if(x && x.src==='text_match')
+        t += `<br/><span style="color:#f0c674">⚠ text-match instrument (not single-token letter logprob)</span>`;
+      if(m && m.broken && m.broken[c])
+        t += `<br/><span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
+      return t;}},
+    series:D.models.map(m=>({name:m.label,type:'radar',
+      itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
+      // ONE instrument per chart: the letter-logprob cells only. Pulling in
+      // the text-match cells here would silently rank two mechanisms
+      // against each other - the one thing this report must never do.
+      // A model without a letter-logprob score gets a GAP, not a zero.
+      data:[{value:axes.map(c=>{const x=(m.cats||{})[c];return x&&x.v!=null?x.v:null;}),name:m.label}]}))});
+  const nd=document.getElementById('nd-c-radar');
+  if(nd) nd.innerHTML='One instrument only: the letter-logprob cells. A GAP means the model has no letter-logprob score for that suite (k2-horizon\u2019s backend cannot score answer letters, so its multiple-choice numbers live in the text-match section). A gap is never a zero.';
+})();
+/* the two headline bar charts */
+bars('c-custom', D.custom, D.models);
+bars('c-std', D.std, D.models);
 /* 3. heatmap */
 (function(){
   // The value dimension MUST be the third element: a fourth element made
   // ECharts colour every cell by that flag instead of by the score, which
   // painted the whole map in the minimum colour and highlighted exactly
   // one cell. The flags now travel in a side table.
-  const cats=[...D.custom,...D.std], data=[], flags={}, srcs={};
+  const NODATA='#1b222c';
+  const cats=[...D.custom,...D.std], data=[], flags={}, srcs={}, miss={};
   D.models.forEach((m,mi)=>cats.forEach((c,ci)=>{
     const x=m.cats[c];
     const t=(m.txt_cats&&m.txt_cats[c])||null;
     const cell=(x&&x.v!=null)?x:((t&&t.v!=null)?t:null);
     const isText=!((x&&x.v!=null))&&!!(t&&t.v!=null);
-    const val = cell&&cell.v!=null?Math.round(cell.v*1000)/1000:null;
+    if(!cell || cell.v==null){
+      // "not measured" is drawn as its own cell with its own fill and its
+      // own label. A null value renders as an empty hole that looks like a
+      // rendering failure, and it is NOT a zero.
+      miss[mi+':'+ci]=true;
+      data.push({value:[ci,mi,0], itemStyle:{color:NODATA, borderColor:'#11161d', borderWidth:1}});
+      return;
+    }
+    const val = Math.round(cell.v*1000)/1000;
+    const item = {value:[ci,mi,val]};
     if(isText){
       // A visibly different cell: the value was measured with the OTHER
       // multiple-choice mechanism, so it must not be read as a peer of the
       // letter-logprob cells around it.
-      data.push({value:[ci,mi,val],itemStyle:{borderColor:'#f0c674',borderWidth:2}});
+      item.itemStyle = {borderColor:'#f0c674', borderWidth:2};
       srcs[mi+':'+ci]='text';
-    } else {
-      data.push([ci,mi,val]);
-      if(m.broken&&m.broken[c]) flags[mi+':'+ci]='brk';
+    } else if(m.broken && m.broken[c]) {
+      item.itemStyle = {borderColor:'#f0c674', borderWidth:2};
+      flags[mi+':'+ci]='brk';
     }
+    data.push(item);
   }));
   mk('c-heat').setOption({tooltip:{formatter:p=>{
       const mi=p.value[1],ci=p.value[0],m=D.models[mi],c=cats[ci];
       const x=m.cats[c];
       const t=(m.txt_cats&&m.txt_cats[c])||null;
       const cell=(x&&x.v!=null)?x:((t&&t.v!=null)?t:null);
-      if(!cell||cell.v==null) return `${m.label}<br/>${D.short[c]}: \u2014 (not measured in this instrument)`;
-      let s=`${m.label}<br/><b>${D.short[c]}: ${pct(cell.v)}</b>`;
+      if(!cell||cell.v==null) return `${m.label}<br/>${shortOf(c)}: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
+      let s=`${m.label}<br/><b>${shortOf(c)}: ${pct(cell.v)}</b>`;
       if(srcs[mi+':'+ci]==='text')
         s+=`<br/><span style="color:#f0c674">text-match instrument: this model's backend cannot score answer letters, so its MC was measured by reading the generated answer. NOT comparable with the letter-logprob cells of the other models.</span>`;
       if(cell.range) s+=`<br/>range ${pct(cell.range[0])}-${pct(cell.range[1])} (an unparsed answer could have been right)`;
       if(cell.unparsed!=null) s+=`<br/>unparsed ${(cell.unparsed*100).toFixed(1)}%`;
-      if(flags[mi+':'+ci]==='brk') s+=`<br/><span style="color:#f0c674">\u26a0 ${m.broken[c]}</span>`;
+      if(flags[mi+':'+ci]==='brk') s+=`<br/><span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
       s+=`<br/>n=${cell.n}`;
       return s;}},
-    grid:{height:'78%',top:10}, xAxis:{type:'category',data:cats.map(c=>D.short[c]),
-      axisLabel:{color:'#9aa4b2',rotate:30,fontSize:10},axisTick:{show:false}},
+    grid:{height:'76%',top:14,left:110,right:60}, xAxis:{type:'category',data:cats.map(c=>shortOf(c)),
+      axisLabel:{color:'#9aa4b2',rotate:32,fontSize:10},axisTick:{show:false},
+      splitArea:{show:false}},
     yAxis:{type:'category',data:D.models.map(m=>m.label),axisLabel:{color:'#cfd6de'}},
-    visualMap:{min:0,max:1,calculable:true,orient:'vertical',right:0,top:'middle',
-      textStyle:{color:'#8b96a3'},inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
-    series:[{type:'heatmap',data,label:{show:true,fontSize:9,color:'#fff',
-      textBorderColor:'#000',textBorderWidth:2,
-      formatter:p=>{const k=p.value[1]+':'+p.value[0];
-        if(p.value[2]==null) return '\u2014';
-        const pc=Math.round(p.value[2]*100)+'%';
-        if(flags[k]==='brk') return '\u26a0'+pc;
-        if(srcs[k]==='text') return '\u25d0'+pc;
-        return pc;}},
+    visualMap:{min:0,max:1,calculable:true,orient:'vertical',right:4,top:'middle',
+      itemWidth:12,itemHeight:110,text:['100%','0%'],
+      textStyle:{color:'#8b96a3',fontSize:10},
+      inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
+    series:[{type:'heatmap',data,
+      // The label colour follows the cell's own lightness: white on the
+      // dark cells, near-black on the bright ones. One fixed colour made
+      // the strongest cells the least readable.
+      label:{show:true,fontSize:9,
+        color:p=>{const v=p.value&&p.value[2];
+          if(miss[p.value[1]+':'+p.value[0]]) return '#6b7a8d';
+          return (v!=null && v>0.72)? '#0d1117':'#fff';},
+        formatter:p=>{const k=p.value[1]+':'+p.value[0];
+          if(miss[k]) return '—';
+          const pc=Math.round(p.value[2]*100)+'%';
+          if(flags[k]==='brk') return '⚠'+pc;
+          if(srcs[k]==='text') return '◐'+pc;
+          return pc;}},
       itemStyle:{borderColor:'#11161d',borderWidth:1},
       emphasis:{itemStyle:{borderColor:'#e6e8eb',borderWidth:2}},
       encode:{x:0,y:1,value:2}}]});
+  const nd=document.getElementById('nd-c-heat');
+  if(nd) nd.innerHTML = '<b>marks:</b> ◐ = measured with the text-match instrument · ⚠ = real but not comparable · — = not measured in this instrument (never a zero).';
 })();
-/* 4. efficiency */
+/* 4. efficiency: capability vs decode speed */
 (function(){
-  mk('c-eff').setOption({legend:{textStyle:{color:'#cfd6de'}},
+  const pts=[];
+  D.models.forEach(m=>{
+    if(m.macro_custom==null || m.mean_tps==null || m.tps_source!=='isolated') return;
+    pts.push({m, kind:'PRIMARY-CUSTOM', v:m.macro_custom, yoff:0});
+    if(m.macro_std!=null) pts.push({m, kind:'PRIMARY-STD', v:m.macro_std, yoff:0});
+  });
+  if(!pts.length){mk('c-eff').setOption({title:{show:true,left:'center',top:'middle',
+    text:'no isolated throughput yet', textStyle:{color:'#8b96a3',fontSize:13}}});return;}
+  const ch=mk('c-eff');
+  const mkSeries=(kind,color,symbol,sizeOf)=>({
+    name:kind, type:'scatter', symbol:symbol,
+    // ECharts hands a symbolSize callback the data ITEM, not always the
+    // value array: with object items {value:[...]} the old d[2] read
+    // undefined and every bubble got size NaN (drawn as nothing).
+    symbolSize:d=>{const v=Array.isArray(d)?d:(d&&d.value)||[];return sizeOf(v[2]);},
+    itemStyle:{color:color, opacity:0.92, borderColor:'#0f141b', borderWidth:1},
+    label:{show:kind==='PRIMARY-CUSTOM', position:'right', distance:6,
+      color:'#9aa4b2', fontSize:10,
+      formatter:p=>p.value[3]},
+    data:pts.filter(p=>p.kind===kind).map(p=>({
+      value:[p.m.mean_tps, p.v, p.m.fileGB, p.m.label],
+      itemStyle: (p.m[kind==='PRIMARY-CUSTOM'?'macro_custom_txt':'macro_std_txt'])
+        ? {color:color, opacity:0.72, borderColor:'#f0c674', borderWidth:2, borderType:'solid'}
+        : {color:color, opacity:0.92, borderColor:'#0f141b', borderWidth:1}}))});
+  ch.setOption({
+    legend:{textStyle:{color:'#cfd6de'},top:0},
     tooltip:{formatter:p=>{
       const v=(p.value||(p.data&&p.data.value)||[]);
-      const hasTxt = v[4];
-      return `${p.seriesName} · ${v[3]}<br/>macro ${pct(v[1])}${hasTxt?' <span style="color:#f0c674">(⚠ MC via text-match)</span>':''} · ${v[0]} tok/s · ${v[2]} GB`;}},
-    xAxis:{name:'decode tok/s (isolated pass)',...AX}, yAxis:{name:'macro-mean',max:1,...AX},
-    series:['macro_custom','macro_std'].map((k,ki)=>({name:ki?'PRIMARY-STD':'PRIMARY-CUSTOM',
-      type:'scatter',symbolSize:d=>18+Math.sqrt(d[2])*14,
-      itemStyle:{color:ki?'#EE6666':'#5470C6',opacity:0.9},
-      data:D.models.filter(m=>m[k]!=null&&m.mean_tps!=null&&m.tps_source==='isolated')
-        .map(m=>{
-          const hasTxt = m[k+'_txt'];
-          return {value:[m.mean_tps,m[k],m.fileGB,m.label,hasTxt?1:0],
-                  itemStyle:hasTxt?{borderColor:'#f0c674',borderWidth:2}: {}};})}))});
+      const m=D.models.find(x=>x.label===v[3]);
+      const txt=m&&(m.macro_custom_txt||m.macro_std_txt);
+      return `${v[3]}<br/><b>${p.seriesName}: ${pct(v[1])}</b>`+
+        `${txt?' <span style="color:#f0c674">(⚠ MC via text-match)</span>':''}`+
+        `<br/>${v[0]} tok/s (isolated pass) · ${v[2]} GB`;}},
+    grid:{left:64,right:120,top:34,bottom:52},
+    xAxis:{type:'value',name:'decode tok/s (isolated pass)',nameLocation:'middle',
+      nameGap:30,nameTextStyle:{color:'#8b96a3',fontSize:11},
+      min:v=>Math.floor(v.min-1), max:v=>Math.ceil(v.max+1),
+      ...AX, splitLine:{show:false}, axisLine:{show:false}},
+    yAxis:{type:'value',name:'macro-mean',nameLocation:'middle',nameGap:38,
+      nameTextStyle:{color:'#8b96a3',fontSize:11},min:0,max:1,
+      ...AX, splitLine:{show:false}, axisLine:{show:false},axisTick:{show:false},
+      axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'}},
+    series:[mkSeries('PRIMARY-CUSTOM','#5470C6','circle',gb=>14+Math.sqrt(gb)*8),
+             mkSeries('PRIMARY-STD','#EE6666','diamond',gb=>11+Math.sqrt(gb)*6)]});
+  const nd=document.getElementById('nd-c-eff');
+  if(nd) nd.innerHTML='Bubble area = model file GB. The model name is printed next to the custom-macro bubble; the red diamond is the same model\'s standard macro.';
 })();
 /* 5. bilingual */
 (function(){
   const cats=['english','persian','std_belebele_fa_s30'];
-  mk('c-lang').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>{const m=D.models.find(x=>x.label===p.seriesName);
-      return tipOf(m,cats[p.dataIndex],cellOf(m,cats[p.dataIndex]));}},
-    xAxis:{type:'category',data:['English','Persian','Belebele-fa'],axisLabel:{color:'#cfd6de'},axisTick:{show:false}},
-    yAxis:{type:'value',min:0,max:1,
-      axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
-      splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
-    series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color,borderRadius:[3,3,0,0]},
-      data:cats.map(c=>{const x=cellOf(m,c);
-        if(!x||x.v==null) return '-';
-        if(x.src==='text_match') return {value:x.v,itemStyle:{color:m.color,opacity:0.7,borderRadius:[3,3,0,0]}};
-        return x.v;})}))});
+  bars('c-lang', cats, D.models, {rotate:0});
 })();
 /* 6. MC vs chance */
 (function(){
-  const cats=[...D.custom.filter(c=>['science','electronics','persian','english'].includes(c)),...D.std.filter(c=>c!=='std_gsm8k_s30')];
-  const series=D.models.map(m=>({name:m.label,type:'bar',
-    itemStyle:{color:m.color,borderRadius:[3,3,0,0]},
-    data:cats.map(c=>{const x=cellOf(m,c);
-      if(!x||x.v==null) return '-';
-      if(x.src==='text_match') return {value:x.v,itemStyle:{color:m.color,opacity:0.7,borderRadius:[3,3,0,0]}};
-      return x.v;})}));
-  series.push({name:'chance',type:'scatter',symbol:'x',symbolSize:12,
-    itemStyle:{color:'#8b96a3'},data:cats.map(c=>{
-      const xs=D.models.map(m=>cellOf(m,c)).filter(x=>x&&x.chance!=null).map(x=>x.chance);
-      return xs.length?Math.max(...xs):'-';})});
-  mk('c-chance').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>{const m=D.models.find(x=>x.label===p.seriesName);
-      if(!m) return 'chance baseline';return tipOf(m,cats[p.dataIndex],cellOf(m,cats[p.dataIndex]));}},
-    grid:{bottom:70,containLabel:true},xAxis:{type:'category',data:cats.map(c=>D.short[c]),
-      axisLabel:{color:'#9aa4b2',rotate:26,fontSize:11},axisTick:{show:false}},
-    yAxis:{type:'value',min:0,max:1,
-      axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
-      splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},series});
+  const cats=[...D.custom.filter(c=>['science','electronics','persian','english'].includes(c)),
+              ...D.std.filter(c=>c!=='std_gsm8k_s30')];
+  // The chance baseline is a per-category constant, so it is drawn on top
+  // of the bars as a marker rather than as another model series.
+  const chance=cats.map(c=>{
+    const xs=D.models.map(m=>cellOf(m,c)).filter(x=>x&&x.chance!=null).map(x=>x.chance);
+    return xs.length?Math.max(...xs):null;});
+  bars('c-chance', cats, D.models, {rotate:26, fs:11,
+    legendExtra:['chance baseline'],
+    // A target ring, not a blob: a filled marker on top of a bar reads as
+    // a data point. The legend names it; the note under the chart explains it.
+    extraSeries:[{name:'chance baseline',type:'scatter',symbol:'circle',symbolSize:13,
+      itemStyle:{color:'#11161d',borderColor:'#e6e8eb',borderWidth:2},
+      data:chance}]});
+  const nd=document.getElementById('nd-c-chance');
+  if(nd) nd.innerHTML='✕ marks the chance baseline (mean 1/k over items, not a flat 25%). A bar at chance level knows nothing.';
 })();
 /* 7. MMLU subjects */
 (function(){
   const subs=[...new Set(D.models.flatMap(m=>Object.keys(m.mmlu)))].sort();
-  mk('c-mmlu').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>{
-      const m=D.models.find(x=>x.label===p.seriesName);
-      const tag=m&&m.mmlu_txt?'<br/><span style="color:#f0c674">⚠ text-match instrument</span>':'';
-      return `${p.seriesName}<br/>${p.name}: <b>${pct(p.value)}</b> (n=5)${tag}`;}},
-    xAxis:{type:'category',data:subs.map(s=>s.split('/')[1]||s),
-      axisLabel:{color:'#9aa4b2',rotate:22,fontSize:10},axisTick:{show:false}},
-    yAxis:{type:'value',min:0,max:1,
-      axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
-      splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
-    series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color,borderRadius:[3,3,0,0]},
-      data:subs.map(s=>{const x=m.mmlu[s];
-        if(!x) return '-';
-        if(m.mmlu_txt) return {value:x.acc,itemStyle:{color:m.color,opacity:0.7,borderRadius:[3,3,0,0]}};
-        return x.acc;})}))});
+  const get=(m,s)=> m.mmlu[s] ? {v:m.mmlu[s].acc, n:m.mmlu[s].n,
+      src: m.mmlu_txt?'text_match':null} : null;
+  bars('c-mmlu', subs, D.models, {rotate:22, fs:10, get:get,
+    label:(c)=> (c.split('/')[1]||c).replace(/_/g,' ')});
+  const nd=document.getElementById('nd-c-mmlu');
+  if(nd) nd.innerHTML='n=5 per subject, so every cell carries roughly ±35pp. Lighter bars are the text-match instrument.';
 })();
-/* 8. agentic */
-function agenticChart(id, models){
+/* 8. agentic: reliability, trace, answer-only */
+function agenticChart(id, models, opts){
+  opts = opts || {};
   const rows=[['pass_hat_k_reliability','pass^k (tools required)'],
     ['per_trial_trace_rate','trace rate'],
     ['final_answer_accuracy_no_tools_required','answer-only']];
-  mk(id).setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>{const m=models.find(x=>x.label===p.seriesName);
-      return `${m.label}<br/>${rows[p.dataIndex][1]}: <b>${pct(p.value)}</b><br/>${m.agentic.mean_tool_calls} calls/trial · ${m.agentic.n_chains} chains`;}},
-    xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'},axisTick:{show:false}},
+  const get=(m,k)=>{
+    const v=m.agentic?m.agentic[k]:null;
+    if(v==null) return null;
+    const o={v:v, n:m.agentic.n_chains, ci:m.agentic_ci};
+    // `broken` is a dict on the screening rows and a plain string on the
+    // deep-dive rows: both mean the same thing.
+    const br = (typeof m.broken === 'string') ? m.broken
+             : (m.broken && m.broken.agentic);
+    if(br) o.broken=br;
+    return o;};
+  const ch=mk(id);
+  const mrows = models.map(m=>({m, cells: rows.map(r=>get(m,r[0]))}));
+  const shown = mrows.filter(r=>r.cells.some(x=>x&&x.v!=null));
+  const absent = mrows.filter(r=>!r.cells.some(x=>x&&x.v!=null)).map(r=>r.m.label);
+  ch.setOption({legend:{textStyle:{color:'#cfd6de'},top:0,
+      data: shown.map(r=>r.m.label)},
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'},
+      formatter:ps=>{
+        if(!ps||!ps.length) return '';
+        const c=rows[ps[0].dataIndex];
+        let h=`<b>${c[1]}</b>`;
+        shown.forEach(r=>{
+          const x=r.cells[ps[0].dataIndex];
+          h+='<br/>'+r.m.label+': '+(x&&x.v!=null
+            ? `<b>${pct(x.v)}</b>`+(x.ci?` · 95% CI ${pct(x.ci[0])}–${pct(x.ci[1])}`:'')+
+              ` · ${r.m.agentic.mean_tool_calls} calls/trial · ${r.m.agentic.n_chains} chains`+
+              (x.broken?`<br/><span style="color:#f0c674">⚠ ${x.broken}</span>`:'')
+            : '<span style="color:#8b96a3">— not measured</span>');
+        });
+        return h;}},
+    grid:{bottom:44,top:34,containLabel:true},
+    xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'},
+      axisTick:{show:false},axisLine:{lineStyle:{color:'#3a4756'}}},
     yAxis:{type:'value',min:0,max:1,
       axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
       splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
-    series:models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color,borderRadius:[3,3,0,0]},
-      data:rows.map(r=>m.agentic[r[0]]!=null?m.agentic[r[0]]:'-')}))});
+    series: shown.map(r=>({name:r.m.label,type:'bar',
+      itemStyle:{color:r.m.color, borderRadius:[3,3,0,0]},
+      barGap:'20%', barCategoryGap:'30%',
+      data:r.cells.map(x=>{
+        if(!x||x.v==null) return '-';
+        if(x.broken) return {value:x.v,itemStyle:{color:r.m.color,opacity:0.55,borderRadius:[3,3,0,0]},
+          label:{show:true,position:'top',formatter:'⚠',color:'#f0c674',fontSize:12}};
+        return x.v;})}))});
+  const nd=document.getElementById('nd-'+id);
+  if(nd) nd.innerHTML = (absent.length?`<b>no data in this chart:</b> ${absent.join(', ')} — never measured here, not a zero · `:'')+
+    'A ⚠ bar is real but NOT comparable: that backend could not emit a parseable tool call, so the chains could not use tools.';
 }
 agenticChart('c-agent', D.models);
 /* 8b. isolated throughput table */
 (function(){
   const rows=D.speeds||[];
-  if(!rows.length){mk('c-speed').setOption({title:{show:true,text:'no isolated measurements yet'}});return;}
+  if(!rows.length){mk('c-speed').setOption({title:{show:true,left:'center',top:'middle',
+    text:'no isolated measurements yet',textStyle:{color:'#8b96a3',fontSize:13}}});return;}
+  const fam={};
+  rows.forEach(r=>{ fam[r.label]=r.color||'#5470C6'; });
   mk('c-speed').setOption({
     tooltip:{trigger:'item',formatter:p=>{const r=rows[p.dataIndex];
+      if(!r) return '';
       return `<b>${r.label}</b><br/>median ${r.tps} tok/s<br/>p25 ${r.p25} - p75 ${r.p75}<br/>min ${r.min} - max ${r.max}<br/>${r.n} prompts · foreign CPU ${r.foreign_cpu}%`;}},
-    grid:{left:120,right:40,top:20,bottom:30},
-    xAxis:{type:'value',name:'decode tok/s (median)',nameTextStyle:{color:'#8b96a3'},...AX},
-    yAxis:{type:'category',data:rows.map(r=>r.label),axisLabel:{color:'#cfd6de'},...AX},
-    series:[{type:'bar',itemStyle:{color:'#5470C6'},
-      data:rows.map(r=>({value:r.tps,itemStyle:{color:r.tps>=8?'#91CC75':r.tps>=5?'#5470C6':'#FAC858'}})),
+    grid:{left:110,right:70,top:24,bottom:46,containLabel:false},
+    xAxis:{type:'value',name:'decode tok/s (median)',nameLocation:'middle',nameGap:26,
+      nameTextStyle:{color:'#8b96a3',fontSize:11},...AX,splitLine:{show:false},axisLine:{show:false}},
+    yAxis:{type:'category',data:rows.map(r=>r.label),axisLabel:{color:'#cfd6de'},axisTick:{show:false}},
+    series:[{type:'bar', itemStyle:{borderRadius:[0,3,3,0]},
+      data:rows.map(r=>({value:r.tps, itemStyle:{color:fam[r.label]||'#5470C6'}})),
       label:{show:true,position:'right',color:'#e6e8eb',formatter:p=>p.value+' tok/s'}}]});
 })();
 /* 8c. text-match MC (a separate instrument) */
 (function(){
   const rows=D.txt||[];
-  if(!rows.length){mk('c-txt').setOption({title:{show:true,text:'no text-match runs yet',
-    left:'center',top:'middle',textStyle:{color:'#8b96a3',fontSize:13}}});return;}
+  if(!rows.length){mk('c-txt').setOption({title:{show:true,left:'center',top:'middle',
+    text:'no text-match runs yet',textStyle:{color:'#8b96a3',fontSize:13}}});return;}
   const cats=D.txt_cats;
-  mk('c-txt').setOption({legend:{textStyle:{color:'#cfd6de'},top:0},
-    tooltip:{trigger:'item',formatter:p=>{const r=rows.find(x=>x.label===p.seriesName||x.label+' ⚠'===p.seriesName);
-      const c=cats[p.dataIndex];const cell=r.cats[c];
-      const un=r.unparsed&&r.unparsed[c]!=null?`<br/>unparsed ${(r.unparsed[c]*100).toFixed(1)}%`:'';
-      const rng=cell&&cell.range?`<br/>range ${pct(cell.range[0])}-${pct(cell.range[1])} (an unparsed answer could have been right)`:'';
-      const gap=r.gaps&&r.gaps.length?`<br/><span style="color:#f0c674">⚠ ${r.gaps.join('; ')}</span>`:'';
-      return `${r.label}<br/><b>${D.short[c]||c}: ${pct(cell&&cell.v)}</b>${rng}<br/>n=${cell&&cell.n}${un}${gap}`;}},
-    grid:{bottom:110,top:40,containLabel:true},xAxis:{type:'category',data:cats.map(c=>(D.short[c]||c).replace('_txt','')),
-      axisLabel:{color:'#9aa4b2',rotate:30,fontSize:10},axisLine:{lineStyle:{color:'#3a4756'}},axisTick:{show:false}},
-    yAxis:{type:'value',min:0,max:1,
-      axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
-      splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
-    series:rows.map(r=>({name:r.label+(r.gaps&&r.gaps.length?' ⚠':''),
-      type:'bar',itemStyle:{color:r.color,borderRadius:[3,3,0,0]},
-      data:cats.map(c=>{const x=r.cats[c];return x&&x.v!=null?x.v:'-';})}))});
+  bars('c-txt', cats, rows, {rotate:30, fs:10,
+    get:(r,c)=> r.cats[c] ? r.cats[c] : null});
+  const nd=document.getElementById('nd-c-txt');
+  if(nd) nd.innerHTML='A DIFFERENT instrument from the letter-logprob charts above: the generated answer is read and matched to the option. Its numbers are never ranked against the letter-logprob ones.';
 })();
 /* 9. throughput */
 (function(){
   const rows=[['code','Code tok/s'],['std_gsm8k','GSM8K tok/s']];
   mk('c-tps').setOption({legend:{textStyle:{color:'#cfd6de'}},
-    tooltip:{trigger:'item',formatter:p=>`${p.seriesName}<br/>${rows[p.dataIndex][1]}: <b>${p.value}</b>`},
+    tooltip:{trigger:'item',formatter:p=>{const r=rows[p.dataIndex];
+      return `${p.seriesName}<br/>${r?r[1]:''}: <b>${p.value}</b>`;}},
     xAxis:{type:'category',data:rows.map(r=>r[1]),axisLabel:{color:'#cfd6de'}},yAxis:{...AX},
     series:D.models.map(m=>({name:m.label,type:'bar',itemStyle:{color:m.color},
       data:rows.map(r=>m.tps[r[0]]!=null?m.tps[r[0]]:'-')}))});
@@ -400,22 +561,61 @@ agenticChart('c-agent', D.models);
 /* qualifier section */
 (function(){
   const QC=['science','electronics','persian','english','std_arc_easy_s30','std_winogrande_s30','std_truthfulqa_mc_s30','std_hellaswag_s30','std_belebele_fa_s30','std_mmlu_s30','code','std_gsm8k_s30','agentic'];
-  barsWithCI('c-qual', QC, D.q, 42, 10);
+  bars('c-qual', QC, D.q, {rotate:42, fs:10});
   let h='<tr><th>model</th><th>qual macro</th><th>code</th><th>agentic rel</th></tr>';
   D.q.forEach(m=>{
     const vals=QC.map(c=>m.cats[c]).filter(x=>x&&x.v!=null).map(x=>x.v);
-    const macro=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'—';
+    const macro=vals.length?pct(vals.reduce((a,b)=>a+b,0)/vals.length):'—';
     const code=m.cats.code, ag=m.cats.agentic;
-    const ci=x=>x&&x.lo!=null?` [${x.lo},${x.hi}]`:'';
-    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠</span>':''}</td><td><b>${macro}</b></td>`+
+    const ci=x=>x&&x.lo!=null?` [${pct(x.lo)},${pct(x.hi)}]`:'';
+    const nb=Object.keys(m.broken||{});
+    const badge = nb.length ? ` <span class="warn" title="${m.broken[nb[0]]}">⚠ n/c ×${nb.length}</span>` : '';
+    h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠</span>':''}${badge}</td><td><b>${macro}</b></td>`+
       `<td>${code&&code.v!=null?pct(code.v)+ci(code):'—'}</td><td>${ag&&ag.v!=null?pct(ag.v)+ci(ag):'—'}</td></tr>`;
   });
   document.getElementById('tbl-q').innerHTML=h;
 })();
 agenticChart('c-deep', D.deep);
+/* CS-100: one metric, six models -> a horizontal bar chart reads better
+   than six fat vertical bars under a single rotated label */
+function csBars(id, rows){
+  const data=rows.map(r=>({r, cell: cellOf(r,'std_mmlu_cs')})).filter(x=>x.cell&&x.cell.v!=null);
+  if(!data.length){mk(id).setOption({title:{show:true,left:'center',top:'middle',
+    text:'no CS-100 data',textStyle:{color:'#8b96a3',fontSize:13}}});return;}
+  const ch=mk(id);
+  ch.setOption({
+    tooltip:{trigger:'item',formatter:p=>{
+      const d=data[p.dataIndex];
+      if(!d) return '';
+      const c=d.cell;
+      let s=`<b>${d.r.label}</b><br/><b>MMLU-CS (100): ${pct(c.v)}</b>`;
+      if(c.src==='text_match')
+        s+=`<br/><span style="color:#f0c674">⚠ text-match instrument (generated answer matched to option)</span>`+
+           (c.range?`<br/>range ${pct(c.range[0])}–${pct(c.range[1])}`:'')+
+           (c.unparsed!=null?`<br/>unparsed ${(c.unparsed*100).toFixed(1)}%`:'');
+      if(c.lo!=null) s+=`<br/>95% CI ${pct(c.lo)} – ${pct(c.hi)} · n=${c.n}`;
+      if(c.chance!=null) s+=`<br/>chance ${pct(c.chance)}`;
+      return s;}},
+    grid:{left:150,right:80,top:20,bottom:44,containLabel:false},
+    xAxis:{type:'value',min:0,max:1,
+      axisLabel:{color:'#cfd6de',formatter:v=>Math.round(v*100)+'%'},
+      splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
+    yAxis:{type:'category',data:data.map(d=>d.r.label),
+      axisLabel:{color:'#cfd6de'},axisTick:{show:false},
+      inverse:true},
+    series:[{type:'bar', itemStyle:{borderRadius:[0,3,3,0]},
+      data:data.map(d=>({value:d.cell.v,
+        itemStyle:{color:d.r.color, opacity: d.cell.src==='text_match'?0.62:1,
+          borderColor: d.cell.src==='text_match'?'#f0c674':'transparent',
+          borderWidth: d.cell.src==='text_match'?2:0}})),
+      label:{show:true,position:'right',color:'#e6e8eb',
+        formatter:p=>pct(p.value)+ (data[p.dataIndex].cell.src==='text_match'?' ◐':'')}}]});
+  const nd=document.getElementById('nd-'+id);
+  if(nd) nd.innerHTML='◐ = measured with the text-match instrument (a different mechanism, not comparable with the letter-logprob rows).';
+}
 /* cs100 section */
 (function(){
-  barsWithCI('c-cs', ['std_mmlu_cs'], D.cs);
+  csBars('c-cs', D.cs);
   let h='<tr><th>model</th><th>CS-100</th><th>95% CI</th></tr>';
   D.cs.forEach(m=>{
     const x=cellOf(m,'std_mmlu_cs');
@@ -423,6 +623,7 @@ agenticChart('c-deep', D.deep);
     const badge=x.src==='text_match'?` <span class="warn" title="text-match instrument · unparsed ${(x.unparsed*100).toFixed(1)}% · range ${pct(x.range[0])}–${pct(x.range[1])}">⚠ txt</span>`:'';
     h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}${badge}</td><td><b>${pct(x.v)}</b></td><td>${pct(x.lo)}–${pct(x.hi)} · n=${x.n}</td></tr>`;
   });
+  h+='<tr><td colspan="3" style="text-align:left;color:#8b96a3">k2-horizon is measured with the TEXT-MATCH mechanism (⚠ txt): its backend cannot score answer letters, so this cell is a different measurement and is not ranked against the letter-logprob rows.</td></tr>';
   h+='<tr><td colspan="3" style="text-align:left;color:#8b96a3">Paired McNemar on shared items, all three pairs: TIE (closest p=0.053). The s30 gap did not replicate.</td></tr>';
   document.getElementById('tbl-cs').innerHTML=h;
 })();

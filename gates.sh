@@ -70,6 +70,8 @@ fi
 if want unit; then
   say "--- unit: scorer/stat contracts ---"
   if python3 tests/test_units.py 2>&1 | tail -2; then pass unit; else fail unit; fi
+  say "--- unit: published-report contracts ---"
+  if python3 tests/test_report.py 2>&1 | tail -2; then pass unit-report; else fail unit-report; fi
 fi
 
 if want integration; then

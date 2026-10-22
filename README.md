@@ -134,6 +134,12 @@ Tier-3. Custom MC sets complement — never replace — these.
 `reports/screening.html` is the published report: self-contained, offline,
 one section per instrument, never a cross-instrument ranking.
 
+The report is covered by its own gate (`python3 tests/test_report.py`, run
+by `bash gates.sh`): the published payload must contain no NaN, a missing
+cell is never a zero, the two multiple-choice mechanisms never share a
+category, and a run whose MC probe failed must carry a not-comparable mark
+on its letter-logprob cells.
+
 ### What the numbers do and do not support
 
 - **n = 30 per screening cell.** The Wilson interval is ±13–17 pp. Most
