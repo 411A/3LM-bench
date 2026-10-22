@@ -116,7 +116,83 @@ Tier-3. Custom MC sets complement — never replace — these.
 | `lint` | idiomatic code quality | `ruff` and `clippy` diagnostic counts |
 | `agentic` | multi-call tool use with dependent steps | pass^k + trace scoring |
 
-## Design decisions worth knowing about
+## Release state (2026-10-22)
+
+**Six models, four instruments, 26 result files, every one complete.**
+222 published numbers re-derive from their raw records with zero mismatches
+(`python3 audit.py`), and ten pre-production gates pass (`bash gates.sh`).
+
+| instrument | coverage | notes |
+|---|---|---|
+| Screening (14 custom + 8 standard s30 suites) | 6/6 models | the headline tables |
+| Qualifier (identical fast subsets, all models) | 6/6 | CUT/ADVANCE screening decision, not a quality claim |
+| CS-100 decider (full MMLU-CS subject) | 5/6 | k2 via the text instrument |
+| Agentic-19 (19 dependent tool chains) | 5/6 | medgemma has no tool support in any available runtime |
+| Isolated throughput (dedicated quiet-box pass) | 6/6 | one model, fresh server, median of 12 identical prompts |
+| Text-match MC (second mechanism) | k2 | see "Two multiple-choice mechanisms" below |
+
+`reports/screening.html` is the published report: self-contained, offline,
+one section per instrument, never a cross-instrument ranking.
+
+### What the numbers do and do not support
+
+- **n = 30 per screening cell.** The Wilson interval is ±13–17 pp. Most
+  pairwise differences between models are *not* significant; read the
+  interval, not the gap. The qualifier's job is to separate 70% from 40%,
+  nothing finer.
+- **This is a profile, not a leaderboard.** The macro-means are exploratory
+  (17 cells × 6 models is many comparisons). The only sanctioned A>B claim
+  in the project is `compare.py`'s paired McNemar + Holm.
+- **k2-horizon's multiple-choice numbers live in a different instrument.**
+  Its llama.cpp build answers with the option's *text* instead of the letter,
+  so the letter-logprob mechanism cannot score it at all. The text-match
+  mechanism reads the generated answer; its cells carry a published
+  `unparsed_rate` and an accuracy *range*, and are never ranked against the
+  other five models' letter-logprob numbers.
+- **medgemma-4b's agentic cell is unmeasured**, not zero: the model has no
+  tool-calling support in Ollama (`does not support tools`) or llama.cpp.
+- **Position confound.** MMLU-6, HellaSwag and WinoGrande are
+  position-debiased (upstream put 10–18 points of the answer in one letter);
+  their cells were re-measured. ARC-C, ARC-E and Belebele keep the upstream
+  order and still carry a 0.05 confound - every MC cell publishes the score
+  a constant picker would get, so the remainder is visible.
+- **Two server builds.** The qualifier ran on llama-server b11558, the rest
+  on b11714. No comparison on the page spans two builds, and the build is
+  named per model.
+- **Speed is the AC/charging number.** On battery the same box runs ~4×
+  slower (the CPU drops to its powersave P-state), so the speed column is
+  not a battery figure.
+- **Upstream labels are upstream labels.** MMLU's own answer keys carry
+  roughly 6% label noise, and the MMLU-6 cells hold 5 items per subject.
+
+### Durability: what survives a bad day
+
+A benchmark that loses data to the machine it runs on is not a benchmark.
+Every one of these is implemented and covered by a gate or a unit test:
+
+| threat | behaviour | contract |
+|---|---|---|
+| power cut / OOM / kill | the item in flight is lost, nothing else | `crashtest.py` (gate `crash`) |
+| laptop suspends mid-run | the run checkpoints and exits 143; the queue resumes | `note_suspend()` logs the sleep |
+| battery dies | the run pauses cleanly at the last scored item and waits for the charger | `--min-battery` (default 30%) |
+| server OOM | per-item RSS guard, clean abort, fresh server, item-level resume | `--until-complete` |
+| checkpoint write interrupted | atomic write (temp + fsync + rename): the file is never half-written | `write_atomic()` |
+| a task never reached | the coverage map is built *before* the task loop, so a missing suite shows as a gap | `coverage_report()` |
+| the harness itself | 10 gates, 222-number audit, 60+ unit contracts | `bash gates.sh` |
+
+### Two multiple-choice mechanisms
+
+The primary mechanism reads the model's probability mass on the option
+**letters** from a single forward pass. When a model ignores that format
+and replies with the option's **text**, the primary mechanism cannot score
+it - so there is a second mechanism that reads the generated answer and
+matches it to the option (letter, exact text, the text inside a sentence,
+or a distinctive prefix of a truncated option). Every matching rule requires
+a **unique** match; an ambiguous answer is `none`, counted as incorrect and
+reported as `unparsed_rate`. The two mechanisms are two instruments, in
+separate categories, never ranked against each other.
+
+
 
 **Multiple choice costs one token.** Ollama and llama.cpp both return the
 model's top-k distribution at each position. The MC prompt ends exactly where the
@@ -297,7 +373,17 @@ report.py           cross-model comparison (PRIMARY-STD + PRIMARY-CUSTOM)
 compare.py          paired McNemar/Holm A-vs-B
 charts.py           self-contained HTML charts (radar, CIs, heatmap, efficiency)
 rescore.py          re-aggregate existing results offline
-speed.py            controlled throughput measurement
+speed.py            controlled throughput measurement (the isolated pass)
+audit.py            re-derives every published number from the raw records
+crashtest.py        simulates a power cut and proves the resume continues
+drop_tasks.py       invalidates the records of changed tasks (instance change)
+standard_strata.py  builds the stratified s30 instances (position debiasing)
+close_coverage.sh   fills the instrument-coverage gaps, one model at a time
+remeasure_debiased.sh  re-measures only the cells whose instance changed
+snapshot.sh         archives the evidence to ~/llmbench-backups
+run_llama.sh        the queue runner (profiles, resume, --until-complete)
+gates.sh            the pre-production gate suite (10 gates)
 run_all.sh          sequential driver across all models
+REVIEW*.md          the evidence log: every defect found, and what fixed it
 docs/METHODOLOGY.md research specification and prior-art survey
 ```
