@@ -1566,6 +1566,13 @@ def main():
         except Exception as e:  # noqa: BLE001
             log(f"resume: unreadable {out_path} ({type(e).__name__}); starting fresh")
             records = []
+    # Expected coverage for EVERY requested task, computed BEFORE the loop
+    # runs. Building it inside the loop meant a task the loop never reached
+    # (the server died and the OOM guard aborted the rest) was never
+    # expected - so the file claimed "complete" while two suites had no
+    # records at all. A gap that cannot be seen is a lost measurement.
+    expected = expected_coverage(names, caps, rep_for, args.subsample,
+                                 args.limit)
     for ti, name in enumerate(names):
         if server_dead:
             log(f"  skipping {name}: server is dead, run aborted here")
@@ -1582,8 +1589,6 @@ def main():
         if args.limit:
             tasks = tasks[:args.limit]
         reps_here = rep_for.get(name, args.reps)
-        for _r in range(reps_here):
-            expected[(name, _r)] = len(tasks)
         log(f"--- [{ti+1}/{len(names)}] {name} ({len(tasks)}/{total_available} items x {reps_here} reps) ---")
 
         def checkpoint():

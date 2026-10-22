@@ -369,6 +369,20 @@ if _left:
     print(f"       (leftovers: {sorted(_left)[:4]})")
 
 
+# ---- the expected coverage must not depend on how far the loop got ------
+# The expected map used to be built INSIDE the task loop, so a task the loop
+# never reached (server died -> OOM guard) was never expected: the file
+# claimed "complete" while two suites had no records at all.
+_exp = R.expected_coverage(
+    ["std_mmlu_s30", "std_winogrande_s30", "std_hellaswag_s30"],
+    {}, {"(all)": 1}, 0, 0)
+check("the expected map covers every requested task up front",
+      len(_exp) == 3 and all(v == 30 for v in _exp.values()))
+check("a task with no records is a gap, not a silent absence",
+      R.coverage_report([], _exp) == ["std_hellaswag_s30/rep0: 0/30",
+                                      "std_mmlu_s30/rep0: 0/30",
+                                      "std_winogrande_s30/rep0: 0/30"])
+
 # ---- the position-debiasing must move the KEY with the options --------
 import standard_strata as _SS
 _items = [{"id": f"i{k}", "answer": k % 4,
