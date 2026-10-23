@@ -256,7 +256,9 @@ def run_rust(b, tasks, args, rep, progress=None):
                 "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                           "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
             })
-            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{_err1(res.get("stderr_tail")) if not res.get("passed") else ""} "
+            err_detail = _err1(res.get("stderr_tail")) if not res.get("passed") else ""
+            result_label = "PASS" if res.get("passed") else "fail " + str(res.get("error"))
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {result_label:<22}{err_detail} "
                 f"clippy={clip.get('n_diagnostics', 0)} {r['gen_tps']}tok/s")
         except BackendError:
             raise
@@ -543,7 +545,9 @@ def run_cpp(b, tasks, args, rep, progress=None):
                 "speed": {"gen_tps": r["gen_tps"], "ttft_s": r["ttft_s"], "wall_s": r["wall_s"],
                           "load_s": r.get("load_s"), "prompt_cached_tokens": r.get("prompt_cached_tokens")},
             })
-            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {'PASS' if res.get('passed') else 'fail ' + str(res.get('error')):<22}{_err1(res.get("stderr_tail")) if not res.get("passed") else ""} "
+            err_detail = _err1(res.get("stderr_tail")) if not res.get("passed") else ""
+            result_label = "PASS" if res.get("passed") else "fail " + str(res.get("error"))
+            log(f"    [{i+1}/{n_tasks}] {t['id']:<32} {result_label:<22}{err_detail} "
                 f"warn={res.get('n_warnings')} {r['gen_tps']}tok/s")
         except BackendError:
             raise

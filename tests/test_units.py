@@ -373,9 +373,21 @@ if _left:
 # The expected map used to be built INSIDE the task loop, so a task the loop
 # never reached (server died -> OOM guard) was never expected: the file
 # claimed "complete" while two suites had no records at all.
-_exp = R.expected_coverage(
-    ["std_mmlu_s30", "std_winogrande_s30", "std_hellaswag_s30"],
-    {}, {"(all)": 1}, 0, 0)
+_coverage_names = ["std_mmlu_s30", "std_winogrande_s30", "std_hellaswag_s30"]
+_load_tasks = R.load_tasks
+
+
+def _coverage_fixture(name):
+    if name in _coverage_names:
+        return [{"id": f"{name}/{i}"} for i in range(30)]
+    return _load_tasks(name)
+
+
+R.load_tasks = _coverage_fixture
+try:
+    _exp = R.expected_coverage(_coverage_names, {}, {"(all)": 1}, 0, 0)
+finally:
+    R.load_tasks = _load_tasks
 check("the expected map covers every requested task up front",
       len(_exp) == 3 and all(v == 30 for v in _exp.values()))
 check("a task with no records is a gap, not a silent absence",
