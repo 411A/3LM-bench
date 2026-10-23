@@ -13,12 +13,15 @@ Usage:
 import argparse
 import datetime
 import glob
+import html as html_lib
 import json
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(HERE, "results", "llamacpp")
 REPORTS = os.path.join(HERE, "reports")
+REPORT_ASSETS = os.path.join(REPORTS, "assets")
+REPORT_ASSETS = os.path.join(REPORTS, "assets")
 
 HEADLINE = {"code": "accuracy", "bugfix": "accuracy", "algo": "accuracy",
             "refactor": "accuracy", "rust": "accuracy", "embedded_cpp": "accuracy",
@@ -644,9 +647,28 @@ def build_payload(title="3LM Bench — model comparison"):
 
 
 def render(payload, out):
-    html = PAGE.replace("__DATA__", json.dumps(payload, ensure_ascii=False))
+    with open(os.path.join(REPORT_ASSETS, "echarts.min.js"), encoding="utf-8") as f:
+        echarts_bundle = f.read()
+    if "</script" in echarts_bundle.lower():
+        raise ValueError("ECharts bundle contains a script-closing tag; cannot inline safely")
+    with open(os.path.join(REPORT_ASSETS, "NOTICE.txt"), encoding="utf-8") as f:
+        echarts_notice = f.read()
+    with open(os.path.join(REPORT_ASSETS, "LICENSE-APACHE-2.0.txt"),
+              encoding="utf-8") as f:
+        apache_license = f.read()
+    third_party = (
+        '<details class="third-party"><summary>Third-party notices and licenses</summary>'
+        '<p>Apache ECharts is embedded in this standalone report. Its upstream '
+        'NOTICE and Apache License 2.0 are reproduced below.</p>'
+        '<pre class="license-copy">'
+        + html_lib.escape(echarts_notice + "\n" + apache_license)
+        + "</pre></details>")
+    html = (PAGE.replace("__ECHARTS_BUNDLE__", echarts_bundle)
+            .replace("__THIRD_PARTY_LICENSES__", third_party)
+            .replace("__DATA__", json.dumps(payload, ensure_ascii=False)))
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    open(out, "w").write(html)
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html)
     return html
 
 
@@ -677,7 +699,7 @@ PAGE = r"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3LM Bench (Lean LLM Bench)</title>
-<script src="assets/echarts.min.js"></script>
+<script>__ECHARTS_BUNDLE__</script>
 <style>
 body{background:#11161d;color:#e6e8eb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:0 18px 48px}
 .wrap{max-width:1180px;margin:0 auto}
@@ -713,7 +735,9 @@ details{color:#9aa4b2;font-size:11px;margin:4px 0 12px}
 details>summary{color:#cfd6de;cursor:pointer;font-size:12px;font-weight:600}
 .detail-body{padding:5px 12px 2px;line-height:1.5;max-width:100ch}
 .detail-body p{margin:5px 0}
-.leader-panel{border-top:1px solid #2b3642;margin:10px 10px 6px;padding:9px 2px 4px}
+.third-party{margin-top:10px}
+.third-party p{line-height:1.45}
+.license-copy{white-space:pre-wrap;overflow-wrap:anywhere;max-height:48vh;overflow:auto;background:#11161d;padding:10px;border-radius:6px;font-size:10px}.leader-panel{border-top:1px solid #2b3642;margin:10px 10px 6px;padding:9px 2px 4px}
 .leader-panel h3{font-size:12px;color:#cfd6de;margin:0 2px 3px}
 .leader-panel .note{font-size:10px;color:#8b96a3;margin:0 2px 8px;line-height:1.35}
 .leader-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -778,6 +802,7 @@ details>summary{color:#cfd6de;cursor:pointer;font-size:12px;font-weight:600}
 <h2 style="margin-top:26px">Full data table</h2>
 <div style="overflow-x:auto"><table id="tbl"></table></div>
 <div class="foot" id="foot"></div>
+__THIRD_PARTY_LICENSES__
 </div>
 <script>
 const D = __DATA__;
@@ -790,7 +815,7 @@ document.getElementById('foot').innerHTML =
   `PRIMARY-STD and PRIMARY-CUSTOM macro-means are the ★ rows of the full data table. ` +
   `s30 = stratified 30-item official-split instances (never full-leaderboard numbers). ` +
   `Reproduce: <code>bash run_llama.sh all qualifier</code> → <code>python3 qualify.py</code> → screening → <code>python3 charts.py</code>. ` +
-  `Charts: Apache ECharts ${echarts.version}, vendored offline in <code>reports/assets</code>.`;
+  `Charts: Apache ECharts ${echarts.version}, embedded in this standalone HTML file.`;
 const AX = {textStyle:{color:'#cfd6de'},splitLine:{lineStyle:{color:'#232e3b'}},axisLine:{lineStyle:{color:'#3a4756'}}};
 const CHARTS = [];
 const TOOLTIP_CSS='max-width:min(300px,calc(100vw - 24px))!important;max-height:min(300px,55vh);overflow:auto;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;line-height:1.4;font-size:12px;box-sizing:border-box;';
