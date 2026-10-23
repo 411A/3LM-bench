@@ -165,9 +165,9 @@ Tier-3. Custom MC sets complement — never replace — these.
 | Isolated throughput (dedicated quiet-box pass) | 6/6 | one model, fresh server, median of 12 identical prompts |
 | Text-match MC (second mechanism) | k2 | see "Two multiple-choice mechanisms" below |
 
-`reports/screening.html` is the committed report snapshot: it works offline
-with its adjacent ECharts asset and has separate sections for each measurement
-instrument. Raw results are not included, so a fresh clone can view the report
+`reports/screening.html` is a single-file report snapshot: it embeds ECharts
+and its license notices, so it can be opened without the `reports/assets`
+directory. Raw results are not included, so a fresh clone can view the report
 but cannot independently regenerate its data payload until local results are
 restored. No chart ranks scores across different instruments.
 
@@ -420,7 +420,7 @@ any benchmark material without following its upstream terms.
 benchmarks/          suite catalog, source metadata, and license notes
 data/                manifest plus small licensed source inputs; raw downloads are ignored
 docs/                methodology, contributor docs, and archived audit history
-reports/             committed HTML snapshot and local ECharts asset
+reports/             committed standalone HTML snapshot
 tasks/               authored task definitions; standard generated tasks are ignored
 tests/               model-free unit tests and local-data report contracts
 *.py                 flat CLI entrypoints and shared modules (see below)
