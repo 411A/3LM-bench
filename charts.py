@@ -2,13 +2,13 @@
 """Build a self-contained HTML comparison report (ECharts, vendored offline).
 
 Reads results/llamacpp/*.json screening runs (skips *-q qualifier files),
-renders capability radar, accuracy bars with Wilson CIs, heatmap, efficiency
+ renders an accuracy radar, task-score profiles, Wilson-CI bars, heatmap, efficiency
 scatter, bilingual gaps, MC-vs-chance, MMLU subjects, agentic detail,
 throughput, and a full data table into reports/<name>.html.
 
 Usage:
   python3 charts.py
-  python3 charts.py --out reports/screening-2026-10-18.html --title "llmbench screening"
+  python3 charts.py --out reports/screening-2026-10-18.html --title "3LM Bench screening"
 """
 import argparse
 import datetime
@@ -108,7 +108,35 @@ def cell(summary, cat):
     n = s.get("n_items") or s.get("n") or s.get("n_chains")
     return {"v": v, "lo": ci[0] if ci else None, "hi": ci[1] if ci else None,
             "n": n, "chance": s.get("chance_baseline"),
-            "range": s.get("accuracy_range")}
+             "range": s.get("accuracy_range")}
+
+
+def observed_area_leaders(models, categories):
+    """Return descriptive leaders from valid primary cells only.
+
+    Alternate text-match cells are stored under ``txt_cats`` and deliberately
+    excluded. Probe-failed cells are also excluded; these are observed maxima,
+    not significance-tested model rankings.
+    """
+    leaders = []
+    for cat in categories:
+        values = []
+        for model in models:
+            score = (model.get("cats") or {}).get(cat)
+            if (not score or score.get("v") is None
+                    or (model.get("broken") or {}).get(cat)):
+                continue
+            values.append((float(score["v"]), model["label"]))
+        if len(values) < 2:
+            continue
+        high = max(v for v, _ in values)
+        leaders.append({
+            "category": cat,
+            "leader_labels": [label for v, label in values if v == high],
+            "score": high,
+            "n_comparable": len(values),
+        })
+    return leaders
 
 
 # The llama-server build swap: ~/ollama-work/run-llama.sh pointed at
@@ -155,7 +183,7 @@ def mc_probe_broken(d, summary, cats):
     return out
 
 
-def build_payload(title="llmbench screening — model comparison"):
+def build_payload(title="3LM Bench — model comparison"):
     """Read every result file and return the report payload.
 
     Split out of main() so the tests can assert on the DATA the report
@@ -438,6 +466,13 @@ def build_payload(title="llmbench screening — model comparison"):
             continue
         s = d.get("summary", {})
         lab = os.path.basename(f)[:-5]
+        qbroken = mc_probe_broken(d, s, qcats)
+        qprobes = (d.get("provenance") or {}).get("backend_probes") or {}
+        if (qprobes.get("tools") or {}).get("ok") is False and (
+                (s.get("agentic") or {}).get("pass_hat_k_reliability") is not None):
+            qbroken["agentic"] = (
+                "NOT COMPARABLE: the tools probe failed, so agentic scores from "
+                "this backend are not a valid peer measurement.")
         qver = (d.get("provenance", {}) or {}).get("versions", {}) or {}
         qserver = qver.get("llama_server") or (
             "b11558 (inferred)" if os.path.getmtime(f) < UPGRADE_TS
@@ -445,7 +480,7 @@ def build_payload(title="llmbench screening — model comparison"):
         qualifier.append({
             "label": lab, "color": famcolor(lab),
             "cats": {c: cell(s, c) for c in qcats},
-            "broken": mc_probe_broken(d, s, qcats),
+            "broken": qbroken,
             "n_recs": len(d.get("records", [])),
             "server": qserver,
         })
@@ -561,8 +596,20 @@ def build_payload(title="llmbench screening — model comparison"):
     for fam in FAMILIES:
         row = {"model": fam, "color": famcolor(fam), "cells": []}
         scr = [f for f in files if famkey(os.path.basename(f)[:-5]) == fam]
-        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
-                                for f in scr) or None)
+        screen_data = [json.load(open(f)) for f in scr]
+        primary_recs = [r for d in screen_data for r in d.get("records", [])]
+        row["cells"].append(len(primary_recs) or None)
+        tx = [f for f in glob.glob(os.path.join(RESULTS, "*-txt.json"))
+              if not f.endswith("-cs-txt.json")
+              and famkey(os.path.basename(f)[:-len("-txt.json")]) == fam]
+        tx_screen_recs = [r for f in tx for r in json.load(open(f)).get("records", [])]
+        row["cells"].append(len(tx_screen_recs) or None)
+        # Main screening opportunity, counting the same MC records wherever
+        # their qualified mechanism lives. Agentic records are reported
+        # separately in the files and do not inflate this shared-item count.
+        shared_recs = [r for r in primary_recs
+                       if r.get("task_category") != "agentic"] + tx_screen_recs
+        row["cells"].append(len(shared_recs) or None)
         qf = [f for f in glob.glob(os.path.join(RESULTS, "*-q.json"))
               if famkey(os.path.basename(f)[:-5]) == fam]
         row["cells"].append(sum(len(json.load(open(f)).get("records", []))
@@ -579,14 +626,15 @@ def build_payload(title="llmbench screening — model comparison"):
                         .replace("-cs", "")) == fam]
         row["cells"].append(sum(len(json.load(open(f)).get("records", []))
                                 for f in cs) or None)
-        tx = [f for f in glob.glob(os.path.join(RESULTS, "*-txt.json"))
-              if famkey(os.path.basename(f)[:-len("-txt.json")]) == fam]
-        row["cells"].append(sum(len(json.load(open(f)).get("records", []))
-                                for f in tx) or None)
         if any(row["cells"]):
             cov_cells.append(row)
+    area_leaders = {
+        "custom": observed_area_leaders(models, CUSTOM_CATS),
+        "std": observed_area_leaders(models, STD_CATS),
+    }
     payload = {"models": models,
                "custom": CUSTOM_CATS, "std": STD_CATS, "short": SHORT,
+               "leaders": area_leaders,
                "speeds": speed_rows,
                "txt": txt_rows, "txt_cats": TXT_CATS,
                "q": qualifier, "q_cats": qcats,
@@ -602,12 +650,24 @@ def render(payload, out):
     return html
 
 
+def ensure_report_has_models(payload):
+    """Refuse to replace a useful report with an empty fresh-clone report."""
+    if not payload.get("models"):
+        raise ValueError(
+            f"no model result files found under {RESULTS}; refusing to write "
+            "an empty report. Restore local result JSON first.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(REPORTS, "screening.html"))
-    ap.add_argument("--title", default="llmbench screening — model comparison")
+    ap.add_argument("--title", default="3LM Bench — model comparison")
     args = ap.parse_args()
     payload = build_payload(args.title)
+    try:
+        ensure_report_has_models(payload)
+    except ValueError as exc:
+        ap.error(str(exc))
     html = render(payload, args.out)
     print(f"wrote {args.out} ({len(html) // 1024} KB, "
           f"{len(payload['models'])} models)")
@@ -616,19 +676,27 @@ def main():
 PAGE = r"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>llmbench screening</title>
+<title>3LM Bench (Lean LLM Bench)</title>
 <script src="assets/echarts.min.js"></script>
 <style>
-body{background:#11161d;color:#e6e8eb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:0 18px 60px}
+body{background:#11161d;color:#e6e8eb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:0 18px 48px}
 .wrap{max-width:1180px;margin:0 auto}
-h1{font-size:26px;margin:26px 0 4px} .sub{color:#9aa4b2;font-size:13px;margin-bottom:6px}
-.chip{display:inline-block;background:#1d2630;border:1px solid #2c3947;border-radius:12px;padding:2px 10px;margin:2px 4px 2px 0;font-size:12px}
-.chart{background:#161d26;border:1px solid #232e3b;border-radius:10px;margin:16px 0;padding:12px 8px 4px}
-.chart h2{font-size:16px;margin:6px 12px;color:#cfd6de}
-.chart .note{font-size:12px;color:#8b96a3;margin:0 12px 8px}
+h1{font-size:24px;margin:20px 0 4px} .sub{color:#9aa4b2;font-size:12px;margin-bottom:6px}
+.chip{display:inline-block;background:#1d2630;border:1px solid #2c3947;border-radius:12px;padding:2px 10px;margin:2px 4px 2px 0;font-size:11px}
+.chart{background:#161d26;border:1px solid #232e3b;border-radius:9px;margin:10px 0;padding:9px 8px 4px}
+.chart h2{font-size:15px;margin:5px 12px;color:#cfd6de}
+.chart .note{font-size:11px;color:#8b96a3;margin:0 12px 4px;line-height:1.35}
 /* the chart canvas holder only - a note div with an id must NOT be
    forced to 420px (that left a screen of empty space under every chart) */
 .chart>div[id]:not(.nd){width:100%;height:420px}
+.chart-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.chart-scroll>div[id]{width:100%;height:420px}
+@media(max-width:640px){
+  .chart-scroll>div[id]{min-width:760px}
+  .chart-scroll>div#c-heat{min-width:1120px}
+  .chart-scroll>div#c-custom,.chart-scroll>div#c-std,.chart-scroll>div#c-chance{min-width:900px}
+  .chart-scroll>div#c-qual,.chart-scroll>div#c-txt{min-width:980px}
+}
 table{border-collapse:collapse;width:100%;font-size:12px;background:#161d26}
 th,td{border:1px solid #232e3b;padding:5px 8px;text-align:right}
 th:first-child,td:first-child{text-align:left}
@@ -636,53 +704,76 @@ th{background:#1d2630;color:#cfd6de}
 tr:nth-child(even) td{background:#131922}
 .foot{color:#8b96a3;font-size:12px;margin-top:18px;line-height:1.6}
 code{background:#1d2630;padding:1px 6px;border-radius:6px}
-.nd{color:#8b96a3;font-size:11px;margin:2px 12px 8px;line-height:1.5}
+.nd{color:#8b96a3;font-size:10px;margin:2px 12px 6px;line-height:1.35}
+.nd:empty{display:none}
 .nd b{color:#b9c2cc}
-.warn{background:#3a2a12;border:1px solid #7a5a1e;color:#f0c674;border-radius:9px;padding:0 7px;font-size:11px;cursor:help}
+.warn{background:#3a2a12;border:1px solid #7a5a1e;color:#f0c674;border-radius:8px;padding:0 6px;font-size:10px;cursor:help}
+.key{font-size:11px;color:#aeb8c4;line-height:1.4;margin:8px 0 10px}
+details{color:#9aa4b2;font-size:11px;margin:4px 0 12px}
+details>summary{color:#cfd6de;cursor:pointer;font-size:12px;font-weight:600}
+.detail-body{padding:5px 12px 2px;line-height:1.5;max-width:100ch}
+.detail-body p{margin:5px 0}
+.leader-panel{border-top:1px solid #2b3642;margin:10px 10px 6px;padding:9px 2px 4px}
+.leader-panel h3{font-size:12px;color:#cfd6de;margin:0 2px 3px}
+.leader-panel .note{font-size:10px;color:#8b96a3;margin:0 2px 8px;line-height:1.35}
+.leader-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.leader-group-title{font-size:10px;color:#9aa4b2;font-weight:700;margin:0 2px 5px}
+.leader-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:5px}
+.leader-chip{min-width:0;background:#1a222c;border:1px solid #2c3947;border-radius:6px;padding:5px 7px}
+.leader-chip b{display:block;color:#cfd6de;font-size:10px;margin-bottom:2px}
+.leader-names{font-size:10px;color:#e6e8eb;overflow-wrap:anywhere}
+.leader-chip small{display:block;color:#8b96a3;font-size:9px;margin-top:2px}
+@media(max-width:640px){.leader-groups{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
-<h1 id="t"></h1><div class="sub" id="chips"></div>
-<div class="sub" style="margin:2px 0 10px"><b>How to read the marks:</b>
-<span class="warn">⚠ incomplete</span> = the run behind that row is missing items (never a score) ·
-<span class="warn">⚠ n/c</span> = the cell is real but <i>not comparable</i> (broken tool-calling backend, or a multiple-choice mechanism that was never qualified) ·
-<span class="warn">⚠ txt</span> / <span class="warn">◐</span> on the bar = multiple-choice cell measured by the <i>text-match</i> mechanism (generated answer matched to option, not single-token letter logprob) ·
-<span class="warn">—</span> = not measured in this instrument (an empty slot, never a zero) ·
-<span class="warn">0%</span> = a measured zero (a real score that would otherwise draw no bar) ·
-<span class="warn">◐</span> = text-match cell in the heatmap ·
-bars show accuracy; hover any bar for its exact 95% Wilson interval (also printed in the full data table).</div>
-<h2 style="margin-top:20px">Coverage: who ran what</h2>
-<p class="note" style="font-size:12px;color:#8b96a3">Record counts per instrument. Every section below compares only within one instrument — cross-section ranks are never computed.</p>
+<h1 id="t"></h1>
+<details><summary>Model and run metadata</summary><div class="sub" id="chips"></div></details>
+<div class="key"><b>Key:</b> use each chart's legend · amber outline = text-match MC · red-orange outline = not comparable · — = not measured · 0% = measured zero. Hover for details.</div>
+<details><summary>Methods and interpretation</summary><div class="detail-body">
+<p><b>Comparisons:</b> use like-for-like metrics only; do not compare ranks across different instruments. The radar is limited to binary accuracy/clean-rate suites. Scores are task-level, not a universal measure of model quality. Tables retain exact values and intervals.</p>
+<p><b>Multiple choice:</b> letter-logprob scores use single-token answer-letter probabilities. Text-match scores read the generated answer and match it to an option; this distinct mechanism is not directly comparable. Unparsed answers count as incorrect, never guessed.</p>
+<p><b>Standard s30:</b> stratified 30-item official-split samples, not full-leaderboard results. MMLU-6, HellaSwag, and WinoGrande had upstream answer-position imbalance; gold positions were permuted deterministically with questions and distractors unchanged. Constant-picker accuracy is retained in the source data.</p>
+<p><b>Qualifier:</b> identical fast subsets for screening only; b11558 qualifier runs are not compared with b11714 screening results. <b>CS-100:</b> 100-item decider; paired McNemar results are shown below.</p>
+<p><b>Agentic:</b> pass^k requires ordered tool use; trace rate measures valid tool traces; answer-only ignores tool use. Summary values use each model's deepest run, so chain counts differ; deep-dive shows 19-chain evidence where available and otherwise the screening subset. Broken tool-call backends remain visible but are not comparable. <b>Speed:</b> isolated throughput uses one model on an otherwise idle machine, after two warmups and across 12 prompts. Historical in-run rates were recorded under background load and are not speed claims.</p>
+<p><b>Missingness:</b> — means not measured, never zero. 0% is an observed score. Incomplete runs are marked and are not silently treated as complete.</p>
+</div></details>
+<h2 style="margin-top:16px">Coverage: who ran what</h2>
+<p class="note" style="font-size:11px;color:#8b96a3">Raw record counts, not scores. All six share 544 non-agentic screening records (identical IDs/prompts). k2's 388 MC records are separate text-match; primary totals also contain 0/16/22 agentic rows. Agentic-deep includes Nemotron's separate Ollama evidence; CS-100 text-match is counted only under CS-100.</p>
 <div style="overflow-x:auto"><table id="cov"></table></div>
 <div id="radars"></div>
 <div class="nd" id="nd-radars"></div>
 <div class="chart"><h2>Custom suites — accuracy</h2>
-<p class="note">Hover any bar for its exact 95% Wilson interval (never the normal approximation), n and chance baseline. Bars marked ◐ are the text-match instrument, not letter-logprob peers.</p><div id="c-custom" style="height:460px"></div><div class="nd" id="nd-c-custom"></div></div>
+<p class="note">Per-suite accuracy; hover for Wilson interval, sample size, and chance baseline.</p><div id="c-custom" style="height:390px"></div><div class="nd" id="nd-c-custom"></div></div>
 <div class="chart"><h2>Standard s30 suites — accuracy</h2>
-<p class="note">Stratified 30-item official-split instances. Hover for the Wilson interval, n and chance baseline. MMLU-6, HellaSwag and WinoGrande are POSITION-DEBIASED: the upstream option order put 10-18 points of the answer in one letter, so the gold positions were permuted deterministically (same questions, same distractors) and those cells were re-measured. Every cell also publishes the score a constant picker would get, so the remaining confound is visible.</p><div id="c-std" style="height:440px"></div><div class="nd" id="nd-c-std"></div></div>
+<p class="note">Stratified n=30 per suite; Wilson interval and chance baseline on hover.</p><div id="c-std" style="height:390px"></div><div class="nd" id="nd-c-std"></div></div>
 <div class="chart"><h2>Capability heatmap</h2>
-<p class="note">Cells outlined in amber were measured with the OTHER multiple-choice mechanism (text match) - a different instrument, not a peer of the cells around it. Lighter = stronger (0 to 1). "\u2014" = the suite was not measured for that model <i>in this instrument</i>. A cell marked with an amber \u26a0 is real but not comparable (a broken tool-calling backend). k2-horizon's multiple-choice cells come from the TEXT-MATCH instrument - its llama.cpp build cannot score answer letters - so they are a different measurement and are never ranked against the letter-logprob cells of the other models. Hover any cell for its instrument, n and unparsed rate.</p><div id="c-heat" style="height:380px"></div><div class="nd" id="nd-c-heat"></div></div>
+<p class="note">Per-suite score (0–100%); pale green = lower, dark green = higher. Amber/red-orange outlines mark alternate or non-comparable measurements.</p><div id="c-heat" style="height:360px"></div><div class="nd" id="nd-c-heat"></div>
+<div class="leader-panel"><h3>Highest observed result by area</h3>
+<p class="note">Descriptive leaders among comparable primary-instrument scores; ties are shown. Text-match MC and failed-probe cells are excluded. These small-sample maxima are not significance-tested winners.</p>
+<div class="leader-groups"><section><div class="leader-group-title">CUSTOM AREAS</div><div class="leader-list" id="leaders-custom"></div></section>
+<section><div class="leader-group-title">STANDARD s30 AREAS</div><div class="leader-list" id="leaders-std"></div></section></div></div></div>
 <div class="chart"><h2>Efficiency: capability vs decode speed</h2>
-<p class="note">Bubble area = model file GB. Faster + higher is better; top-right wins. Speed here is the DEDICATED isolated pass: one model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median decode rate of 12 identical prompts - not a by-product of a long benchmark run. Server builds are named per model above: the qualifier instrument is entirely b11558, screening/CS-100/agentic are b11714; no comparison on this page spans two builds.</p><div id="c-eff" style="height:400px"></div><div class="nd" id="nd-c-eff"></div></div>
-<div class="chart"><h2>English vs Persian (custom + Belebele-fa standard)</h2>
-<p class="note">Gap = English accuracy − Persian accuracy, in percentage points.</p><div id="c-lang" style="height:380px"></div><div class="nd" id="nd-c-lang"></div></div>
+<p class="note">Isolated tok/s vs. macro score; bubble area represents model file size. Hover for exact values.</p><div id="c-eff" style="height:350px"></div><div class="nd" id="nd-c-eff"></div></div>
+<div class="chart"><h2>English &amp; Persian accuracy (custom + Belebele-fa)</h2>
+<p class="note">Accuracy by language and suite.</p><div id="c-lang" style="height:330px"></div><div class="nd" id="nd-c-lang"></div></div>
 <div class="chart"><h2>Multiple-choice vs chance baseline</h2>
-<p class="note">Bars = accuracy; the ring marks the chance baseline (mean 1/k over items, not flat 25%). A bar at chance level knows nothing.</p><div id="c-chance" style="height:440px"></div><div class="nd" id="nd-c-chance"></div></div>
+<p class="note">Bars show accuracy; bright diamonds show the item-weighted chance baseline.</p><div id="c-chance" style="height:380px"></div><div class="nd" id="nd-c-chance"></div></div>
 <div class="chart"><h2>MMLU-6 by subject (n=5 each)</h2>
-<p class="note">Tiny-n: ±35pp intervals. Read rankings, not gaps.</p><div id="c-mmlu" style="height:380px"></div><div class="nd" id="nd-c-mmlu"></div></div>
+<p class="note">Five items per subject; treat differences as highly uncertain.</p><div id="c-mmlu" style="height:330px"></div><div class="nd" id="nd-c-mmlu"></div></div>
 <div class="chart"><h2>Agentic: reliability, trace, answer-only</h2>
-<p class="note">pass^k requires tool use in order; answer-only ignores tools. Their gap = "knew but would not use tools". Cells use each model's deepest run (chain count shown); depths differ, so compare shapes, not just ranks.</p><div id="c-agent" style="height:360px"></div><div class="nd" id="nd-c-agent"></div></div>
+<p class="note">pass^k requires ordered tool use; trace rate and answer-only are separate measures.</p><div id="c-agent" style="height:330px"></div><div class="nd" id="nd-c-agent"></div></div>
 <div class="chart"><h2>In-run decode rate (historical, under background load)</h2>
-<p class="note">Kept for the record: these per-suite rates were taken as a by-product of long benchmark runs while a runaway desktop thumbnailer held half the CPU (REVIEW5), so they UNDERSTATE true speed. Any speed claim on this page uses the isolated pass instead.</p><div id="c-tps" style="height:340px"></div></div>
+<p class="note">Historical under-load measurements; use isolated throughput below for speed comparisons.</p><div id="c-tps" style="height:280px"></div></div>
 <div class="chart"><h2>Isolated throughput, every model</h2>
-<p class="note">One model on an otherwise idle box, fresh server, two warm-up prompts discarded, then the median of 12 identical prompts. The spread (p25-p75, min-max) is in the tooltip; the foreign-CPU column is what the desktop was using at measurement time. These replace the in-run rates above, which were taken while a runaway thumbnailer held half the CPU.</p><div id="c-speed" style="height:300px"></div><div class="nd" id="nd-c-speed"></div></div>
+<p class="note">Median decode rate; hover for spread, prompt count, and background CPU.</p><div id="c-speed" style="height:280px"></div><div class="nd" id="nd-c-speed"></div></div>
 <div class="chart"><h2>Text-match MC: the second mechanism (separate instrument)</h2>
-<p class="note">A model that answers with the option's TEXT instead of the letter ("4" rather than "B") puts no probability mass on the letters, so the letter-logprob mechanism cannot score it - that model is unmeasured there, not wrong. This is the other mechanism: the generated answer is read and matched to the option. It is a DIFFERENT instrument: its categories are separate and are never ranked against the letter-logprob numbers above. Hover for the unparsed rate (answers that matched no option - counted as incorrect, never guessed).</p><div id="c-txt" style="height:380px"></div><div class="nd" id="nd-c-txt"></div></div>
-<div class="chart"><h2>Qualifier: identical fast subsets, all models</h2>
-<p class="note">Same items for everyone (deterministic subsets); ranks models for screening, never against full splits. All six qualifier runs share ONE server build (b11558, 2026-10-17) so the ranking is internally consistent; the screening instrument was measured on b11714. The two are never compared with each other. See <code>python3 qualify.py</code> for CUT/ADVANCE.</p><div id="c-qual" style="height:440px"></div><div class="nd" id="nd-c-qual"></div></div>
+<p class="note">Generated answers matched to options; separate from letter-logprob results. Hover for unparsed rate.</p><div id="c-txt" style="height:330px"></div><div class="nd" id="nd-c-txt"></div></div>
+<div class="chart"><h2>Qualifier: 12-item fast subsets (with exceptions)</h2>
+<p class="note">The 12-item non-agentic subsets match. Probe-failed MC/tool cells and unequal agentic chains (Nemotron 3 vs 5) are marked n/c; no all-category qualifier rank is valid.</p><div id="c-qual" style="height:400px"></div><div class="nd" id="nd-c-qual"></div></div>
 <div style="overflow-x:auto"><table id="tbl-q"></table></div>
 <div class="chart"><h2>Agentic deep-dive: every model with 19-chain evidence</h2>
-<p class="note">Deep files (19 chains) plus screening subsets (8 chains, chain count shown) for models without one. pass^k requires tool use; compare within equal chain counts.</p><div id="c-deep" style="height:380px"></div><div class="nd" id="nd-c-deep"></div></div>
+<p class="note">Deep runs and screening subsets are both shown; chain count is in the tooltip.</p><div id="c-deep" style="height:320px"></div><div class="nd" id="nd-c-deep"></div></div>
 <div class="chart"><h2>CS-100 decider: full official CS subject</h2>
-<p class="note">100 items, ±10pp — the instrument that acquitted qwen's s30 gap (all pairs TIE). Hover for Wilson intervals.</p><div id="c-cs" style="height:360px"></div><div class="nd" id="nd-c-cs"></div></div>
+<p class="note">100-item paired decider; hover for Wilson interval.</p><div id="c-cs" style="height:310px"></div><div class="nd" id="nd-c-cs"></div></div>
 <div style="overflow-x:auto"><table id="tbl-cs"></table></div>
 <h2 style="margin-top:26px">Full data table</h2>
 <div style="overflow-x:auto"><table id="tbl"></table></div>
@@ -702,7 +793,26 @@ document.getElementById('foot').innerHTML =
   `Charts: Apache ECharts ${echarts.version}, vendored offline in <code>reports/assets</code>.`;
 const AX = {textStyle:{color:'#cfd6de'},splitLine:{lineStyle:{color:'#232e3b'}},axisLine:{lineStyle:{color:'#3a4756'}}};
 const CHARTS = [];
-function mk(id){ const c = echarts.init(document.getElementById(id), null, {renderer:'canvas'}); CHARTS.push(c); return c; }
+const TOOLTIP_CSS='max-width:min(300px,calc(100vw - 24px))!important;max-height:min(300px,55vh);overflow:auto;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;line-height:1.4;font-size:12px;box-sizing:border-box;';
+function mk(id){
+  const el=document.getElementById(id);
+  if(el && !el.parentElement.classList.contains('chart-scroll')){
+    const scroller=document.createElement('div'); scroller.className='chart-scroll';
+    el.parentElement.insertBefore(scroller,el); scroller.appendChild(el);
+  }
+  const c = echarts.init(el, null, {renderer:'canvas'});
+  // Apply one bounded, wrapping tooltip policy to every chart before its
+  // chart-specific formatter is merged in. Long backend diagnostics used to
+  // create a one-line popup wider than the viewport.
+  c.setOption({tooltip:{confine:true,appendToBody:true,showDelay:0,hideDelay:0,transitionDuration:0.1,extraCssText:TOOLTIP_CSS,
+    position:(point,params,dom,rect,size)=>{
+      const r=el.getBoundingClientRect(), w=size.contentSize[0], h=size.contentSize[1];
+      const left=Math.max(8,Math.min(window.innerWidth-w-8,r.left+point[0]+12));
+      const top=Math.max(8,Math.min(window.innerHeight-h-8,r.top+point[1]+12));
+      return [left-r.left,top-r.top];
+    }}});
+  CHARTS.push(c); return c;
+}
 // ?only=c-radar etc: render a single section (deep-linking + debugging)
 const ONLY = new URLSearchParams(location.search).get('only');
 if (ONLY) {
@@ -718,57 +828,80 @@ function cellOf(m, c){
   if(t && t.v!=null) return t;
   return null;
 }
+function briefBroken(reason){
+  const s=String(reason||'').toLowerCase();
+  if(s.includes('tool')||s.includes('parseable')) return 'tool-calling backend failed qualification';
+  if(s.includes('probe')||s.includes('letter')||s.includes('mass')) return 'answer-letter probe failed';
+  return 'backend failed qualification';
+}
 function shortOf(c){
   if(D.short[c]) return D.short[c];
   const base = c.replace(/_txt$/,'');
   if(D.short[base]) return D.short[base];
   return c;
 }
+function renderAreaLeaders(id, entries){
+  const host=document.getElementById(id);
+  if(!host) return;
+  (entries||[]).forEach(entry=>{
+    const chip=document.createElement('div'); chip.className='leader-chip';
+    const title=document.createElement('b');
+    title.textContent=`${shortOf(entry.category)} ${entry.leader_labels.length>1?'co-winners':'winner'}`;
+    chip.appendChild(title);
+    const names=document.createElement('div'); names.className='leader-names';
+    entry.leader_labels.forEach((label,i)=>{
+      const model=D.models.find(m=>m.label===label);
+      if(i) names.append(' · ');
+      const dot=document.createElement('span');
+      dot.style.cssText=`display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;background:${model?model.color:'#8b96a3'}`;
+      names.appendChild(dot); names.append(document.createTextNode(label));
+    });
+    chip.appendChild(names);
+    const detail=document.createElement('small');
+    detail.textContent=`${pct(entry.score)} · ${entry.n_comparable} comparable models`;
+    chip.appendChild(detail); host.appendChild(chip);
+  });
+}
+renderAreaLeaders('leaders-custom',D.leaders&&D.leaders.custom);
+renderAreaLeaders('leaders-std',D.leaders&&D.leaders.std);
 function tipOf(m, c, cell){
   cell = cell || cellOf(m, c);
-  const sname = shortOf(c);
   if(!cell || cell.v==null)
-    return `${m.label}<br/><b>${sname}</b>: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
-  if(m.broken && m.broken[c]) return `${m.label}<br/><b>${sname}: ${pct(cell.v)}</b><br/>`+
-    `<span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
-  let t = `${m.label}<br/><b>${sname}: ${pct(cell.v)}</b>`;
+    return `${m.label}: <b>—</b> (not measured)`;
+  let t = `${m.label}: <b>${pct(cell.v)}</b>`;
+  if(m.broken && m.broken[c])
+    t += ` · <span style="color:#ff5a4e">not comparable: ${briefBroken(m.broken[c])}</span>`;
   if(cell.src==='text_match'){
-    t += `<br/><span style="color:#f0c674">⚠ text-match instrument (generated answer matched to option; not single-token letter logprob)</span>`;
-    if(cell.range) t += `<br/>range ${pct(cell.range[0])}–${pct(cell.range[1])} (if unparsed answers were right)`;
-    if(cell.unparsed!=null) t += `<br/>unparsed ${(cell.unparsed*100).toFixed(1)}%`;
+    t += ` · <span style="color:#f0c674">text-match (not letter-logprob)</span>`;
+    if(cell.range) t += ` · possible range ${pct(cell.range[0])}–${pct(cell.range[1])}`;
+    if(cell.unparsed!=null) t += ` · unparsed ${(cell.unparsed*100).toFixed(1)}%`;
   }
-  if(cell.lo!=null) t += `<br/>95% CI ${pct(cell.lo)} – ${pct(cell.hi)} · n=${cell.n}`;
-  else if(cell.n!=null) t += `<br/>n=${cell.n}`;
-  if(cell.chance!=null) t += `<br/>chance ${pct(cell.chance)}`;
+  if(cell.lo!=null) t += ` · 95% CI ${pct(cell.lo)}–${pct(cell.hi)} · n=${cell.n}`;
+  else if(cell.n!=null) t += ` · n=${cell.n}`;
+  if(cell.chance!=null) t += ` · chance ${pct(cell.chance)}`;
   if(c==='agentic' && m.agentic && m.agentic.n_chains!=null)
-    t += `<br/>${m.agentic.n_chains} chains`;
+    t += ` · ${m.agentic.n_chains} chains`;
   return t;
 }
 /* Grouped-bar layout constants. The bar series and the "not measured"
    markers MUST use the same numbers, or the markers drift away from the
    slots they belong to. One source of truth for both. */
 const CATGAP = 0.30, BARGAP = 0.20;
-/* the note printed under a chart: which models have no data at all, and
-   which cells came from the other multiple-choice mechanism */
-function chartNote(shown, absent, get, cats){
+/* Keep chart notes to the one case that cannot be seen from a cell mark:
+   a model with no measurements anywhere in the chart. */
+function chartNote(absent){
   const bits=[];
   if(absent && absent.length)
     bits.push(`<b>no data in this chart:</b> ${absent.join(', ')} — never measured here, not a zero`);
-  const txtModels=shown.filter(m=>{
-    const cells = get ? cats.map(c=>get(m,c)) : Object.keys(m.cats||{}).map(c=>m.cats[c]);
-    return cells.some(x=>x&&x.src==='text_match');
-  }).map(m=>m.label);
-  if(txtModels.length)
-    bits.push(`<b>other instrument:</b> ${txtModels.join(', ')} — multiple-choice cells measured by text match (marked ◐ on the bar), not by single-token letter logprob`);
-  return bits.length? `<div class="nd">${bits.join(' · ')}</div>` : '';
+  return bits.join(' · ');
 }
 /* shared grouped-bar builder.
    - a model with NO data in this chart is removed from the series and named
      in the note: a legend entry that never draws a bar reads as a bug;
    - a model with PARTIAL data keeps its slot, and the empty slots get an
      explicit "not measured" marker instead of a silent void;
-   - a not-comparable cell keeps the model colour at reduced opacity and
-     carries a ⚠ on the bar, so it can never be read as a peer score. */
+   - alternate and non-comparable cells keep their model colour and use a
+     distinct outline; tooltip supplies the explanation without glyph clutter. */
 function bars(id, cats, models, opts){
   opts = opts || {};
   const get = opts.get || ((m,c)=>cellOf(m,c));
@@ -792,18 +925,14 @@ function bars(id, cats, models, opts){
     data:r.cells.map((x,ci)=>{
       if(!x || x.v==null) return '-';
       const cat = cats[ci];
-      // A not-comparable cell keeps the model colour (dimmed only a little,
-      // so the value stays readable) and carries a warning ON the bar.
       if(r.m.broken && r.m.broken[opts.catKey?opts.catKey(cat):cat])
-        return {value:x.v, itemStyle:{color:r.m.color, opacity:0.72, borderRadius:[3,3,0,0]},
-                label:{show:true, position:'top', color:'#f0c674', fontSize:11,
-                       formatter:p=>p.value? '⚠' : '0% ⚠'}};
-      // The other multiple-choice mechanism is marked with a glyph, NOT by
-      // dimming the bar: a dimmed bar is a bar the reader cannot read.
+        return {value:x.v, itemStyle:{color:r.m.color, borderColor:'#ff5a4e', borderWidth:1.5,
+          borderRadius:[3,3,0,0]},
+          label:x.v===0?{show:true,position:'top',formatter:'0%',color:'#8b96a3',fontSize:9}:undefined};
       if(x.src==='text_match')
-        return {value:x.v, itemStyle:{color:r.m.color, borderRadius:[3,3,0,0]},
-                label:{show:true, position:'top', color:'#f0c674', fontSize:10,
-                       formatter:p=>p.value? '◐' : '0%'}};
+        return {value:x.v, itemStyle:{color:r.m.color,borderColor:'#f0c674',borderWidth:1.5,
+          borderRadius:[3,3,0,0]},
+          label:x.v===0?{show:true,position:'top',formatter:'0%',color:'#8b96a3',fontSize:9}:undefined};
       // A real 0% draws NO bar, and an empty slot reads as "missing".
       // Print the zero so a measured zero can never be mistaken for a gap.
       if(x.v===0)
@@ -852,14 +981,65 @@ function bars(id, cats, models, opts){
       splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}},
     series: series.concat(opts.extraSeries||[])});
   const note=document.getElementById('nd-'+id);
-  if(note) note.innerHTML=chartNote(shown.map(r=>r.m), absent, get, cats);
+  if(note) note.innerHTML=chartNote(absent);
 }
-/* 1. radar - ONE axis group per set of models that can actually be
-   measured on it. A radar polygon that collapses to the centre because a
-   model has no score on an axis is a false zero, so an axis that not every
-   model can answer gets its own radar with the models that can.
-   (ECharts draws a missing radar value as 0 - it has no gap - so the only
-   honest option is to group the axes by coverage.) */
+/* headline bars remain separate from the profile charts */
+bars('c-custom', D.custom, D.models);
+bars('c-std', D.std, D.models);
+/* Accuracy-only radar. The previous radar mixed binary accuracy with
+   partial-credit means. This version uses four complete, binary-accuracy
+   suites for all eligible models; unlike task profile charts, it never
+   substitutes a missing or non-comparable value with zero. */
+(function(){
+  const RADAR_AXES=['code','bugfix','algo','refactor','rust','embedded_cpp','lint','std_gsm8k_s30'];
+  const models=D.models.filter(m=>RADAR_AXES.every(c=>{
+    const x=(m.cats||{})[c];
+    return x&&x.v!=null&&!(m.broken&&m.broken[c]);
+  }));
+  const host=document.getElementById('radars');
+  if(!host||!models.length) return;
+  const box=document.createElement('div'); box.className='chart';
+  const title=document.createElement('h2'); title.textContent='Accuracy radar · binary suites';
+  const note=document.createElement('p'); note.className='note';
+  note.textContent='Binary accuracy/clean rate only; n is shown on each axis. Excludes partial-credit, MC, and agentic metrics. Radar area is not an overall score; hover for Wilson intervals.';
+  const holder=document.createElement('div'); holder.id='c-radar-accuracy'; holder.style.height='390px';
+  box.appendChild(title); box.appendChild(note); box.appendChild(holder); host.appendChild(box);
+  const valueFor=(m,c)=>m.cats[c].v;
+  const tooltipFor=(m,axisIndex)=>{
+    const axes=axisIndex==null?RADAR_AXES:[RADAR_AXES[axisIndex]];
+    let t=`<b>${m.label}</b>`;
+    axes.forEach(c=>{
+      const x=m.cats[c];
+      const count=x.n!=null?` (${Math.round(x.v*x.n)}/${x.n})`:'';
+      t+=`<br/>${shortOf(c)}: <b>${pct(x.v)}${count}</b>`+
+        (x.lo!=null?` · 95% CI ${pct(x.lo)}–${pct(x.hi)} · n=${x.n}`:
+          (x.n!=null?` · n=${x.n}`:''));
+    });
+    return t;
+  };
+  mk('c-radar-accuracy').setOption({
+    radar:{center:['50%','50%'],radius:'65%',
+      indicator:RADAR_AXES.map(c=>({name:`${shortOf(c)}\nn=${models[0].cats[c].n}`,max:1})),
+      axisName:{color:'#aeb8c4',fontSize:10,lineHeight:12},
+      splitArea:{areaStyle:{color:['#161d26','#141a22']}},
+      splitLine:{lineStyle:{color:'#35414e',width:1}},
+      axisLine:{lineStyle:{color:'#46515d'}}},
+    legend:{textStyle:{color:'#cfd6de'},bottom:0},
+    tooltip:{trigger:'item',formatter:p=>{
+      const m=models.find(x=>x.label===p.seriesName);
+      if(!m) return '';
+      const di=Number.isInteger(p.dimensionIndex)&&RADAR_AXES[p.dimensionIndex]!=null
+        ?p.dimensionIndex:null;
+      return tooltipFor(m,di);}},
+    series:models.map(m=>({name:m.label,type:'radar',symbol:'circle',symbolSize:5,
+      itemStyle:{color:m.color},lineStyle:{color:m.color,width:1.5},
+      areaStyle:{color:m.color,opacity:0.045},
+      data:[{name:m.label,value:RADAR_AXES.map(c=>valueFor(m,c))}]}))
+  });
+})();
+/* 1. Profiles: dot plots replace the radar polygons. Radar area/shape
+   compares unlike tasks poorly and hides uncertainty. These retain the same
+   coverage groups and every point; hover exposes the interval and n. */
 (function(){
   const AXES=['code','rust','embedded_cpp','science','electronics','persian',
     'english','netdiag','devops','agentic','std_mmlu_s30','std_gsm8k_s30'];
@@ -871,72 +1051,67 @@ function bars(id, cats, models, opts){
     if(!groups[key]) groups[key]={axes:[], models:have.map(m=>m.label)};
     groups[key].axes.push(c);
   });
-  const sets=Object.values(groups);
-  const big=sets.filter(g=>g.axes.length>=3);
-  const small=sets.filter(g=>g.axes.length<3);
+  const profiles=Object.values(groups).filter(g=>g.axes.length>=3);
+  const small=Object.values(groups).filter(g=>g.axes.length<3);
   const host=document.getElementById('radars');
   if(!host) return;
-  big.forEach((g,gi)=>{
+  profiles.forEach((g,gi)=>{
     const id='c-radar'+gi;
-    const box=document.createElement('div');
-    box.className='chart';
-    const title=document.createElement('h2');
-    title.textContent='Capability radar '+(gi+1)+' of '+big.length+' — '+g.axes.length+' axes, '+g.models.length+' models';
-    const note=document.createElement('p');
-    note.className='note';
-    note.textContent='Every axis in this radar is measured for every model in it, by the same mechanism. '+
-      'Axes that not every model can answer are drawn in a separate radar, so no polygon ever collapses to the centre.';
-    const holder=document.createElement('div');
-    holder.id=id; holder.style.height='470px';
-    const nd=document.createElement('div'); nd.className='nd'; nd.id='nd-'+id;
-    box.appendChild(title); box.appendChild(note); box.appendChild(holder); box.appendChild(nd);
-    host.appendChild(box);
-    const models=D.models.filter(m=>g.models.indexOf(m.label)>=0);
-    mk(id).setOption({radar:{center:['50%','46%'], radius:'70%',
-      indicator:g.axes.map(c=>({name:shortOf(c),max:1})),
-      axisName:{color:'#9aa4b2',fontSize:11},
-      splitArea:{areaStyle:{color:['#161d26','#141a22']}}},
-      legend:{textStyle:{color:'#cfd6de'},bottom:0},
-      // NOTE: for a radar series p.value is the WHOLE value array, not the
-      // point's value - pct(p.value) printed "NaN". The point's own value
-      // is p.value[p.dimensionIndex].
-      tooltip:{formatter:p=>{
-        const v = Array.isArray(p.value) ? p.value[p.dimensionIndex] : p.value;
-        const c = g.axes[p.dimensionIndex!=null?p.dimensionIndex:0];
-        const m = D.models.find(x=>x.label===p.seriesName);
-        if(v==null) return `${p.seriesName}<br/>${shortOf(c)}: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
-        let t = `${p.seriesName}<br/><b>${shortOf(c)}: ${pct(v)}</b>`;
-        const x = m ? (m.cats||{})[c] : null;
-        if(x && x.lo!=null) t += `<br/>95% CI ${pct(x.lo)} – ${pct(x.hi)} · n=${x.n}`;
-        else if(x && x.n!=null) t += `<br/>n=${x.n}`;
-        if(m && m.broken && m.broken[c])
-          t += `<br/><span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
+    const models=D.models.filter(m=>g.models.includes(m.label));
+    const isMC=g.axes.every(c=>['science','electronics','persian','english','std_mmlu_s30'].includes(c));
+    const titleText=isMC?'Multiple-choice accuracy profile':'Task-score profile';
+    const noteText=isMC
+      ? 'Letter-logprob accuracy; k2 text-match results are kept in the separate text-match section.'
+      : 'Scores mix accuracy and partial-credit means; compare models within each task, not across task axes.';
+    const box=document.createElement('div'); box.className='chart';
+    const title=document.createElement('h2'); title.textContent=titleText;
+    const note=document.createElement('p'); note.className='note'; note.textContent=noteText;
+    const holder=document.createElement('div'); holder.id=id; holder.style.height='390px';
+    box.appendChild(title); box.appendChild(note); box.appendChild(holder); host.appendChild(box);
+    const laneKeys=g.axes.flatMap((c,ci)=>models.map((m,mi)=>`${ci}:${mi}`));
+    mk(id).setOption({
+      legend:{textStyle:{color:'#cfd6de'},top:0},
+      tooltip:{trigger:'item',formatter:p=>{
+        const m=models.find(x=>x.label===p.seriesName);
+        const c=g.axes[p.dataIndex];
+        const x=m&&(m.cats||{})[c];
+        if(!m||!x) return '';
+        let t=`<b>${m.label}</b><br/>${shortOf(c)}: <b>${pct(x.v)}</b>`;
+        if(x.lo!=null) t+=`<br/>95% CI ${pct(x.lo)}–${pct(x.hi)} · n=${x.n}`;
+        else if(x.n!=null) t+=`<br/>n=${x.n}`;
+        if(x.chance!=null) t+=`<br/>chance ${pct(x.chance)}`;
+        if(m.broken&&m.broken[c]) t+=`<br/><span style="color:#ff5a4e">Not comparable: ${briefBroken(m.broken[c])}</span>`;
         return t;}},
-      series:models.map(m=>({name:m.label,type:'radar',
-        itemStyle:{color:m.color},lineStyle:{color:m.color},areaStyle:{color:m.color,opacity:0.12},
-        data:[{value:g.axes.map(c=>{const x=(m.cats||{})[c];return x&&x.v!=null?x.v:0;}),name:m.label}]}))});
-    const el=document.getElementById('nd-'+id);
-    const out=D.models.filter(m=>g.models.indexOf(m.label)<0).map(m=>m.label);
-    if(el) el.innerHTML='One instrument only: the letter-logprob cells. '+
-      (out.length? 'Models not in this radar: '+out.join(', ')+' — they have no letter-logprob score for these axes.'
-                   : 'Every model is in this radar: all of them can be measured on all of these axes.');
+      grid:{left:112,right:28,top:30,bottom:38},
+      xAxis:{type:'value',min:0,max:1,interval:0.2,
+        axisLabel:{color:'#aeb8c4',formatter:v=>Math.round(v*100)+'%'},
+        axisLine:{lineStyle:{color:'#3a4756'}},axisTick:{show:false},
+        splitLine:{show:true,lineStyle:{color:'#26313d',width:1}}},
+      yAxis:{type:'category',data:laneKeys,inverse:true,
+        axisLabel:{color:'#cfd6de',margin:10,interval:0,formatter:(v,i)=>{
+          const mid=Math.floor(models.length/2);
+          return i%models.length===mid?shortOf(g.axes[Math.floor(i/models.length)]):'';}},
+        axisLine:{show:false},axisTick:{show:false},splitLine:{show:false}},
+      series:models.map((m,mi)=>({name:m.label,type:'scatter',symbol:'circle',symbolSize:8,
+        itemStyle:{color:m.color,borderColor:'#161d26',borderWidth:1},
+        data:g.axes.map((c,ci)=>{
+          const x=m.cats[c];
+          return {name:c,value:[x.v,laneKeys[ci*models.length+mi]],
+            itemStyle:m.broken&&m.broken[c]?{borderColor:'#ff5a4e',borderWidth:2}:undefined};
+        })}))
+    });
   });
-  if(small.length){
-    const el=document.getElementById('nd-radars');
-    if(el) el.innerHTML='<b>axes not drawn as a radar</b> (fewer than three models can answer them, so a polygon would be meaningless): '+
-      small.map(g=>`${g.axes.map(shortOf).join(', ')} (${g.models.length} model${g.models.length>1?'s':''})`).join(' · ')+
-      ' — these are charted in the agentic section instead.';
-  }
+  const tail=small.flatMap(g=>g.axes).filter(c=>c==='agentic');
+  const note=document.getElementById('nd-radars');
+  if(note&&tail.length) note.textContent='Agentic reliability is shown in the agentic charts below; it is a different metric from accuracy.';
 })();
-/* the two headline bar charts */
-bars('c-custom', D.custom, D.models);
-bars('c-std', D.std, D.models);
 /* 3. heatmap */
 (function(){
   // The same ramp the visualMap uses, so the label ink can be chosen from
   // the cell's ACTUAL fill. Bright cells take dark ink, dark cells take
   // white ink: the number is readable on every cell in the map.
-  const RAMP=['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858'];
+  // Sequential single-hue scale: pale green is low, dark green is high.
+  const RAMP=['#edf7ed','#c8e6c9','#81c784','#388e3c','#1b5e20'];
   function rampRGB(v){
     const t=Math.max(0,Math.min(1,v==null?0:v))*(RAMP.length-1);
     const i=Math.min(RAMP.length-2,Math.floor(t));
@@ -967,7 +1142,7 @@ bars('c-std', D.std, D.models);
       miss[mi+':'+ci]=true;
       data.push({value:[ci,mi,0],
         itemStyle:{color:NODATA, borderColor:'#11161d', borderWidth:1},
-        label:{color:'#8494a6', textBorderColor:'#8494a6', textBorderWidth:1.5}});
+        label:{color:'#8494a6'}});
       return;
     }
     const val = Math.round(cell.v*1000)/1000;
@@ -976,18 +1151,20 @@ bars('c-std', D.std, D.models);
       // A visibly different cell: the value was measured with the OTHER
       // multiple-choice mechanism, so it must not be read as a peer of the
       // letter-logprob cells around it.
-      item.itemStyle = {borderColor:'#f0c674', borderWidth:2};
+      item.itemStyle = {borderColor:'#f0c674', borderWidth:1.5};
       srcs[mi+':'+ci]='text';
     } else if(m.broken && m.broken[c]) {
-      item.itemStyle = {borderColor:'#f0c674', borderWidth:2};
+      item.itemStyle = {borderColor:'#ff5a4e', borderWidth:1.5};
       flags[mi+':'+ci]='brk';
     }
     // The label ink follows the cell's own fill. ECharts 5.6 does NOT call a
     // label.color CALLBACK for a heatmap series (it silently keeps the
     // series default), so the colour must be set per item - which does work.
-    const rgb=rampRGB(val);
-    const ink = relLum(rgb)>0.40 ? '#10151c' : '#ffffff';
-    item.label = {color:ink, textBorderColor:ink, textBorderWidth:1.5};
+    const lum=relLum(rampRGB(val)), darkLum=relLum([16,21,28]);
+    const darkContrast=(lum+0.05)/(darkLum+0.05);
+    const whiteContrast=1.05/(lum+0.05);
+    const ink=darkContrast>=whiteContrast?'#10151c':'#ffffff';
+    item.label = {color:ink, fontWeight:'normal'};
     data.push(item);
   }));
   mk('c-heat').setOption({tooltip:{formatter:p=>{
@@ -997,36 +1174,35 @@ bars('c-std', D.std, D.models);
       const cell=(x&&x.v!=null)?x:((t&&t.v!=null)?t:null);
       if(!cell||cell.v==null) return `${m.label}<br/>${shortOf(c)}: — <span style="color:#8b96a3">(not measured in this instrument)</span>`;
       let s=`${m.label}<br/><b>${shortOf(c)}: ${pct(cell.v)}</b>`;
-      if(srcs[mi+':'+ci]==='text')
-        s+=`<br/><span style="color:#f0c674">text-match instrument: this model's backend cannot score answer letters, so its MC was measured by reading the generated answer. NOT comparable with the letter-logprob cells of the other models.</span>`;
+       if(srcs[mi+':'+ci]==='text')
+         s+=`<br/><span style="color:#f0c674">Text-match instrument; not comparable with letter-logprob MC.</span>`;
+       if(cell.lo!=null) s+=`<br/>95% CI ${pct(cell.lo)}–${pct(cell.hi)}`;
+       if(cell.chance!=null) s+=`<br/>chance ${pct(cell.chance)}`;
       if(cell.range) s+=`<br/>range ${pct(cell.range[0])}-${pct(cell.range[1])} (an unparsed answer could have been right)`;
       if(cell.unparsed!=null) s+=`<br/>unparsed ${(cell.unparsed*100).toFixed(1)}%`;
-      if(flags[mi+':'+ci]==='brk') s+=`<br/><span style="color:#f0c674">⚠ ${m.broken[c]}</span>`;
+       if(flags[mi+':'+ci]==='brk') s+=`<br/><span style="color:#ff5a4e">Not comparable: ${briefBroken(m.broken[c])}</span>`;
       s+=`<br/>n=${cell.n}`;
       return s;}},
-    grid:{height:'76%',top:14,left:110,right:60}, xAxis:{type:'category',data:cats.map(c=>shortOf(c)),
+    grid:{height:'76%',top:14,left:145,right:60}, xAxis:{type:'category',data:cats.map(c=>shortOf(c)),
       axisLabel:{color:'#9aa4b2',rotate:32,fontSize:10},axisTick:{show:false},
       splitArea:{show:false}},
     yAxis:{type:'category',data:D.models.map(m=>m.label),axisLabel:{color:'#cfd6de'}},
-    visualMap:{min:0,max:1,calculable:true,orient:'vertical',right:4,top:'middle',
+     visualMap:{min:0,max:1,calculable:false,orient:'vertical',right:4,top:'middle',
       itemWidth:12,itemHeight:110,text:['100%','0%'],
       textStyle:{color:'#8b96a3',fontSize:10},
-      inRange:{color:['#2b3a4a','#3d6b8e','#5470C6','#91CC75','#FAC858']}},
+      inRange:{color:RAMP}},
     series:[{type:'heatmap',data,
       // The ink colour is set per data item above (a label.color callback
       // is never invoked for a heatmap series).
-      label:{show:true,fontSize:9,
-        formatter:p=>{const k=p.value[1]+':'+p.value[0];
-          if(miss[k]) return '—';
-          const pc=Math.round(p.value[2]*100)+'%';
-          if(flags[k]==='brk') return '⚠'+pc;
-          if(srcs[k]==='text') return '◐'+pc;
-          return pc;}},
+       label:{show:true,fontSize:8,fontWeight:'normal',textBorderWidth:0,
+         formatter:p=>{const k=p.value[1]+':'+p.value[0];
+           if(miss[k]) return '—';
+           return Math.round(p.value[2]*100)+'%';}},
       itemStyle:{borderColor:'#11161d',borderWidth:1},
       emphasis:{itemStyle:{borderColor:'#e6e8eb',borderWidth:2}},
       encode:{x:0,y:1,value:2}}]});
   const nd=document.getElementById('nd-c-heat');
-  if(nd) nd.innerHTML = '<b>marks:</b> ◐ = measured with the text-match instrument · ⚠ = real but not comparable · — = not measured in this instrument (never a zero).';
+  if(nd) nd.textContent='';
 })();
 /* 4. efficiency: capability vs decode speed */
 (function(){
@@ -1045,23 +1221,23 @@ bars('c-std', D.std, D.models);
     // value array: with object items {value:[...]} the old d[2] read
     // undefined and every bubble got size NaN (drawn as nothing).
     symbolSize:d=>{const v=Array.isArray(d)?d:(d&&d.value)||[];return sizeOf(v[2]);},
-    itemStyle:{color:color, opacity:0.92, borderColor:'#0f141b', borderWidth:1},
+     itemStyle:{color:color, opacity:0.92, borderColor:'#0f141b', borderWidth:1},
     label:{show:kind==='PRIMARY-CUSTOM', position:'right', distance:6,
       color:'#9aa4b2', fontSize:10,
       formatter:p=>p.value[3]},
     data:pts.filter(p=>p.kind===kind).map(p=>({
       value:[p.m.mean_tps, p.v, p.m.fileGB, p.m.label],
-      itemStyle: (p.m[kind==='PRIMARY-CUSTOM'?'macro_custom_txt':'macro_std_txt'])
-        ? {color:color, opacity:0.72, borderColor:'#f0c674', borderWidth:2, borderType:'solid'}
+       itemStyle: (p.m[kind==='PRIMARY-CUSTOM'?'macro_custom_txt':'macro_std_txt'])
+         ? {color:color, opacity:0.92, borderColor:'#f0c674', borderWidth:1.5, borderType:'solid'}
         : {color:color, opacity:0.92, borderColor:'#0f141b', borderWidth:1}}))});
   ch.setOption({
     legend:{textStyle:{color:'#cfd6de'},top:0},
     tooltip:{formatter:p=>{
       const v=(p.value||(p.data&&p.data.value)||[]);
       const m=D.models.find(x=>x.label===v[3]);
-      const txt=m&&(m.macro_custom_txt||m.macro_std_txt);
-      return `${v[3]}<br/><b>${p.seriesName}: ${pct(v[1])}</b>`+
-        `${txt?' <span style="color:#f0c674">(⚠ MC via text-match)</span>':''}`+
+       const txt=m&&(p.seriesName==='PRIMARY-CUSTOM'?m.macro_custom_txt:m.macro_std_txt);
+       return `${v[3]}<br/><b>${p.seriesName}: ${pct(v[1])}</b>`+
+         `${txt?' <span style="color:#f0c674">(text-match mechanism)</span>':''}`+
         `<br/>${v[0]} tok/s (isolated pass) · ${v[2]} GB`;}},
     grid:{left:64,right:120,top:34,bottom:52},
     xAxis:{type:'value',name:'decode tok/s (isolated pass)',nameLocation:'middle',
@@ -1075,7 +1251,7 @@ bars('c-std', D.std, D.models);
     series:[mkSeries('PRIMARY-CUSTOM','#5470C6','circle',gb=>14+Math.sqrt(gb)*8),
              mkSeries('PRIMARY-STD','#EE6666','diamond',gb=>11+Math.sqrt(gb)*6)]});
   const nd=document.getElementById('nd-c-eff');
-  if(nd) nd.innerHTML='Bubble area = model file GB. The model name is printed next to the custom-macro bubble; the red diamond is the same model\'s standard macro.';
+  if(nd) nd.textContent='';
 })();
 /* 5. bilingual */
 (function(){
@@ -1086,20 +1262,19 @@ bars('c-std', D.std, D.models);
 (function(){
   const cats=[...D.custom.filter(c=>['science','electronics','persian','english'].includes(c)),
               ...D.std.filter(c=>c!=='std_gsm8k_s30')];
-  // The chance baseline is a per-category constant, so it is drawn on top
-  // of the bars as a marker rather than as another model series.
+   // The chance baseline is a per-category constant, so a bright diamond
+   // marks it without looking like another model's dot/bar.
   const chance=cats.map(c=>{
     const xs=D.models.map(m=>cellOf(m,c)).filter(x=>x&&x.chance!=null).map(x=>x.chance);
     return xs.length?Math.max(...xs):null;});
   bars('c-chance', cats, D.models, {rotate:26, fs:11,
     legendExtra:['chance baseline'],
-    // A target ring, not a blob: a filled marker on top of a bar reads as
-    // a data point. The legend names it; the note under the chart explains it.
-    extraSeries:[{name:'chance baseline',type:'scatter',symbol:'circle',symbolSize:13,
-      itemStyle:{color:'#11161d',borderColor:'#e6e8eb',borderWidth:2},
-      data:chance}]});
+     extraSeries:[{name:'chance baseline',type:'scatter',symbol:'diamond',symbolSize:14,z:10,
+       itemStyle:{color:'#f4f7fb',borderColor:'#11161d',borderWidth:1.5,
+         shadowBlur:4,shadowColor:'rgba(244,247,251,0.55)'},
+       data:chance}]});
   const nd=document.getElementById('nd-c-chance');
-  if(nd) nd.innerHTML='The ring marks the chance baseline (mean 1/k over items, not a flat 25%). A bar at chance level knows nothing.';
+  if(nd) nd.textContent='';
 })();
 /* 7. MMLU subjects */
 (function(){
@@ -1109,7 +1284,7 @@ bars('c-std', D.std, D.models);
   bars('c-mmlu', subs, D.models, {rotate:22, fs:10, get:get,
     label:(c)=> (c.split('/')[1]||c).replace(/_/g,' ')});
   const nd=document.getElementById('nd-c-mmlu');
-  if(nd) nd.innerHTML='n=5 per subject, so every cell carries roughly ±35pp. Bars marked ◐ are the text-match instrument.';
+  if(nd) nd.textContent='';
 })();
 /* 8. agentic: reliability, trace, answer-only */
 function agenticChart(id, models, opts){
@@ -1120,7 +1295,10 @@ function agenticChart(id, models, opts){
   const get=(m,k)=>{
     const v=m.agentic?m.agentic[k]:null;
     if(v==null) return null;
-    const o={v:v, n:m.agentic.n_chains, ci:m.agentic_ci};
+    const o={v:v, n:m.agentic.n_chains,
+      // This interval belongs to pass^k reliability only. Reusing it for
+      // trace rate or answer-only produced impossible intervals in tooltips.
+      ci:k==='pass_hat_k_reliability'?m.agentic_ci:null};
     // `broken` is a dict on the screening rows and a plain string on the
     // deep-dive rows: both mean the same thing.
     const br = (typeof m.broken === 'string') ? m.broken
@@ -1143,7 +1321,7 @@ function agenticChart(id, models, opts){
           h+='<br/>'+r.m.label+': '+(x&&x.v!=null
             ? `<b>${pct(x.v)}</b>`+(x.ci?` · 95% CI ${pct(x.ci[0])}–${pct(x.ci[1])}`:'')+
               ` · ${r.m.agentic.mean_tool_calls} calls/trial · ${r.m.agentic.n_chains} chains`+
-              (x.broken?`<br/><span style="color:#f0c674">⚠ ${x.broken}</span>`:'')
+              (x.broken?`<br/><span style="color:#ff5a4e">Not comparable: ${briefBroken(x.broken)}</span>`:'')
             : '<span style="color:#8b96a3">— not measured</span>');
         });
         return h;}},
@@ -1158,13 +1336,14 @@ function agenticChart(id, models, opts){
       barGap:'20%', barCategoryGap:'30%',
       data:r.cells.map(x=>{
         if(!x||x.v==null) return '-';
-        if(x.broken) return {value:x.v,itemStyle:{color:r.m.color,opacity:0.72,borderRadius:[3,3,0,0]},
-          label:{show:true,position:'top',color:'#f0c674',fontSize:11,
-                 formatter:p=>p.value? '⚠' : '0% ⚠'}};
+         if(x.broken) return {value:x.v,itemStyle:{color:r.m.color,borderColor:'#ff5a4e',borderWidth:1.5,
+           borderRadius:[3,3,0,0]},
+           label:x.v===0?{show:true,position:'top',color:'#8b96a3',fontSize:9,formatter:'0%'}:undefined};
         return x.v;})}))});
   const nd=document.getElementById('nd-'+id);
-  if(nd) nd.innerHTML = (absent.length?`<b>no data in this chart:</b> ${absent.join(', ')} — never measured here, not a zero · `:'')+
-    'A ⚠ bar is real but NOT comparable: that backend could not emit a parseable tool call, so the chains could not use tools.';
+   if(nd) nd.innerHTML=absent.length
+     ? `<b>no data in this chart:</b> ${absent.join(', ')} — never measured here, not a zero`
+     : '';
 }
 agenticChart('c-agent', D.models);
 /* 8b. isolated throughput table */
@@ -1195,7 +1374,7 @@ agenticChart('c-agent', D.models);
   bars('c-txt', cats, rows, {rotate:30, fs:10,
     get:(r,c)=> r.cats[c] ? r.cats[c] : null});
   const nd=document.getElementById('nd-c-txt');
-  if(nd) nd.innerHTML='A DIFFERENT instrument from the letter-logprob charts above: the generated answer is read and matched to the option. Its numbers are never ranked against the letter-logprob ones.';
+  if(nd) nd.textContent='';
 })();
 /* 9. throughput */
 (function(){
@@ -1239,7 +1418,7 @@ agenticChart('c-agent', D.models);
 })();
 /* coverage matrix */
 (function(){
-  let h='<tr><th>model</th><th>screening recs</th><th>qualifier recs</th><th>agentic-deep recs</th><th>CS-100 recs</th><th>text-MC recs</th></tr>';
+  let h='<tr><th>model</th><th>primary-screen recs</th><th>text-MC screen recs</th><th>shared non-agentic recs</th><th>qualifier recs</th><th>agentic-deep recs</th><th>CS-100 recs</th></tr>';
   D.coverage.forEach(r=>{
     h+='<tr><td><b style="color:'+r.color+'">●</b> '+r.model+'</td>'+
       r.cells.map(c=>'<td>'+(c==null?'—':c)+'</td>').join('')+'</tr>';
@@ -1250,18 +1429,21 @@ agenticChart('c-agent', D.models);
 (function(){
   const QC=['science','electronics','persian','english','std_arc_easy_s30','std_winogrande_s30','std_truthfulqa_mc_s30','std_hellaswag_s30','std_belebele_fa_s30','std_mmlu_s30','code','std_gsm8k_s30','agentic'];
   bars('c-qual', QC, D.q, {rotate:42, fs:10});
-  let h='<tr><th>model</th><th>qual macro</th><th>code</th><th>agentic rel</th></tr>';
+  let h='<tr><th>model</th><th>shared code/GSM8K mean¹</th><th>code</th><th>agentic rel</th></tr>';
   D.q.forEach(m=>{
-    const vals=QC.map(c=>m.cats[c]).filter(x=>x&&x.v!=null).map(x=>x.v);
+    const vals=['code','std_gsm8k_s30'].map(c=>m.cats[c]).filter(x=>x&&x.v!=null).map(x=>x.v);
     const macro=vals.length?pct(vals.reduce((a,b)=>a+b,0)/vals.length):'—';
     const code=m.cats.code, ag=m.cats.agentic;
-    const ci=x=>x&&x.lo!=null?` [${pct(x.lo)},${pct(x.hi)}]`:'';
+    const ci=x=>x&&x.lo!=null?` [${pct(x.lo)},${pct(x.hi)}] · n=${x.n}`
+      :(x&&x.n!=null?` · n=${x.n}`:'');
     const nb=Object.keys(m.broken||{});
     const badge = nb.length ? ` <span class="warn" title="${m.broken[nb[0]]}">⚠ n/c ×${nb.length}</span>` : '';
     h+=`<tr><td><b style="color:${m.color}">●</b> ${m.label}${m.gaps&&m.gaps.length?' <span class="warn" title="'+m.gaps.join('&#10;')+'">⚠</span>':''}${badge}</td><td><b>${macro}</b></td>`+
       `<td>${code&&code.v!=null?pct(code.v)+ci(code):'—'}</td><td>${ag&&ag.v!=null?pct(ag.v)+ci(ag):'—'}</td></tr>`;
   });
   document.getElementById('tbl-q').innerHTML=h;
+  document.getElementById('tbl-q').insertAdjacentHTML('beforebegin',
+    '<p class="nd">¹ Descriptive mean of the two valid non-MC suites shared by all six. Not a CUT/ADVANCE score.</p>');
 })();
 agenticChart('c-deep', D.deep);
 /* CS-100: one metric, six models -> a horizontal bar chart reads better
@@ -1277,8 +1459,8 @@ function csBars(id, rows){
       if(!d) return '';
       const c=d.cell;
       let s=`<b>${d.r.label}</b><br/><b>MMLU-CS (100): ${pct(c.v)}</b>`;
-      if(c.src==='text_match')
-        s+=`<br/><span style="color:#f0c674">⚠ text-match instrument (generated answer matched to option)</span>`+
+       if(c.src==='text_match')
+         s+=`<br/><span style="color:#f0c674">Text-match instrument (generated answer matched to option)</span>`+
            (c.range?`<br/>range ${pct(c.range[0])}–${pct(c.range[1])}`:'')+
            (c.unparsed!=null?`<br/>unparsed ${(c.unparsed*100).toFixed(1)}%`:'');
       if(c.lo!=null) s+=`<br/>95% CI ${pct(c.lo)} – ${pct(c.hi)} · n=${c.n}`;
@@ -1292,14 +1474,14 @@ function csBars(id, rows){
       axisLabel:{color:'#cfd6de'},axisTick:{show:false},
       inverse:true},
     series:[{type:'bar', itemStyle:{borderRadius:[0,3,3,0]},
-      data:data.map(d=>({value:d.cell.v,
-        itemStyle:{color:d.r.color, opacity: d.cell.src==='text_match'?0.62:1,
-          borderColor: d.cell.src==='text_match'?'#f0c674':'transparent',
-          borderWidth: d.cell.src==='text_match'?2:0}})),
-      label:{show:true,position:'right',color:'#e6e8eb',
-        formatter:p=>pct(p.value)+ (data[p.dataIndex].cell.src==='text_match'?' ◐':'')}}]});
-  const nd=document.getElementById('nd-'+id);
-  if(nd) nd.innerHTML='◐ = measured with the text-match instrument (a different mechanism, not comparable with the letter-logprob rows).';
+       data:data.map(d=>({value:d.cell.v,
+         itemStyle:{color:d.r.color,opacity:1,
+           borderColor:d.cell.src==='text_match'?'#f0c674':'transparent',
+           borderWidth:d.cell.src==='text_match'?1.5:0}})),
+       label:{show:true,position:'right',color:'#e6e8eb',
+         formatter:p=>pct(p.value)}}]});
+   const nd=document.getElementById('nd-'+id);
+   if(nd) nd.textContent='';
 }
 /* cs100 section */
 (function(){

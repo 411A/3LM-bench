@@ -166,7 +166,7 @@
    "modality": "code-exec",
    "n": 164,
    "paper": "Chen et al. 2021, arXiv:2107.03374",
-   "protocol_deviation": "check(entry_point) baked into stored test (runner contract); documented in REVIEW.md D1",
+    "protocol_deviation": "check(entry_point) baked into stored test (runner contract); documented in docs/archive/reviews/REVIEW.md D1",
    "status": "verified",
    "url": "https://github.com/openai/human-eval",
    "verified_date": "2026-10-16"

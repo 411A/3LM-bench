@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 llmbench contributors
+Copyright (c) 2026 3LM Bench contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-DATASETS ARE NOT COVERED BY THIS LICENSE. Standard benchmarks are downloaded
-at first use from their upstream hosts and retain their own licenses:
-ARC (CC BY-SA 4.0), HellaSwag (MIT), WinoGrande (CC BY 4.0 validation),
-GSM8K (MIT), TruthfulQA (Apache-2.0), Belebele (CC BY-SA 4.0), MMLU (MIT),
-HumanEval (MIT). See benchmarks/catalog.json for per-dataset terms.
-Do not redistribute downloaded dataset files; distribute this code plus
-standard_fetch.py acquisition instructions instead.
+DATASETS AND THIRD-PARTY SOFTWARE ARE NOT COVERED BY THIS LICENSE. Bundled
+HumanEval/MBPP source files and the ECharts report asset retain their own
+licenses and notices; see THIRD_PARTY_NOTICES.md. Other standard benchmark
+downloads are fetched from upstream and retain their upstream terms; see
+benchmarks/catalog.json. Do not assume the project MIT license applies to
+those materials.

@@ -1,13 +1,32 @@
-# caches, downloads, local-only artifacts (never commit)
+# Upstream downloads and generated benchmark data (never commit)
 data/raw/
 data/*.part
 tasks/std_*.json
 results/
 logs/
+
+# Python tooling and local environments
 __pycache__/
 .ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 *.pyc
 .venv/
+.env
+.env.*
+!.env.example
+
+# Build/editor/OS artifacts
+build/
+dist/
+*.egg-info/
+node_modules/
+.sentry-native/
 .DS_Store
-# local speed probe output (regenerable)
-results/speed.json
+Thumbs.db
+
+# Local model weights are large and are not benchmark source data
+*.gguf
+*.safetensors

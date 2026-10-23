@@ -148,7 +148,7 @@ def main():
         return
 
     # ------------------------------------------------------------ markdown
-    print("## llmbench results\n")
+    print("## 3LM Bench results\n")
     print("Accuracy cells show the point estimate with its 95% Wilson interval. "
           "Intervals are wide by design - every task here has n < 100, where the "
           "normal approximation is invalid.\n")

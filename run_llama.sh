@@ -170,11 +170,10 @@ profile_args() { # sets TASKS CAPS REPS AGENTIC LIMIT(for pilot/qualifier/tasks)
   case "$PROFILE" in
     pilot) TASKS="all"; LIMIT="${LIMIT:-5}"; REPS=1; TIMEOUT=300;;
     qualifier)
-      # WORLD CUP QUALIFIER: ~30 min/model. Stratified s30 subsets, identical
-      # for every model (deterministic seed), so the ranking is fair. MC kills
-      # the guessers, 3+3 code + 12 math + 3 chains test generation/tool use.
-      # Survivors go to screening/full. Results ARE comparable across models
-      # (identical items) but NOT against full-split numbers.
+      # WORLD CUP QUALIFIER: ~30 min/model. Non-agentic subsets are deterministic
+      # and shared. A CUT/ADVANCE macro is valid only when mechanisms and item
+      # IDs also match; qualify.py fails closed if fewer than three shared,
+      # qualified categories remain. Never compare q results to full splits.
       TASKS="science,electronics,persian,english,std_arc_easy_s30,std_winogrande_s30,std_truthfulqa_mc_s30,std_hellaswag_s30,std_belebele_fa_s30,std_mmlu_s30,std_gsm8k_s30,code_humaneval,code_mbpp,agentic"
       LIMIT="${LIMIT:-12}"
       CAPS="code_humaneval=3,code_mbpp=3,agentic=3"

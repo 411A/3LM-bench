@@ -1,4 +1,4 @@
-# llmbench
+# 3LM Bench (Lean LLM Bench)
 
 Reproducible, local-first evaluation of small LLMs (2–4B, CPU, 3–8 tok/s)
 across **standard published benchmarks** plus hand-built suites for Persian,
@@ -14,10 +14,36 @@ electronics/embedded, DevOps, network diagnosis, lint quality, and tool use.
   paired McNemar/Holm comparison. No single "intelligence score".
 - Stdlib-only Python, CPU-only, offline-capable, sandboxed code execution.
 
+## Project development
+
+The project as a whole—including its code, benchmark design, documentation,
+and report—was built from human prompts with assistance from multiple AI
+agents, then reviewed by a human. This is a development-process disclosure;
+it is not a claim of external peer review.
+
+The committed `reports/screening.html` is a static snapshot of the benchmark
+results described below. Raw model outputs, run logs, downloaded standard
+datasets, and generated standard task files are deliberately local-only and
+ignored by Git; regenerating the snapshot requires restoring those local result
+files. See [Repository layout](#repository-layout) and
+[Contributing](CONTRIBUTING.md).
+
 ## Quick start
 
 ```bash
-cd llmbench
+# Run these commands from the cloned repository root.
+python3 --version  # Python 3.10+
+
+# Optional: isolate the environment (there are no required pip packages).
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Fast, model-free sanity checks.
+python3 -m py_compile ./*.py tests/*.py
+python3 tests/test_units.py
+python3 run.py --help
+
+# Build custom tasks from the bundled HumanEval/MBPP source files.
 python3 build_tasks.py && python3 build_tasks2.py \
   && python3 build_lint.py && python3 build_electronics.py
 
@@ -40,9 +66,17 @@ bash run_all.sh --all       # whole queue, strictly sequential
 
 python3 report.py            # cross-model comparison table
 python3 compare.py results/A.json results/B.json --holm   # only sanctioned A>B claim
-python3 charts.py              # self-contained ECharts report -> reports/screening.html
+python3 charts.py              # offline HTML report -> reports/screening.html
 python3 rescore.py           # re-aggregate after changing scoring code
 ```
+
+To run inference, start a local Ollama service or a compatible llama.cpp
+server first. No hosted model API is used. The execution-based task families
+also need their optional local toolchains (`ruff`, Rust, and/or `g++`); see
+[`requirements.txt`](requirements.txt). For a complete local gate run, use
+`bash gates.sh` after fetching standard data and restoring the raw result files
+needed by the audit/report contracts. GitHub CI runs the model-free checks and
+does not download datasets or run inference.
 
 `run_all.sh` drives every model sequentially, unloading between each one and
 waiting for a memory floor. `standard_fetch.py --check` verifies the data
@@ -118,21 +152,24 @@ Tier-3. Custom MC sets complement — never replace — these.
 
 ## Release state (2026-10-22)
 
-**Six models, four instruments, 26 result files, every one complete.**
+**Six models; 26 complete local result files in the 2026-10-22 snapshot.**
 222 published numbers re-derive from their raw records with zero mismatches
-(`python3 audit.py`), and ten pre-production gates pass (`bash gates.sh`).
+(`python3 audit.py`), and the local pre-production gates pass (`bash gates.sh`).
 
 | instrument | coverage | notes |
 |---|---|---|
-| Screening (14 custom + 8 standard s30 suites) | 6/6 models | the headline tables |
-| Qualifier (identical fast subsets, all models) | 6/6 | CUT/ADVANCE screening decision, not a quality claim |
+| Screening (14 custom + 8 standard s30 suites) | 6/6 models | 544 identical non-agentic record IDs/prompts per model; k2 MC is stored in its separate text-match instrument |
+| Qualifier | 6/6 files | non-agentic subsets match, but the current data have only 2 common qualified categories; no valid macro rank/CUT/ADVANCE |
 | CS-100 decider (full MMLU-CS subject) | 5/6 | k2 via the text instrument |
 | Agentic-19 (19 dependent tool chains) | 5/6 | medgemma has no tool support in any available runtime |
 | Isolated throughput (dedicated quiet-box pass) | 6/6 | one model, fresh server, median of 12 identical prompts |
 | Text-match MC (second mechanism) | k2 | see "Two multiple-choice mechanisms" below |
 
-`reports/screening.html` is the published report: self-contained, offline,
-one section per instrument, never a cross-instrument ranking.
+`reports/screening.html` is the committed report snapshot: it works offline
+with its adjacent ECharts asset and has separate sections for each measurement
+instrument. Raw results are not included, so a fresh clone can view the report
+but cannot independently regenerate its data payload until local results are
+restored. No chart ranks scores across different instruments.
 
 The report is covered by its own gate (`python3 tests/test_report.py`, run
 by `bash gates.sh`): the published payload must contain no NaN, a missing
@@ -142,10 +179,10 @@ on its letter-logprob cells.
 
 ### What the numbers do and do not support
 
-- **n = 30 per screening cell.** The Wilson interval is ±13–17 pp. Most
-  pairwise differences between models are *not* significant; read the
-  interval, not the gap. The qualifier's job is to separate 70% from 40%,
-  nothing finer.
+- **n = 30 per standard screening cell.** The Wilson interval is ±13–17 pp.
+  Most pairwise differences between models are *not* significant; read the
+  interval, not the gap. The qualifier was designed to separate 70% from 40%,
+  but its current aggregate is not rankable across the recorded mechanisms.
 - **This is a profile, not a leaderboard.** The macro-means are exploratory
   (17 cells × 6 models is many comparisons). The only sanctioned A>B claim
   in the project is `compare.py`'s paired McNemar + Holm.
@@ -155,6 +192,15 @@ on its letter-logprob cells.
   mechanism reads the generated answer; its cells carry a published
   `unparsed_rate` and an accuracy *range*, and are never ranked against the
   other five models' letter-logprob numbers.
+- **Record-count caveat.** The coverage table splits k2's 388 screening MC
+  records into the text-match column; its primary file therefore has fewer
+  records even though the combined non-agentic screening items match. The
+  displayed 544 common records exclude the separately reported agentic runs.
+- **Qualifier caveat.** The saved qualifier files include k2 MC scores from a
+  failed letter-logprob probe, tool-probe-failed agentic cells, and 3 vs 5
+  agentic chains. `qualify.py` now excludes invalid/different-item cells and
+  reports NOT RANKABLE when fewer than three common categories remain. No
+  rerun is needed for the already-complete screening report.
 - **medgemma-4b's agentic cell is unmeasured**, not zero: the model has no
   tool-calling support in Ollama (`does not support tools`) or llama.cpp.
 - **Position confound.** MMLU-6, HellaSwag and WinoGrande are
@@ -171,6 +217,16 @@ on its letter-logprob cells.
 - **Upstream labels are upstream labels.** MMLU's own answer keys carry
   roughly 6% label noise, and the MMLU-6 cells hold 5 items per subject.
 
+## Publishing and licenses
+
+The project code is MIT-licensed. Bundled HumanEval/MBPP inputs and the ECharts
+chart library have separate upstream terms and notices; see
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Downloaded standard dataset
+caches, raw results, logs, and model weights are excluded from Git. The
+committed HTML is a results snapshot, not a substitute for those raw inputs.
+GitHub Actions runs compilation, shell syntax, model-free unit contracts, and
+CLI help checks; it does not run models or fetch datasets.
+
 ### Durability: what survives a bad day
 
 A benchmark that loses data to the machine it runs on is not a benchmark.
@@ -184,7 +240,7 @@ Every one of these is implemented and covered by a gate or a unit test:
 | server OOM | per-item RSS guard, clean abort, fresh server, item-level resume | `--until-complete` |
 | checkpoint write interrupted | atomic write (temp + fsync + rename): the file is never half-written | `write_atomic()` |
 | a task never reached | the coverage map is built *before* the task loop, so a missing suite shows as a gap | `coverage_report()` |
-| the harness itself | 10 gates, 222-number audit, 60+ unit contracts | `bash gates.sh` |
+| the harness itself | 10 gate groups, 222-number audit, 60+ unit contracts | `bash gates.sh` |
 
 ### Two multiple-choice mechanisms
 
@@ -350,46 +406,36 @@ the file's task list never changes.
 ```bash
 python3 standard_fetch.py --fetch-all   # online, once; fills data/raw + tasks/std_*.json
 python3 standard_fetch.py --check       # offline verification of the cache
-python3 run.py ... --offline            # refuses network-dependent paths (reserved flag)
+python3 run.py ... --offline            # refuses standard tasks missing from the local cache
 ```
 
-Dataset files are never committed (see `.gitignore`); redistribute this code
-plus acquisition instructions, not the data.
+Downloaded standard datasets and generated standard task files are never
+committed (see `.gitignore`). The small HumanEval/MBPP source files are bundled
+under their own licenses; see `THIRD_PARTY_NOTICES.md`. Do not redistribute
+any benchmark material without following its upstream terms.
 
-## Layout
+## Repository layout
 
 ```
-standard_fetch.py   pinned standard-benchmark fetcher (ARC/HellaSwag/GSM8K/...)
-benchmarks/catalog.json  machine-readable suite catalog + licenses
-verify_standard.py  schema/gold/balance controls for standard tasks
-build_tasks.py      HumanEval + MBPP extraction, bugfix/algo/refactor/rust sets
-build_tasks2.py     science, Persian, English, netdiag, DevOps
-build_lint.py       ruff and clippy task sets
-build_electronics.py electronics MC + embedded C++, with the mock Arduino header
-verify_cpp.py       proves every embedded task has teeth
-verify_golds.py     arithmetic/position/leakage controls for custom MC
-verify_devops.py    echo-rejected / artifact-accepted / ban-penalised
-negcontrols.py      wrong answers fail; cheaters cannot max headlines
-determinism.py      fixed-seed reproducibility per model+backend
-backend.py          uniform client over Ollama and llama.cpp
-scorers.py          execution, lint, Persian normalisation, Wilson, pass^k, GSM8K math
-agentic.py          tool specs, simulated world, dependent chains
-run.py              the harness (custom + standard runners)
-report.py           cross-model comparison (PRIMARY-STD + PRIMARY-CUSTOM)
-compare.py          paired McNemar/Holm A-vs-B
-charts.py           self-contained HTML charts (radar, CIs, heatmap, efficiency)
-rescore.py          re-aggregate existing results offline
-speed.py            controlled throughput measurement (the isolated pass)
-audit.py            re-derives every published number from the raw records
-crashtest.py        simulates a power cut and proves the resume continues
-drop_tasks.py       invalidates the records of changed tasks (instance change)
-standard_strata.py  builds the stratified s30 instances (position debiasing)
-close_coverage.sh   fills the instrument-coverage gaps, one model at a time
-remeasure_debiased.sh  re-measures only the cells whose instance changed
-snapshot.sh         archives the evidence to ~/llmbench-backups
-run_llama.sh        the queue runner (profiles, resume, --until-complete)
-gates.sh            the pre-production gate suite (10 gates)
-run_all.sh          sequential driver across all models
-REVIEW*.md          the evidence log: every defect found, and what fixed it
-docs/METHODOLOGY.md research specification and prior-art survey
+benchmarks/          suite catalog, source metadata, and license notes
+data/                manifest plus small licensed source inputs; raw downloads are ignored
+docs/                methodology, contributor docs, and archived audit history
+reports/             committed HTML snapshot and local ECharts asset
+tasks/               authored task definitions; standard generated tasks are ignored
+tests/               model-free unit tests and local-data report contracts
+*.py                 flat CLI entrypoints and shared modules (see below)
+*.sh                 local queue, durability, and verification workflows
 ```
+
+The Python files stay at the repository root intentionally: command-line
+scripts import one another as top-level modules, and the shell workflows invoke
+them by path. `docs/REPOSITORY_LAYOUT.md` maps the main commands and data flow;
+historical `REVIEW*.md` investigations live under `docs/archive/reviews/` and
+are archival evidence, not current protocol instructions.
+
+Useful entrypoints: `run.py` runs tasks; `run_llama.sh`/`run_all.sh` manage
+local queues; `standard_fetch.py` acquires standard data; `verify_*.py` check
+inputs; `report.py`/`charts.py` render results; `compare.py` performs paired
+tests; `audit.py` re-derives published values; and `gates.sh` runs the local
+pre-production checks. See [Contributing](CONTRIBUTING.md) before changing
+scorers, task files, or protocols.

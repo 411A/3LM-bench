@@ -1,5 +1,8 @@
 # Adversarial audit prompt — llmbench
 
+> Archived prompt: its counts and protocol description are historical. Check
+> current project behavior in `../../../README.md` and `../../METHODOLOGY.md`.
+
 Paste this entire file as the prompt to any model you want to use as an auditor.
 It is written to be self-contained: the auditor needs no other context.
 
@@ -173,5 +176,6 @@ UNVERIFIED.
 
 The author told the user that a model's 98.75% HumanEval score was "genuine",
 ruling out three explanations, and never checked that the test actually executed.
-If you find a claim in `README.md` or `REVIEW.md` that the code does not support,
+If you find a claim in `../../../README.md` or
+`../reviews/REVIEW.md` that the code does not support,
 say so plainly. I want to know where my reasoning was flawed, not reassured.

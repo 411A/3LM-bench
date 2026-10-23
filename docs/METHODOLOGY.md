@@ -1,4 +1,4 @@
-# Local LLM Code Benchmark — Research Specification
+# 3LM Bench (Lean LLM Bench) — Research Specification
 Machine: i5-6300U / 2 cores / 7.6 GB RAM, llama.cpp or Ollama @ 3-8 tok/s. No Docker, no node.
 
 ## 0. ENVIRONMENT CORRECTIONS (verified on this box)
@@ -575,7 +575,7 @@ CI                   : <Wilson 95%>
 
 A benchmark that loses data to the machine it runs on is not a benchmark. The
 protocol below is what makes "no missed data" a property of the harness
-rather than a hope. Full incident write-up: `REVIEW4.md`.
+rather than a hope. Full incident write-up: `archive/reviews/REVIEW4.md`.
 
 ### 7.1 Three invariants
 1. **Nothing scored is ever lost.** Every finished item is written to disk in
@@ -710,7 +710,7 @@ The rules now: the sandbox lives on disk (`~/.llmbench-tmp`, override with
 `LLMBENCH_TMP`), every artifact is deleted after it has run (success,
 compile-error and timeout paths), stale directories are swept at start-up,
 and two unit contracts assert that the sandbox is off `/tmp` and empty
-afterwards. See `REVIEW6.md`.
+afterwards. See `archive/reviews/REVIEW6.md`.
 
 ### 7.8 Position-debiased instances (and a stated threshold)
 
